@@ -1,26 +1,1298 @@
 @import "tailwindcss";
 
+/* ===== 6ix base palette ===== */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #0A0A0A;
+  /* black */
+  --text: #F3F4F6;
+  /* white */
+  --muted: #A3A3A3;
+  /* gray */
+  --gold: #E6C200;
+  /* "earn" only */
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+html,
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* ===== Glass card (3D bevel / water-ready) ===== */
+.card,
+.glass {
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 10px 40px rgba(0, 0, 0, 0.35);
+}
+
+/* Water sheen pass */
+.sheen {
+  position: relative;
+  overflow: hidden;
+}
+
+.sheen::after {
+  content: "";
+  position: absolute;
+  inset: -20%;
+  background: linear-gradient(105deg, transparent 40%, rgba(255, 255, 255, 0.20) 50%, transparent 60%);
+  transform: translateX(-120%);
+  transition: transform 900ms ease;
+  isolation: isolate;
+  contain: paint;
+}
+
+.sheen:hover::after {
+  transform: translateX(120%);
+}
+
+/* Jelly hover */
+@keyframes jelly {
+  0% {
+    transform: scale3d(1, 1, 1);
+  }
+
+  30% {
+    transform: scale3d(1.07, 0.93, 1);
+  }
+
+  45% {
+    transform: scale3d(0.96, 1.05, 1);
+  }
+
+  60% {
+    transform: scale3d(1.02, 0.98, 1);
+  }
+
+  100% {
+    transform: scale3d(1, 1, 1);
   }
 }
 
+.jelly:hover {
+  animation: jelly 600ms cubic-bezier(.22, 1, .36, 1);
+}
+
+/* White 3D button → turns black on hover */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
+  padding: .8rem 1.1rem;
+  border-radius: 14px;
+  font-weight: 600;
+  user-select: none;
+  transition: transform .15s ease, background .15s ease, color .15s ease, border-color .15s ease;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+}
+
+.btn-ghost {
+  /* glassy ghost */
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+}
+
+.btn-white {
+  /* solid white */
+  color: #000;
+  background: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 8px 20px rgba(255, 255, 255, 0.06),
+    0 2px 0 rgba(255, 255, 255, 0.15);
+}
+
+.btn-white:hover {
+  background: #000;
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+/* Layout helper */
+.container {
+  width: 100%;
+  max-width: 64rem;
+  margin-inline: auto;
+  padding-inline: 1.25rem;
+}
+
+/* Auto water sheen for splash (2s, back-and-forth) */
+/* Slow dragon-blink water sheen for splash */
+.sheen-auto {
+  position: relative;
+  overflow: hidden;
+}
+
+.sheen-auto::after {
+  content: "";
+  position: absolute;
+  inset: -8%;
+  background: linear-gradient(105deg, transparent 40%, rgba(255, 255, 255, 0.22) 50%, transparent 60%);
+  transform: translateX(-140%);
+  opacity: 0;
+  animation: sheenBlink 7000ms cubic-bezier(.22, 0, .36, 0) infinite;
+  isolation: isolate;
+  contain: paint;
+}
+
+@keyframes sheenBlink {
+  0% {
+    transform: translateX(-140%);
+    opacity: 0;
+  }
+
+  15% {
+    opacity: .25;
+  }
+
+  50% {
+    transform: translateX(140%);
+    opacity: .25;
+  }
+
+  65% {
+    opacity: 0;
+  }
+
+  100% {
+    transform: translateX(-140%);
+    opacity: 0;
+  }
+}
+
+/* compact size for the corner CTA */
+.btn-sm {
+  padding: .45rem .60rem;
+  border-radius: .8rem;
+  font-size: .9rem;
+  gap: .4rem;
+}
+
+.btn-lg {
+  padding: .9rem 1.25rem;
+  border-radius: 1.25rem;
+  font-size: 1rem;
+  gap: .55rem;
+}
+
+/* Water sheen running on MOBILE only (for "Why 6ix?" pills) */
+.water-mobile {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+@media (max-width:639px) {
+  .water-mobile::after {
+    content: "";
+    position: absolute;
+    inset: -15%;
+    background: linear-gradient(105deg, transparent 40%, rgba(255, 255, 255, .22) 50%, transparent 60%);
+    animation: sheenBlink 2200ms cubic-bezier(.22, 1, .36, 1) infinite;
+    opacity: .25;
+  }
+}
+
+/* Muted legal links (no buttons) */
+.link-muted {
+  color: rgb(161 161 170);
+  text-decoration: none;
+}
+
+.link-muted:hover {
+  color: rgb(212 212 216);
+  text-decoration: underline;
+}
+
+/* ===== Mobile water scroll effect ===== */
+.waterfx-mobile {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  pointer-events: none;
+  opacity: .35;
+  mix-blend-mode: screen;
+  backdrop-filter: saturate(120%) blur(.5px);
+  /* three soft highlights that drift with scroll */
+  background:
+    radial-gradient(120px 80px at 20% calc(10% + var(--y, 0px)), rgba(255, 255, 255, .08), transparent 60%),
+    radial-gradient(140px 100px at 80% calc(30% + var(--y, 0px)), rgba(255, 255, 255, .06), transparent 65%),
+    radial-gradient(100px 70px at 50% calc(70% + var(--y, 0px)), rgba(255, 255, 255, .05), transparent 70%);
+}
+
+@media (min-width:640px) {
+  .waterfx-mobile {
+    display: none;
+  }
+}
+
+html,
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+
+  -webkit-tap-highlight-color: transparent;
+}
+
+.smooth-scroll {
+  scroll-behavior: smooth;
+}
+
+/* ===================================== */
+
+/* Edge-to-edge helper (apply to any block to span full width neatly) */
+.edge {
+  width: 100%;
+  max-width: none;
+  padding-left: max(1rem, env(safe-area-inset-left));
+  padding-right: max(1rem, env(safe-area-inset-right));
+}
+
+@media (min-width:1024px) {
+  .edge {
+    padding-left: 4rem;
+    padding-right: 4rem;
+  }
+}
+
+/* Crisp fonts everywhere */
+html,
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Desktop: lock page height & hide scroll; mobile keeps normal scroll */
+@media (min-width: 768px) {
+  .no-scroll-desktop {
+    height: 100dvh;
+    overflow: hidden;
+  }
+}
+
+/* “IX” next to the 6 — black fill with white stroke */
+.logo-ix {
+  color: #000;
+  /* black fill */
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: .5px;
+}
+
+@supports (-webkit-text-stroke: 1px white) {
+  .logo-ix {
+    -webkit-text-stroke: 2px #fff;
+  }
+
+  /* white outline */
+}
+
+/* Smooth/Sharper text */
+html,
+body {
+  height: 100%;
+}
+
+body {
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Desktop: no scroll; mobile can scroll */
+@media (min-width: 640px) {
+  body {
+    overflow: hidden;
+  }
+}
+
+/* Brand position + IX dim */
+:root {
+  --brand-x: 16px;
+  /* left offset for the 6+IX cluster */
+  --brand-y: 16px;
+  /* top offset for the 6+IX cluster */
+  --ix-opacity: .72;
+  /* dim IX to blend with logo */
+}
+
+/* If you don't already have this utility */
+.container {
+  max-width: 1120px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+/* === Normalize water + sheen animation speeds on mobile === */
+:root {
+  /* pick the speeds you like (desktop + mobile will share these) */
+  --ripple-speed: 18s;
+  /* water ripple */
+  --sheen-speed: 10s;
+  /* glass sheen pass */
+}
+
+/* make both desktop and mobile use the same (slow) speeds */
+.water-mobile,
+.water {
+  animation-duration: var(--ripple-speed) !important;
+}
+
+/* if your sheen runs separately, slow it too */
+.sheen,
+.sheen-auto {
+  animation-duration: var(--sheen-speed) !important;
+}
+
+/* optional: if you ONLY want to slow on small screens */
+@media (max-width: 767px) {
+  .water-mobile {
+    animation-duration: var(--ripple-speed) !important;
+  }
+
+  .sheen,
+  .sheen-auto {
+    animation-duration: var(--sheen-speed) !important;
+  }
+}
+
+/* ===== Unify animation speeds (mobile) ===== */
+:root {
+  /* tune these to taste */
+  --ripple-speed: 18s;
+  /* water ripple */
+  --sheen-speed: 12s;
+  /* glass sheen */
+}
+
+/* iOS/phone targets */
+@media (max-width: 767px) {
+
+  /* Ripple: cover element + pseudo-elements + extra specificity */
+  .water-mobile,
+  .water-mobile::before,
+  .water-mobile::after,
+  .water-mobile.water-mobile {
+    -webkit-animation-duration: var(--ripple-speed) !important;
+    animation-duration: var(--ripple-speed) !important;
+    -webkit-animation-iteration-count: infinite !important;
+    animation-iteration-count: infinite !important;
+  }
+
+  /* Sheen: same idea */
+  .sheen,
+  .sheen-auto,
+  .sheen::before,
+  .sheen::after,
+  .sheen-auto::before,
+  .sheen-auto::after {
+    -webkit-animation-duration: var(--sheen-speed) !important;
+    animation-duration: var(--sheen-speed) !important;
+  }
+}
+
+/* Extra iOS nudge if needed (Safari quirk target) */
+@supports (-webkit-touch-callout: none) {
+
+  .water-mobile,
+  .water-mobile::before,
+  .water-mobile::after {
+    -webkit-animation-duration: var(--ripple-speed) !important;
+    animation-duration: var(--ripple-speed) !important;
+  }
+}
+
+/* --- Universal button primitives --- */
+.btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  gap: .5rem;
+  padding: .625rem 1rem;
+  /* 10px 16px */
+  border-radius: 9999px;
+  border: 1px solid transparent;
+  font-weight: 600;
+  user-select: none;
+  cursor: pointer;
+  transition: background .25s ease, color .25s ease, transform .12s ease, box-shadow .25s ease;
+}
+
+.btn:disabled {
+  opacity: .6;
+  cursor: not-allowed;
+}
+
+/* Base variants (non-hover state) */
+.btn-primary {
+  background: #fff;
+  color: #000;
+  border-color: transparent;
+}
+
+.btn-outline {
+  background: rgba(255, 255, 255, .05);
+  color: rgba(255, 255, 255, .85);
+  border-color: rgba(255, 255, 255, .15);
+}
+
+/* Hover → turn **black** with white text (pointer devices only) */
+@media (hover:hover) and (pointer:fine) {
+
+  .btn-primary:hover,
+  .btn-outline:hover {
+    background: #000;
+    color: #fff;
+    border-color: rgba(255, 255, 255, .25);
+    box-shadow: inset 0 0 40px rgba(255, 255, 255, .08);
+    transform: translateZ(0) scale(1.01);
+  }
+
+  .btn:active {
+    transform: scale(.99);
+  }
+}
+
+/* Optional “water/jelly” sheen on hover */
+@media (hover:hover) and (pointer:fine) {
+  .btn-water {
+    overflow: hidden;
+  }
+
+  .btn-water::after {
+    content: "";
+    position: absolute;
+    inset: -150% -50% auto -50%;
+    height: 300%;
+    transform: translateY(60%) rotate(8deg);
+    background:
+      radial-gradient(180px 120px at 50% 40%, rgba(255, 255, 255, .12), transparent 60%),
+      radial-gradient(220px 160px at 50% 60%, rgba(255, 255, 255, .06), transparent 70%);
+    opacity: 0;
+    transition: opacity .35s ease, transform .45s ease;
+    pointer-events: none;
+  }
+
+  .btn-water:hover::after {
+    opacity: 1;
+    transform: translateY(30%) rotate(8deg);
+  }
+}
+
+/* Water reflection overlay */
+.abs-water-lines,
+.abs-water-gloss {
+  position: absolute;
+  inset: -20%;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.abs-water-lines {
+  /* faint diagonal ripples drifting slowly */
+  background: repeating-linear-gradient(-25deg,
+      rgba(255, 255, 255, .055) 0 2px,
+      rgba(255, 255, 255, 0) 2px 10px);
+  mix-blend-mode: soft-light;
+  opacity: .22;
+  animation: waterDrift 18s linear infinite;
+}
+
+.abs-water-gloss {
+  /* wide soft highlight sweeping across */
+  top: -25%;
+  bottom: -25%;
+  left: -45%;
+  right: auto;
+  width: 48%;
+  background: linear-gradient(90deg,
+      rgba(255, 255, 255, 0) 0%,
+      rgba(255, 255, 255, .08) 35%,
+      rgba(255, 255, 255, .16) 50%,
+      rgba(255, 255, 255, .08) 65%,
+      rgba(255, 255, 255, 0) 100%);
+  filter: blur(6px);
+  mix-blend-mode: screen;
+  opacity: .45;
+  transform: rotate(8deg) translateX(-140%);
+  animation: waterSweep 14s linear infinite;
+}
+
+@keyframes waterDrift {
+  from {
+    background-position: 0 0;
+  }
+
+  to {
+    background-position: 420px 0;
+  }
+
+  /* slooow */
+}
+
+@keyframes waterSweep {
+  from {
+    transform: rotate(8deg) translateX(-140%);
+  }
+
+  to {
+    transform: rotate(8deg) translateX(220%);
+  }
+}
+
+/* Respect users who prefer less motion */
+@media (prefers-reduced-motion: reduce) {
+
+  .abs-water-lines,
+  .abs-water-gloss {
+    animation: none;
+    opacity: .12;
+  }
+}
+
+/* 3-D pressable button effect */
+.btn-3d {
+  transform: translateY(0);
+  box-shadow: 0 8px 0 rgba(0, 0, 0, .35), 0 18px 40px rgba(0, 0, 0, .35);
+  transition: transform .08s ease, box-shadow .08s ease;
+}
+
+.btn-3d:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 0 rgba(0, 0, 0, .35), 0 24px 50px rgba(0, 0, 0, .45);
+}
+
+.btn-3d:active {
+  transform: translateY(2px);
+  box-shadow: 0 6px 0 rgba(0, 0, 0, .35), 0 12px 24px rgba(0, 0, 0, .35);
+}
+
+/* Reserve room for the fixed dock across the app */
+.has-dock {
+  /* 76px dock + device safe area */
+  padding-bottom: calc(76px + env(safe-area-inset-bottom));
+}
+
+/* Single-line pendulum glow (no visible start/end, just sweeps left<->right) */
+.pendulum-liner {
+  height: 2px;
+  position: relative;
+  overflow: hidden;
+}
+
+.pendulum-liner .liner-bar {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -40%;
+  /* start well off-screen */
+  width: 80%;
+  /* long single glow line */
+  display: block;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .7), transparent);
+  animation: pendulum 3.6s ease-in-out infinite alternate;
+  will-change: transform, opacity;
+}
+
+@keyframes pendulum {
+  0% {
+    transform: translateX(-10%);
+    opacity: .85;
+  }
+
+  50% {
+    opacity: 1;
+  }
+
+  100% {
+    transform: translateX(110%);
+    opacity: .85;
+  }
+}
+
+/* Helper: if you want only inner content to scroll on pages,
+give the scrolling wrapper this class to keep the dock/top bar from rubber-banding */
+.page-scroll {
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+}
+
+body.splash .global-dock {
+  display: none !important;
+}
+
+body.splash .topbar-mobile {
+  display: none !important;
+}
+
+body.splash {
+  overflow: hidden;
+}
+
+orb {
+  --size: 210px;
+  width: var(--size);
+  height: var(--size);
+  border-radius: 50%;
+  position: relative;
+  display: grid;
+  place-items: center;
+  margin: 28px auto 0;
+  touch-action: manipulation;
+  transform-style: preserve-3d;
+  perspective: 1000px;
+}
+
+.orb__core {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #ffffff, #cccccc 45%, #777777 65%, #222222 90%);
+  box-shadow:
+    inset 0 0 30px rgba(255, 255, 255, 0.4),
+    inset 0 -15px 40px rgba(0, 0, 0, 0.45),
+    0 20px 60px rgba(255, 255, 255, 0.08);
+  animation: orbPulse 5s ease-in-out infinite alternate;
+  position: relative;
+  z-index: 1;
+}
+
+.orb__logo {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) translateZ(1px);
+  font: 800 18px/1 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  color: rgba(0, 0, 0, 0.4);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.85),
+    0 -1px 0 rgba(0, 0, 0, 0.45), 0 0 1px rgba(0, 0, 0, 0.2);
+}
+
+@keyframes orbPulse {
+  0% {
+    transform: rotateX(10deg) rotateY(-10deg) scale(1);
+  }
+
+  50% {
+    transform: rotateX(14deg) rotateY(-12deg) scale(1.02);
+  }
+
+  100% {
+    transform: rotateX(10deg) rotateY(-10deg) scale(1);
+  }
+}
+
+/* styles/critical.css — loaded at layout-level so it renders before hydration */
+:root {
+  color-scheme: dark;
+}
+
+/* Generic pill buttons used by header + bottom nav */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
+  border-radius: 9999px;
+  padding: .42rem .66rem;
+  line-height: 1;
+  font-size: 12px;
+  border: 1px solid rgba(255, 255, 255, .16);
+  background: transparent;
+  color: #fff;
+}
+
+.btn:active {
+  transform: translateY(.5px);
+}
+
+.btn-water {
+  background: linear-gradient(180deg, rgba(255, 255, 255, .08), rgba(255, 255, 255, .04));
+  backdrop-filter: blur(10px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .24),
+    inset 0 -1px 0 rgba(0, 0, 0, .35),
+    0 4px 16px rgba(0, 0, 0, .35);
+}
+
+.btn-water--active {
+  background: #fff;
+  color: #000;
+  border-color: #fff;
+}
+
+/* Select pill look used in the header model/speed/mode pickers */
+label.btn select {
+  background: transparent;
+  color: #fff;
+  outline: none;
+  font-size: 12px;
+  padding-right: 1rem;
+  appearance: none;
+}
+
+/* Input glow class that the composer uses */
+.input-glow {
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, .14), inset 0 0 10px rgba(255, 255, 255, .06);
+}
+
+:root {
+  --composer-h: 160px;
+  --header-h: 120px;
+}
+
+/* ─── Theme palettes via root classes ───────────────────────── */
+:root {
+  color-scheme: light dark;
+}
+
+/* advertise both */
+html.theme-dark {
+  background: #000;
+  color: #fff;
+}
+
+html.theme-light {
+  background: #fff;
+  color: #000;
+}
+
+/* Utility flips so your existing classes still look right on light */
+html.theme-light .bg-black {
+  background: #fff !important;
+}
+
+html.theme-light .bg-black\/75 {
+  background: rgba(255, 255, 255, .75) !important;
+}
+
+html.theme-light .bg-black\/85 {
+  background: rgba(255, 255, 255, .85) !important;
+}
+
+html.theme-light .text-white {
+  color: #000 !important;
+}
+
+html.theme-light .text-zinc-200 {
+  color: #2b2b2b !important;
+}
+
+html.theme-light .text-zinc-300 {
+  color: #3a3a3a !important;
+}
+
+html.theme-light .text-zinc-400 {
+  color: #595959 !important;
+}
+
+html.theme-light .border-white\/10 {
+  border-color: rgba(0, 0, 0, .10) !important;
+}
+
+html.theme-light .border-white\/12 {
+  border-color: rgba(0, 0, 0, .12) !important;
+}
+
+html.theme-light .border-white\/15 {
+  border-color: rgba(0, 0, 0, .15) !important;
+}
+
+html.theme-light .bg-white\/4 {
+  background: rgba(0, 0, 0, .04) !important;
+}
+
+html.theme-light .bg-white\/5 {
+  background: rgba(0, 0, 0, .05) !important;
+}
+
+html.theme-light .bg-white\/6 {
+  background: rgba(0, 0, 0, .06) !important;
+}
+
+/* Assistant bubble on light */
+html.theme-light .px-3.py-2.bg-white\/6.border.border-white\/12 {
+  background: rgba(0, 0, 0, .04) !important;
+  border-color: rgba(0, 0, 0, .10) !important;
+}
+
+/* Composer border shimmer tuned for light */
+html.theme-light .composer-shine {
+  background: rgba(0, 0, 0, .04) !important;
+}
+
+html.theme-light .composer-shine::before {
+  background: conic-gradient(from var(--angle),
+      rgba(0, 0, 0, 0.00) 0deg,
+      rgba(0, 0, 0, 0.55) 30deg,
+      rgba(120, 120, 120, 0.45) 60deg,
+      rgba(180, 180, 180, 0.25) 90deg,
+      rgba(0, 0, 0, 0.00) 120deg);
+}
+
+/* ── Header controls (model / speed / mode) flip for LIGHT ─────────── */
+html.theme-light .btn.btn-water,
+html.theme-light .btn-water {
+  background: rgba(0, 0, 0, .06) !important;
+  /* soft light bg */
+  border: 1px solid rgba(0, 0, 0, .18) !important;
+  /* darker border */
+  color: #000 !important;
+  /* text goes black */
+}
+
+/* make the native select text + caret character black in light mode */
+html.theme-light .btn-water select {
+  color: #000 !important;
+  -webkit-text-fill-color: #000 !important;
+  /* iOS Safari */
+}
+
+/* the little "⌄" arrow span you render next to the select */
+html.theme-light .btn-water>span {
+  color: #000 !important;
+  opacity: .7;
+  /* keep it subtle, still readable */
+}
+
+/* (optional) ensure dark mode stays white with no surprises */
+html.theme-dark .btn-water,
+html.theme-dark .btn-water select,
+html.theme-dark .btn-water>span {
+  color: #fff !important;
+}
+
+/* ── Action row icons + timestamp flip for LIGHT ───────────── */
+html.theme-light .action-row {
+  color: #000 !important;
+}
+
+/* your SvgBase sets stroke="white"; this overrides it in LIGHT */
+html.theme-light .action-row svg,
+html.theme-light .action-btn svg {
+  stroke: #000 !important;
+}
+
+/* hover keeps subtle contrast on light */
+html.theme-light .action-btn:hover {
+  filter: brightness(0.92);
+}
+
+/* time text under bubbles (you used text-zinc-500) */
+html.theme-light .text-zinc-500 {
+  color: #5a5a5a !important;
+}
+
+/* (optional) the tiny “×” and similar inline icon buttons */
+html.theme-light .action-btn {
+  color: #000 !important;
+}
+
+/* ===== User menu (scoped) ===== */
+.user-menu {
+  position: fixed;
+  z-index: 100;
+  border-radius: 18px;
+  overflow: hidden;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--sheet-border, rgba(255, 255, 255, .14));
+  background: var(--sheet-bg, rgba(0, 0, 0, .88));
+  box-shadow: 0 12px 40px rgba(0, 0, 0, .45);
+}
+
+/* light theme tokens */
+html.theme-light .user-menu {
+  --sheet-bg: rgba(255, 255, 255, .96);
+  --sheet-border: rgba(0, 0, 0, .12);
+  --sheet-div: rgba(0, 0, 0, .12);
+  color: #111;
+}
+
+/* dark theme tokens */
+html.theme-dark .user-menu {
+  --sheet-bg: rgba(0, 0, 0, .88);
+  --sheet-border: rgba(255, 255, 255, .14);
+  --sheet-div: rgba(255, 255, 255, .12);
+  color: #fff;
+}
+
+/* header row */
+.user-menu .sheet-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--sheet-div);
+}
+
+.user-menu .sheet-head .avatar {
+  height: 32px;
+  width: 32px;
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid var(--sheet-border);
+  background: rgba(255, 255, 255, .12);
+  display: grid;
+  place-items: center;
+}
+
+.user-menu .sheet-head .avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.user-menu .sheet-head .avatar .fallback {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  font-size: 10px;
+  font-weight: 600;
+  color: #000;
+  background: rgba(255, 255, 255, .35);
+}
+
+.user-menu .sheet-head .who .name {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.user-menu .sheet-head .who .sub {
+  font-size: 12px;
+  opacity: .6;
+}
+
+/* list + items */
+.user-menu .sheet-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.user-menu .sheet-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  font-size: 15px;
+  line-height: 1;
+  background: transparent;
+}
+
+.user-menu .sheet-item+.sheet-item {
+  /* hairline divider under each item like the second pic */
+  border-top: 1px solid var(--sheet-div);
+}
+
+.user-menu .sheet-item:hover {
+  background: rgba(255, 255, 255, .06);
+}
+
+html.theme-light .user-menu .sheet-item:hover {
+  background: rgba(0, 0, 0, .04);
+}
+
+/* the Theme row control */
+.user-menu .sheet-item--control select {
+  background: transparent;
+  border: 1px solid var(--sheet-border);
+  border-radius: 8px;
+  padding: 4px 8px;
+  font-size: 12px;
+  color: inherit;
+  outline: none;
+}
+
+/* optional red-ish Sign out */
+.user-menu .sheet-item--destructive {
+  color: #ffb3b3;
+}
+
+html.theme-light .user-menu .sheet-item--destructive {
+  color: #4b4a4a;
+}
+
+/* ===== Site tokens ===== */
+:root {
+  --th-bg: #000;
+  --th-text: #fff;
+  --th-card: rgba(255, 255, 255, .04);
+  --th-border: rgba(255, 255, 255, .12);
+  --th-accent: #3df6c9;
+  --th-btn-bg: var(--th-accent);
+  --th-btn-text: #031b14;
+  --wallpaper-url: '';
+}
+
+/* apply tokens to major containers */
+html[class*="theme-premium-"],
+html[class*="theme-anim-"] {
+  color-scheme: dark;
+}
+
+html[class*="theme-premium-"] body,
+html[class*="theme-anim-"] body {
+  background: var(--th-bg);
+  color: var(--th-text);
+}
+
+/* high-use elements in your app */
+html[class*="theme-premium-"] .app-header,
+html[class*="theme-premium-"] .composer-root,
+html[class*="theme-anim-"] .app-header,
+html[class*="theme-anim-"] .composer-root {
+  background: color-mix(in oklab, var(--th-bg), transparent 18%) !important;
+  border-color: var(--th-border) !important;
+}
+
+/* cards, borders, menus */
+html[class*="theme-premium-"] .user-menu,
+html[class*="theme-anim-"] .user-menu {
+  background: color-mix(in oklab, var(--th-bg), black 0%);
+  border-color: var(--th-border);
+}
+
+html[class*="theme-premium-"] .history-card,
+html[class*="theme-premium-"] .history-item {
+  background: var(--th-card) !important;
+  border-color: var(--th-border) !important;
+}
+
+/* accented controls */
+html[class*="theme-premium-"] .upload-btn,
+html[class*="theme-anim-"] .upload-btn {
+  border-color: color-mix(in oklab, var(--th-accent), currentColor 40%);
+}
+
+html[class*="theme-premium-"] .btn,
+html[class*="theme-anim-"] .btn {
+  background: var(--th-btn-bg);
+  color: var(--th-btn-text);
+}
+
+/* override the composer ring to follow accent */
+html[class*="theme-premium-"] .composer-shine::before,
+html[class*="theme-anim-"] .composer-shine::before {
+  background: conic-gradient(from var(--angle),
+      color-mix(in oklab, var(--th-accent), white 8%) 0deg,
+      color-mix(in oklab, var(--th-accent), black 20%) 60deg,
+      color-mix(in oklab, var(--th-accent), white 12%) 120deg,
+      transparent 180deg);
+}
+
+/* Wallpapers (image layer) */
+html.has-wallpaper body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: center/cover no-repeat var(--wallpaper-url);
+  opacity: .28;
+  filter: saturate(1.05) brightness(.95);
+}
+
+html.theme-light.has-wallpaper body::before {
+  opacity: .22;
+  filter: saturate(1.0) brightness(1);
+}
+
+/* Animated themes */
+html.theme-anim-aurora-mint body::after,
+html.theme-anim-butter-glow body::after {
+  content: "";
+  position: fixed;
+  inset: -20%;
+  z-index: -2;
+  pointer-events: none;
+  background:
+    radial-gradient(40% 30% at 20% 30%, color-mix(in oklab, var(--th-accent), #00ffd0 40%), transparent 60%),
+    radial-gradient(35% 30% at 70% 60%, color-mix(in oklab, var(--th-accent), #aaf0d1 25%), transparent 60%),
+    radial-gradient(30% 25% at 40% 80%, color-mix(in oklab, var(--th-accent), #bfffe8 35%), transparent 60%);
+  filter: blur(40px);
+  animation: auroraFloat 18s ease-in-out infinite alternate;
+}
+
+@keyframes auroraFloat {
+  0% {
+    transform: translate3d(-2%, 0, 0) scale(1);
+  }
+
+  100% {
+    transform: translate3d(2%, -2%, 0) scale(1.05);
+  }
+}
+
+.drafts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+  margin: .5rem 0;
+}
+
+.chip {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  border: 1px solid var(--border);
+  padding: .25rem .5rem;
+  border-radius: 999px;
+}
+
+.chip img {
+  width: 20px;
+  height: 20px;
+  object-fit: cover;
+  border-radius: 4px;
+}
+
+.chip .status {
+  font-size: .75rem;
+  opacity: .7
+}
+
+.chip .status.uploading {
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: .3
+  }
+
+  50% {
+    opacity: 1
+  }
+
+  100% {
+    opacity: .3
+  }
+}
+
+canvas {
+  image-rendering: pixelated;
+}
+
+.msg-actions .icon:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.spin {
+  animation: spin .9s linear infinite;
+}
+
+.spin--slow {
+  animation-duration: 1.6s;
+}
+
+/* slower look */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes spin-slow {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 0.9s linear infinite;
+}
+
+:root {
+  font-family: system-ui, -apple-system, "Noto Sans", "Segoe UI",
+    Roboto, "Helvetica Neue", Arial, "Noto Color Emoji",
+    "Apple Color Emoji", "Segoe UI Emoji";
+}
+
+/* Make the Premium link render like a button inside assistant bubbles */
+.msg-body a[href="/premium"],
+.msg-body a[href^="/premium"] {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  background: #fff;
+  color: #000;
+  font-weight: 700;
+  text-decoration: none;
+  border: 1px solid rgba(0, 0, 0, .15);
+}
+
+.msg-body a[href^="/premium"]:hover {
+  filter: brightness(.95);
+}
+
+@keyframes slideInLR {
+  from {
+    transform: translateX(-14px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.feedback-slide {
+  animation: slideInLR .35s ease forwards;
+  will-change: transform, opacity;
+}
+
+.composer-root textarea {
+  font-size: 16px;
+  /* prevents iOS auto-zoom */
+  line-height: 20px;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* Remove any shine/glow coming from utility or component classes */
+.composer-root {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.composer-shine,
+.composer-shine::before,
+.composer-shine::after,
+.input-glow {
+  background: transparent !important;
+  box-shadow: none !important;
+  filter: none !important;
+}
+
+/* iOS: keep the composer stable while keyboard is up */
+@supports (-webkit-touch-callout: none) {
+  .composer-root {
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+  }
+}
+
+@supports (-webkit-touch-callout: none) {
+  .composer-root {
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+  }
 }

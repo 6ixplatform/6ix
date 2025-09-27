@@ -1,103 +1,203 @@
-import Image from "next/image";
+'use client';
+import '@/styles/6ix.css';
+import Image from 'next/image';
+import Link from 'next/link';
+import PolicyLink from '@/components/PolicyLink';
+import { useEffect, useState } from 'react';
 
 export default function Home() {
-  return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [showSplash, setShowSplash] = useState(true);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  useEffect(() => {
+    const t = setTimeout(() => setShowSplash(false), 3000);
+    return () => clearTimeout(t);
+  }, []);
+
+  // Alt+Arrows nudge for the logo (saved to localStorage)
+  useEffect(() => {
+    const root = document.documentElement;
+    if (!getComputedStyle(root).getPropertyValue('--brand-x')) {
+      root.style.setProperty('--brand-x', '14px');
+      root.style.setProperty('--brand-y', '14px');
+      root.style.setProperty('--ix-opacity', '0.86');
+    }
+    const x = localStorage.getItem('brand-x');
+    const y = localStorage.getItem('brand-y');
+    if (x) root.style.setProperty('--brand-x', x);
+    if (y) root.style.setProperty('--brand-y', y);
+
+    const px = (v: string | null) => parseInt(v?.replace('px', '') || '0', 10);
+    const onKey = (e: KeyboardEvent) => {
+      if (!e.altKey) return;
+      e.preventDefault();
+      let bx = px(getComputedStyle(root).getPropertyValue('--brand-x'));
+      let by = px(getComputedStyle(root).getPropertyValue('--brand-y'));
+      const step = e.shiftKey ? 5 : 2;
+      if (e.key === 'ArrowLeft') bx -= step;
+      if (e.key === 'ArrowRight') bx += step;
+      if (e.key === 'ArrowUp') by -= step;
+      if (e.key === 'ArrowDown') by += step;
+      root.style.setProperty('--brand-x', `${bx}px`);
+      root.style.setProperty('--brand-y', `${by}px`);
+      localStorage.setItem('brand-x', `${bx}px`);
+      localStorage.setItem('brand-y', `${by}px`);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  return (
+    <main
+      className="min-h-dvh grid grid-rows-[auto,1fr,auto] antialiased sm:pt-0"
+      style={{ paddingTop: 'env(safe-area-inset-top, 12px)' }}
+    >
+      {/* Splash */}
+      {showSplash && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black">
+          <div className="relative sheen-auto">
+            <Image src="/splash.png" alt="6ix splash" width={260} height={260} className="rounded-2xl object-cover" priority />
+          </div>
+          <div className="absolute bottom-6 w-full text-center text-zinc-500 text-sm">
+            A 6clement Joshua service · © {new Date().getFullYear()} 6ix
+          </div>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
+      )}
+
+      {/* MOBILE-ONLY sticky header background (no extra logo; sits under the fixed logo) */}
+      <header className="sm:hidden sticky top-0 z-20 bg-black/85 backdrop-blur supports-[backdrop-filter]:bg-black/70 border-b border-white/10">
+        <div style={{ height: 52 }} />
+      </header>
+
+      {/* Fixed brand (6 + IX) */}
+      <Link
+        href="/"
+        className="fixed z-30 -mt-2 flex items-center select-none"
+        style={{
+          top: 'calc(var(--brand-y) + env(safe-area-inset-top, 0px))',
+          left: 'var(--brand-x)',
+        }}
+      >
+        <Image src="/logo.png" alt="6ix" width={48} height={48} priority />
+      </Link>
+
+      {/* ROW 2: content */}
+      <div className="row-start-2 overflow-x-hidden">
+        {/* MOBILE-ONLY SPACER so the logo is clearly visible on first load */}
+        <div className="block sm:hidden" style={{ height: 'calc(env(safe-area-inset-top, 0px) + 10px)' }} />
+
+        {/* Hero */}
+        <section className="container text-center mt-2 sm:mt-4">
+          <h1 className="text-4xl sm:text-6xl font-semibold leading-tight">
+            Content Creator&apos;s Edition, almost free AI tools, — <span>secure and fast.</span>
+          </h1>
+          <p className="mt-2 sm:mt-3 text-zinc-300 text-base sm:text-lg font-semibold">
+            <span className="font-semibold">→</span>  Comedy • Music •  Fashion • Food • Education • 6IX AI • Gaming — heal,{' '}
+            <span style={{ color: 'var(--gold)' }}>earn</span> and grow.
+          </p>
+        </section>
+
+        {/* Feature cards */}
+        <section className="container grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6 sm:mt-8">
+          <div className="card p-4 text-left sheen jelly">
+            <div className="opacity-80 text-sm">Realtime</div>
+            <div className="mt-1 font-semibold text-base">
+              Chat &amp; Messaging → <span style={{ color: 'var(--gold)' }}>earn</span>
+            </div>
+            <div className="mt-3 relative w-full aspect-[5/2] rounded-lg overflow-hidden">
+              <Image src="/chat.png" alt="" fill className="object-cover" sizes="(max-width: 640px) 100vw, 33vw" />
+            </div>
+          </div>
+
+          <div className="card p-4 text-left sheen jelly">
+            <div className="opacity-80 text-sm">Live</div>
+            <div className="mt-1 font-semibold text-base">
+              Voice/video calls → <span style={{ color: 'var(--gold)' }}>earn</span>
+            </div>
+            <div className="mt-3 relative w-full aspect-[5/2] rounded-lg overflow-hidden">
+              <Image src="/calls.png" alt="" fill className="object-cover" sizes="(max-width: 640px) 100vw, 33vw" />
+            </div>
+          </div>
+
+          <div className="card p-4 text-left sheen jelly">
+            <div className="opacity-80 text-sm">Feeds</div>
+            <div className="mt-1 font-semibold text-base">
+              Post, stories, react, discover → <span style={{ color: 'var(--gold)' }}>earn</span>
+            </div>
+            <div className="mt-3 relative w-full aspect-[5/2] rounded-lg overflow-hidden">
+              <Image src="/post.png" alt="" fill className="object-cover" sizes="(max-width: 640px) 100vw, 33vw" />
+            </div>
+          </div>
+        </section>
+        <h1 className="text-4xl text-center mt-2 sm:text-3xl font-semibold leading-tight">
+          Why 6IX? <span></span>
+        </h1>
+        {/* Curiosity strip */}
+        <section className="container mt-4 sm:mt-5 grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <Link href="/auth/signup" className="btn btn-ghost jelly sheen water-mobile w-full justify-between items-center">
+            <span>Glassy real-time chat that feels instant</span>
+            <span aria-hidden="true" className="sm:hidden">↓</span>
+            <span aria-hidden="true" className="hidden sm:inline">→</span>
+          </Link>
+          <Link href="/auth/signup" className="btn btn-ghost jelly sheen water-mobile w-full justify-between items-center">
+            <span>AI tools that seems almost free </span>
+            <span aria-hidden="true" className="sm:hidden">↓</span>
+            <span aria-hidden="true" className="hidden sm:inline">→</span>
+          </Link>
+          <Link href="/auth/signup" className="btn btn-ghost jelly sheen water-mobile w-full justify-between items-center">
+            <span><span style={{ color: 'var(--gold)' }}>You Earn</span> and grow from your moments on 6IX</span>
+            <span aria-hidden="true" className="sm:hidden">↓</span>
+
+          </Link>
+        </section>
+
+        {/* CTA */}
+        <div className="container flex justify-center mt-8 sm:mt-9">
+          <Link href="/auth/signup" className="btn btn-white btn-lg jelly sheen group">
+            <Image src="/6ix_logo.png" alt="" width={18} height={18} className="block group-hover:hidden" />
+            <Image src="/6ix_logo_white.png" alt="" width={18} height={18} className="hidden group-hover:block" />
+            <span>Get Started</span>
+          </Link>
+        </div>
+
+        {/* Policies */}
+        <section className="container mt-8 sm:mt-10 pt-6 pb-2 text-center text-sm text-zinc-500 space-y-2 select-none">
+          <nav className="flex flex-wrap justify-center items-center">
+            <PolicyLink href="/legal/terms" className="link-muted">Terms</PolicyLink>
+            <span className="mx-2">•</span>
+            <PolicyLink href="/legal/privacy" className="link-muted">Privacy</PolicyLink>
+            <span className="mx-2">•</span>
+            <PolicyLink href="/legal/guidelines" className="link-muted">Community</PolicyLink>
+            <span className="mx-2">•</span>
+            <PolicyLink href="/legal/ads" className="link-muted">Ads Policy</PolicyLink>
+            <span className="mx-2">•</span>
+            <PolicyLink href="/legal/law-enforcement" className="link-muted">Law Enforcement</PolicyLink>
+          </nav>
+          <nav className="flex flex-wrap justify-center items-center">
+            <PolicyLink href="/legal/copyright" className="link-muted">Copyright/DMCA</PolicyLink>
+            <span className="mx-2">•</span>
+            <PolicyLink href="/legal/transparency" className="link-muted">Transparency</PolicyLink>
+            <span className="mx-2">•</span>
+            <PolicyLink href="/legal/cybercrimes" className="link-muted">Cybercrimes Notice</PolicyLink>
+            <span className="mx-2">•</span>
+            <PolicyLink href="/legal/cookies" className="link-muted">Cookies</PolicyLink>
+            <span className="mx-2">•</span>
+            <PolicyLink href="/legal/safety" className="link-muted">Safety &amp; Minors</PolicyLink>
+            <span className="mx-2">•</span>
+            <PolicyLink href="/legal/creator-earnings" className="link-muted">Creator Earnings</PolicyLink>
+            <span className="mx-2">•</span>
+            <PolicyLink href="/legal/about" className="link-muted">About</PolicyLink>
+            <span className="mx-2">•</span>
+            <PolicyLink href="/legal/contact" className="link-muted">Contact</PolicyLink>
+            <span className="mx-2">•</span>
+            <PolicyLink href="/faq" className="link-muted">FAQ</PolicyLink>
+          </nav>
+        </section>
+      </div>
+
+      {/* Footer at the very bottom */}
+      <footer className="row-start-3 container py-6 text-center text-zinc-500">
+        A 6clement Joshua service · © {new Date().getFullYear()} 6ix
       </footer>
-    </div>
+    </main>
   );
 }
