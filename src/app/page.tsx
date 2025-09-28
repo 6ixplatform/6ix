@@ -1,19 +1,26 @@
 'use client';
+
 import '@/styles/6ix.css';
 import Image from 'next/image';
 import Link from 'next/link';
 import PolicyLink from '@/components/PolicyLink';
+import Script from 'next/script';
 import { useEffect, useState } from 'react';
 
 export default function Home() {
   const [showSplash, setShowSplash] = useState(true);
 
+  // Splash timing + lock scroll while visible
   useEffect(() => {
-    const t = setTimeout(() => setShowSplash(false), 3000);
-    return () => clearTimeout(t);
+    const t = setTimeout(() => setShowSplash(false), 1600);
+    document.body.classList.add('splash');
+    return () => {
+      clearTimeout(t);
+      document.body.classList.remove('splash');
+    };
   }, []);
 
-  // Alt+Arrows nudge for the logo (saved to localStorage)
+  // Alt+Arrow nudge for fixed brand cluster
   useEffect(() => {
     const root = document.documentElement;
     if (!getComputedStyle(root).getPropertyValue('--brand-x')) {
@@ -46,24 +53,93 @@ export default function Home() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
+  // Mobile: trigger jelly wobble on tap too
+  useEffect(() => {
+    const handler = (e: TouchEvent) => {
+      const el = (e.target as HTMLElement)?.closest?.('.jelly') as HTMLElement | null;
+      if (!el) return;
+      el.classList.add('jelly--pulse');
+      setTimeout(() => el.classList.remove('jelly--pulse'), 240);
+    };
+    document.addEventListener('touchstart', handler, { passive: true });
+    return () => document.removeEventListener('touchstart', handler);
+  }, []);
+
   return (
     <main
       className="min-h-dvh grid grid-rows-[auto,1fr,auto] antialiased sm:pt-0"
       style={{ paddingTop: 'env(safe-area-inset-top, 12px)' }}
     >
-      {/* Splash */}
+      {/* SEO JSON-LD */}
+      <Script id="ld-home-org" type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'Organization',
+            name: '6ix',
+            url: 'https://www.6ixapp.com',
+            logo: 'https://www.6ixapp.com/icon.png',
+            sameAs: ['https://x.com/6ixofficial']
+          })
+        }}
+      />
+      <Script id="ld-home-website" type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'WebSite',
+            name: '6ix',
+            url: 'https://www.6ixapp.com',
+            potentialAction: {
+              '@type': 'SearchAction',
+              target: 'https://www.6ixapp.com/search?q={query}',
+              'query-input': 'required name=query'
+            }
+          })
+        }}
+      />
+      <Script id="ld-home-app" type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'SoftwareApplication',
+            name: '6ix',
+            operatingSystem: 'iOS, Android, macOS, Windows, tvOS, Web',
+            applicationCategory: 'SocialNetworkingApplication',
+            offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' }
+          })
+        }}
+      />
+
+      {/* Splash – fills entire screen on mobile, respects safe areas, © line visible */}
       {showSplash && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black">
+        <div
+          className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black"
+          style={{
+            minHeight: '100dvh',
+            paddingBottom: 'calc(env(safe-area-inset-bottom) + 18px)',
+          }}
+        >
           <div className="relative sheen-auto">
-            <Image src="/splash.png" alt="6ix splash" width={260} height={260} className="rounded-2xl object-cover" priority />
+            <Image
+              src="/splash.png"
+              alt="6ix splash"
+              width={260}
+              height={260}
+              className="rounded-2xl object-cover"
+              priority
+            />
           </div>
-          <div className="absolute bottom-6 w-full text-center text-zinc-500 text-sm">
+          <div
+            className="mt-6 w-full text-center text-zinc-500 text-sm"
+            style={{ paddingInline: '16px' }}
+          >
             A 6clement Joshua service · © {new Date().getFullYear()} 6ix
           </div>
         </div>
       )}
 
-      {/* MOBILE-ONLY sticky header background (no extra logo; sits under the fixed logo) */}
+      {/* MOBILE-ONLY sticky header background */}
       <header className="sm:hidden sticky top-0 z-20 bg-black/85 backdrop-blur supports-[backdrop-filter]:bg-black/70 border-b border-white/10">
         <div style={{ height: 52 }} />
       </header>
@@ -71,66 +147,67 @@ export default function Home() {
       {/* Fixed brand (6 + IX) */}
       <Link
         href="/"
+        aria-label="6ix — home"
         className="fixed z-30 -mt-2 flex items-center select-none"
         style={{
           top: 'calc(var(--brand-y) + env(safe-area-inset-top, 0px))',
           left: 'var(--brand-x)',
         }}
       >
-        <Image src="/logo.png" alt="6ix" width={48} height={48} priority />
+        <Image src="/logo.png" alt="6ix logo" width={48} height={48} priority />
       </Link>
 
       {/* ROW 2: content */}
       <div className="row-start-2 overflow-x-hidden">
-        {/* MOBILE-ONLY SPACER so the logo is clearly visible on first load */}
+        {/* spacer for mobile brand */}
         <div className="block sm:hidden" style={{ height: 'calc(env(safe-area-inset-top, 0px) + 10px)' }} />
 
         {/* Hero */}
         <section className="container text-center mt-2 sm:mt-4">
-          <h1 className="text-4xl sm:text-6xl font-semibold leading-tight">
-            Content Creator&apos;s Edition, almost free AI tools, — <span>secure and fast.</span>
+          <h1 className="text-balance text-4xl sm:text-6xl font-semibold leading-tight">
+            Content Creator&apos;s Edition — almost-free AI tools, secure and fast.
           </h1>
           <p className="mt-2 sm:mt-3 text-zinc-300 text-base sm:text-lg font-semibold">
-            <span className="font-semibold">→</span>  Comedy • Music •  Fashion • Food • Education • 6IX AI • Gaming — heal,{' '}
+            <span className="font-semibold">→</span>&nbsp; Comedy • Music • Fashion • Food • Education • 6IX AI • Gaming — heal,&nbsp;
             <span style={{ color: 'var(--gold)' }}>earn</span> and grow.
           </p>
         </section>
 
         {/* Feature cards */}
         <section className="container grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6 sm:mt-8">
-          <div className="card p-4 text-left sheen jelly">
+          <div className="card p-4 text-left sheen jelly will-change-transform">
             <div className="opacity-80 text-sm">Realtime</div>
             <div className="mt-1 font-semibold text-base">
               Chat &amp; Messaging → <span style={{ color: 'var(--gold)' }}>earn</span>
             </div>
             <div className="mt-3 relative w-full aspect-[5/2] rounded-lg overflow-hidden">
-              <Image src="/chat.png" alt="" fill className="object-cover" sizes="(max-width: 640px) 100vw, 33vw" />
+              <Image src="/chat.png" alt="6ix realtime chat preview" fill className="object-cover" sizes="(max-width: 640px) 100vw, 33vw" />
             </div>
           </div>
 
-          <div className="card p-4 text-left sheen jelly">
+          <div className="card p-4 text-left sheen jelly will-change-transform">
             <div className="opacity-80 text-sm">Live</div>
             <div className="mt-1 font-semibold text-base">
               Voice/video calls → <span style={{ color: 'var(--gold)' }}>earn</span>
             </div>
             <div className="mt-3 relative w-full aspect-[5/2] rounded-lg overflow-hidden">
-              <Image src="/calls.png" alt="" fill className="object-cover" sizes="(max-width: 640px) 100vw, 33vw" />
+              <Image src="/calls.png" alt="6ix live calls preview" fill className="object-cover" sizes="(max-width: 640px) 100vw, 33vw" />
             </div>
           </div>
 
-          <div className="card p-4 text-left sheen jelly">
+          <div className="card p-4 text-left sheen jelly will-change-transform">
             <div className="opacity-80 text-sm">Feeds</div>
             <div className="mt-1 font-semibold text-base">
-              Post, stories, react, discover → <span style={{ color: 'var(--gold)' }}>earn</span>
+              Posts, stories, reactions, discovery → <span style={{ color: 'var(--gold)' }}>earn</span>
             </div>
             <div className="mt-3 relative w-full aspect-[5/2] rounded-lg overflow-hidden">
-              <Image src="/post.png" alt="" fill className="object-cover" sizes="(max-width: 640px) 100vw, 33vw" />
+              <Image src="/post.png" alt="6ix creator feed preview" fill className="object-cover" sizes="(max-width: 640px) 100vw, 33vw" />
             </div>
           </div>
         </section>
-        <h1 className="text-4xl text-center mt-2 sm:text-3xl font-semibold leading-tight">
-          Why 6IX? <span></span>
-        </h1>
+
+        <h2 className="text-4xl text-center mt-2 sm:text-3xl font-semibold leading-tight">Why 6IX?</h2>
+
         {/* Curiosity strip */}
         <section className="container mt-4 sm:mt-5 grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Link href="/auth/signup" className="btn btn-ghost jelly sheen water-mobile w-full justify-between items-center">
@@ -139,28 +216,31 @@ export default function Home() {
             <span aria-hidden="true" className="hidden sm:inline">→</span>
           </Link>
           <Link href="/auth/signup" className="btn btn-ghost jelly sheen water-mobile w-full justify-between items-center">
-            <span>AI tools that seems almost free </span>
+            <span>AI tools that seem almost free</span>
             <span aria-hidden="true" className="sm:hidden">↓</span>
             <span aria-hidden="true" className="hidden sm:inline">→</span>
           </Link>
           <Link href="/auth/signup" className="btn btn-ghost jelly sheen water-mobile w-full justify-between items-center">
-            <span><span style={{ color: 'var(--gold)' }}>You Earn</span> and grow from your moments on 6IX</span>
+            <span><span style={{ color: 'var(--gold)' }}>You earn</span> and grow from your moments</span>
             <span aria-hidden="true" className="sm:hidden">↓</span>
-
           </Link>
         </section>
 
         {/* CTA */}
         <div className="container flex justify-center mt-8 sm:mt-9">
-          <Link href="/auth/signup" className="btn btn-white btn-lg jelly sheen group">
+          <Link
+            href="/auth/signup"
+            aria-label="Get started with 6ix"
+            className="btn btn-white btn-lg btn-lit jelly sheen group"
+          >
             <Image src="/6ix_logo.png" alt="" width={18} height={18} className="block group-hover:hidden" />
             <Image src="/6ix_logo_white.png" alt="" width={18} height={18} className="hidden group-hover:block" />
             <span>Get Started</span>
           </Link>
         </div>
 
-        {/* Policies */}
-        <section className="container mt-8 sm:mt-10 pt-6 pb-2 text-center text-sm text-zinc-500 space-y-2 select-none">
+        {/* ---- LEGAL (now ON TOP) ---- */}
+        <section className="container mt-8 sm:mt-10 pt-4 text-center text-sm text-zinc-500 space-y-2 select-none">
           <nav className="flex flex-wrap justify-center items-center">
             <PolicyLink href="/legal/terms" className="link-muted">Terms</PolicyLink>
             <span className="mx-2">•</span>
@@ -192,12 +272,52 @@ export default function Home() {
             <PolicyLink href="/faq" className="link-muted">FAQ</PolicyLink>
           </nav>
         </section>
+
+        {/* Payment-review friendly policies (now BELOW the standard legal row) */}
+        <section className="container mt-2 sm:mt-3 pt-2 text-center text-sm text-zinc-400">
+          <nav className="flex flex-wrap justify-center items-center gap-x-2 gap-y-2">
+            <PolicyLink href="/legal/refunds" className="link-muted">Refunds &amp; Cancellations</PolicyLink>
+            <span className="mx-1">•</span>
+            <PolicyLink href="/legal/billing" className="link-muted">Billing &amp; Subscriptions</PolicyLink>
+            <span className="mx-1">•</span>
+            <PolicyLink href="/legal/disputes" className="link-muted">Disputes &amp; Chargebacks</PolicyLink>
+            <span className="mx-1">•</span>
+            <PolicyLink href="/legal/acceptable-use" className="link-muted">Acceptable Use &amp; Prohibited Activities</PolicyLink>
+            <span className="mx-1">•</span>
+            <PolicyLink href="/legal/kyc-aml" className="link-muted">KYC / AML &amp; Sanctions</PolicyLink>
+            <span className="mx-1">•</span>
+            <PolicyLink href="/legal/security" className="link-muted">Security</PolicyLink>
+          </nav>
+        </section>
       </div>
 
-      {/* Footer at the very bottom */}
+      {/* Footer */}
       <footer className="row-start-3 container py-6 text-center text-zinc-500">
         A 6clement Joshua service · © {new Date().getFullYear()} 6ix
       </footer>
+
+      {/* Page-scoped tweaks */}
+      <style jsx global>{`
+/* CTA is steady white; flips to black on hover */
+.btn-lit.btn-white {
+box-shadow:
+0 10px 26px rgba(255,255,255,.10),
+0 2px 0 rgba(255,255,255,.22),
+inset 0 1px 0 rgba(255,255,255,.85);
+border-color: rgba(255,255,255,.28);
+}
+.btn-lit.btn-white:hover { border-color: rgba(255,255,255,.35); }
+
+/* Faster jelly wobble (desktop + mobile) */
+.jelly:hover { animation: jelly 240ms cubic-bezier(.22,1,.36,1); }
+.jelly--pulse { animation: jelly 240ms cubic-bezier(.22,1,.36,1); }
+.jelly, .jelly:hover, .jelly--pulse { will-change: transform; }
+
+/* Make splash absolutely cover even with mobile browser UI changes */
+@supports (height: 100svh) {
+.splash-active { min-height: 100svh; }
+}
+`}</style>
     </main>
   );
 }
