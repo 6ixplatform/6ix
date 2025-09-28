@@ -166,12 +166,12 @@ box-shadow:0 8px 26px rgba(255,255,255,.08), inset 0 1px 0 rgba(255,255,255,.85)
 --help-panel-bg: rgba(17,17,17,.55);
 --help-chip-bg: rgba(255,255,255,.06);
 --help-chip-hover: rgba(255,255,255,.12);
---help-chip-fg: #000000ff;
---help-text-strong: #000000ff;
+--help-chip-fg: #e5e7eb;
+--help-text-strong: #ffffff;
 --help-muted: #a1a1aa;
 --help-input-bg: rgba(255,255,255,.08);
 --help-input-bg-focus: rgba(255,255,255,.12);
---help-input-fg: #000000ff;
+--help-input-fg: #f8fafc;
 --help-input-border: rgba(255,255,255,.16);
 --help-input-focus: rgba(255,255,255,.35);
 --help-placeholder: rgba(255,255,255,.50);
@@ -179,7 +179,7 @@ box-shadow:0 8px 26px rgba(255,255,255,.08), inset 0 1px 0 rgba(255,255,255,.85)
 @media (prefers-color-scheme: light){
 :root{
 --help-border: rgba(0,0,0,.12);
---help-panel-bg: rgba(0, 0, 0, 0.75);
+--help-panel-bg: rgba(255,255,255,.75);
 --help-chip-bg: rgba(0,0,0,.06);
 --help-chip-hover: rgba(0,0,0,.10);
 --help-chip-fg: #1f2937;
