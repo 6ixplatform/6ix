@@ -20,6 +20,8 @@ export default function Home() {
     };
   }, []);
 
+  
+
   // Alt+Arrow nudge for fixed brand cluster
   useEffect(() => {
     const root = document.documentElement;
@@ -113,27 +115,12 @@ export default function Home() {
 
       {/* Splash – fills entire screen on mobile, respects safe areas, © line visible */}
       {showSplash && (
-        <div
-          className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black"
-          style={{
-            minHeight: '100dvh',
-            paddingBottom: 'calc(env(safe-area-inset-bottom) + 18px)',
-          }}
-        >
+        <div className="fixed left-0 top-0 z-[9999] w-screen h-[100dvh] sm:h-screen grid place-items-center bg-black overflow-hidden">
           <div className="relative sheen-auto">
-            <Image
-              src="/splash.png"
-              alt="6ix splash"
-              width={260}
-              height={260}
-              className="rounded-2xl object-cover"
-              priority
-            />
+            <Image src="/splash.png" alt="6ix splash" width={260} height={260} className="rounded-2xl object-cover" priority />
           </div>
-          <div
-            className="mt-6 w-full text-center text-zinc-500 text-sm"
-            style={{ paddingInline: '16px' }}
-          >
+          <div className="absolute w-full text-center text-zinc-500 text-sm"
+            style={{ bottom: 'calc(env(safe-area-inset-bottom, 16px))' }}>
             A 6clement Joshua service · © {new Date().getFullYear()} 6ix
           </div>
         </div>
