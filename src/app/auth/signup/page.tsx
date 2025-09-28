@@ -173,8 +173,30 @@ export default function SignUpPage() {
         agree &&
         !sending;
 
-    const sendCode = async () => {
-        if (!canSend) return;
+    // fire-and-forget sender: sendBeacon if available, else fetch(keepalive)
+    function sendOtpInBackground(email: string) {
+        const payload = JSON.stringify({ email, src: 'signup' });
+        try {
+            if (typeof navigator !== 'undefined' && 'sendBeacon' in navigator) {
+                const blob = new Blob([payload], { type: 'application/json' });
+                (navigator as any).sendBeacon('/api/auth/send-otp', blob);
+                return;
+            }
+        } catch { /* fall through */ }
+
+        // fallback (doesn't block navigation)
+        fetch('/api/auth/send-otp', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: payload,
+            cache: 'no-store',
+            keepalive: true,
+        }).catch(() => { });
+    }
+
+    const sendCode = () => {
+        if (!canSend || sending) return;
+
         const cleanEmail = email.trim().toLowerCase();
         const verifyUrl = `/auth/verify?email=${encodeURIComponent(cleanEmail)}&redirect=${encodeURIComponent('/profile')}&src=signup`;
 
@@ -182,22 +204,12 @@ export default function SignUpPage() {
         setErr(null);
         setInfo(null);
         try { localStorage.setItem('6ix:last_email', cleanEmail); } catch { }
-        try {
-            const r = await fetch('/api/auth/send-otp', {
-                method: 'POST',
-                headers: { 'content-type': 'application/json' },
-                body: JSON.stringify({ email: cleanEmail, src: 'signup' }),
-                cache: 'no-store',
-                keepalive: true,
-            });
-            const data = await r.json().catch(() => ({}));
-            if (!r.ok || !data?.ok) throw new Error(data?.error || 'Could not send code');
-            router.replace(verifyUrl);
-        } catch (e: any) {
-            setErr(e?.message || 'Could not send code. Please try again.');
-            setSending(false);
-            return;
-        }
+
+        // 1) kick off the email in the background
+        sendOtpInBackground(cleanEmail);
+
+        // 2) navigate immediately (verify page already prefetched)
+        router.replace(verifyUrl);
     };
 
     // Enter submits if allowed
