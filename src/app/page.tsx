@@ -5,17 +5,18 @@ import Image from 'next/image';
 import Link from 'next/link';
 import PolicyLink from '@/components/PolicyLink';
 import Script from 'next/script';
+import dynamic from 'next/dynamic';
 import { useEffect, useState } from 'react';
-import Splash from '@/components/Splash';
 
-const HEADER_H = 52; // mobile header background height
+const Splash = dynamic(() => import('@/components/Splash'), { ssr: false });
 
 export default function Home() {
   const [showSplash, setShowSplash] = useState(true);
 
-  // brand nudge (Alt+Arrows)
+  // Alt+Arrows nudge for the logo (saved to localStorage)
   useEffect(() => {
     const root = document.documentElement;
+    const get = (v: string | null) => parseInt(v?.replace('px', '') || '0', 10);
     if (!getComputedStyle(root).getPropertyValue('--brand-x')) {
       root.style.setProperty('--brand-x', '14px');
       root.style.setProperty('--brand-y', '14px');
@@ -26,12 +27,11 @@ export default function Home() {
     if (x) root.style.setProperty('--brand-x', x);
     if (y) root.style.setProperty('--brand-y', y);
 
-    const px = (v: string | null) => parseInt(v?.replace('px', '') || '0', 10);
     const onKey = (e: KeyboardEvent) => {
       if (!e.altKey) return;
       e.preventDefault();
-      let bx = px(getComputedStyle(root).getPropertyValue('--brand-x'));
-      let by = px(getComputedStyle(root).getPropertyValue('--brand-y'));
+      let bx = get(getComputedStyle(root).getPropertyValue('--brand-x'));
+      let by = get(getComputedStyle(root).getPropertyValue('--brand-y'));
       const step = e.shiftKey ? 5 : 2;
       if (e.key === 'ArrowLeft') bx -= step;
       if (e.key === 'ArrowRight') bx += step;
@@ -46,7 +46,7 @@ export default function Home() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  // mobile: trigger jelly on tap
+  // Mobile: trigger jelly wobble on tap
   useEffect(() => {
     const handler = (e: TouchEvent) => {
       const el = (e.target as HTMLElement)?.closest?.('.jelly') as HTMLElement | null;
@@ -59,11 +59,11 @@ export default function Home() {
   }, []);
 
   return (
-    <main
-      className="min-h-dvh grid grid-rows-[auto,1fr,auto] antialiased"
-      style={{ paddingTop: `calc(${HEADER_H}px + env(safe-area-inset-top, 0px))` }}
-    >
-      {/* ---- SEO JSON-LD ---- */}
+    <main className="min-h-dvh grid grid-rows-[auto,1fr,auto] antialiased sm:pt-0">
+      {/* Splash overlay */}
+      {showSplash && <Splash delay={1600} onDone={() => setShowSplash(false)} />}
+
+      {/* SEO JSON-LD */}
       <Script id="ld-home-org" type="application/ld+json"
         dangerouslySetInnerHTML={{
           __html: JSON.stringify({
@@ -72,8 +72,8 @@ export default function Home() {
             name: '6ix',
             url: 'https://www.6ixapp.com',
             logo: 'https://www.6ixapp.com/icon.png',
-            sameAs: ['https://x.com/6ixofficial']
-          })
+            sameAs: ['https://x.com/6ixofficial'],
+          }),
         }}
       />
       <Script id="ld-home-website" type="application/ld+json"
@@ -86,9 +86,9 @@ export default function Home() {
             potentialAction: {
               '@type': 'SearchAction',
               target: 'https://www.6ixapp.com/search?q={query}',
-              'query-input': 'required name=query'
-            }
-          })
+              'query-input': 'required name=query',
+            },
+          }),
         }}
       />
       <Script id="ld-home-app" type="application/ld+json"
@@ -99,27 +99,25 @@ export default function Home() {
             name: '6ix',
             operatingSystem: 'iOS, Android, macOS, Windows, tvOS, Web',
             applicationCategory: 'SocialNetworkingApplication',
-            offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' }
-          })
+            offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+          }),
         }}
       />
 
-      {/* ---- FULLSCREEN SPLASH ---- */}
-      {showSplash && <Splash onDone={() => setShowSplash(false)} />}
-
-      {/* ---- FIXED MOBILE HEADER BG (no scrolling/hiding) ---- */}
+      {/* FIXED mobile header (does not scroll away) */}
       <header
-        className="sm:hidden fixed top-0 inset-x-0 z-40 border-b border-white/10
-bg-black/85 backdrop-blur supports-[backdrop-filter]:bg-black/70"
-        style={{ height: `calc(${HEADER_H}px + env(safe-area-inset-top, 0px))` }}
-        aria-hidden
-      />
+        role="banner"
+        className="sm:hidden fixed inset-x-0 top-0 z-20 border-b border-white/10 bg-black/85 supports-[backdrop-filter]:bg-black/70 backdrop-blur"
+        aria-hidden="true"
+      >
+        <div style={{ height: 52 }} />
+      </header>
 
-      {/* ---- Fixed brand (6 + IX) ---- */}
+      {/* Fixed brand (6 + IX) */}
       <Link
         href="/"
         aria-label="6ix — home"
-        className="fixed z-50 -mt-2 flex items-center select-none"
+        className="fixed z-30 -mt-2 flex items-center select-none"
         style={{
           top: 'calc(var(--brand-y) + env(safe-area-inset-top, 0px))',
           left: 'var(--brand-x)',
@@ -128,10 +126,10 @@ bg-black/85 backdrop-blur supports-[backdrop-filter]:bg-black/70"
         <Image src="/logo.png" alt="6ix logo" width={48} height={48} priority />
       </Link>
 
-      {/* ---- CONTENT ---- */}
+      {/* ROW 2: content */}
       <div className="row-start-2 overflow-x-hidden">
-        {/* spacer already handled by main paddingTop; keep a tiny extra on very small screens */}
-        <div className="block sm:hidden" style={{ height: 6 }} />
+        {/* spacer so content starts under fixed header on mobile */}
+        <div className="block sm:hidden" style={{ height: 52 }} />
 
         {/* Hero */}
         <section className="container text-center mt-2 sm:mt-4">
@@ -199,18 +197,14 @@ bg-black/85 backdrop-blur supports-[backdrop-filter]:bg-black/70"
 
         {/* CTA */}
         <div className="container flex justify-center mt-8 sm:mt-9">
-          <Link
-            href="/auth/signup"
-            aria-label="Get started with 6ix"
-            className="btn btn-white btn-lg btn-lit jelly sheen group"
-          >
+          <Link href="/auth/signup" aria-label="Get started with 6ix" className="btn btn-white btn-lg btn-lit jelly sheen group">
             <Image src="/6ix_logo.png" alt="" width={18} height={18} className="block group-hover:hidden" />
             <Image src="/6ix_logo_white.png" alt="" width={18} height={18} className="hidden group-hover:block" />
             <span>Get Started</span>
           </Link>
         </div>
 
-        {/* LEGAL rows */}
+        {/* Standard Legal */}
         <section className="container mt-8 sm:mt-10 pt-4 text-center text-sm text-zinc-500 space-y-2 select-none">
           <nav className="flex flex-wrap justify-center items-center">
             <PolicyLink href="/legal/terms" className="link-muted">Terms</PolicyLink>
@@ -244,6 +238,7 @@ bg-black/85 backdrop-blur supports-[backdrop-filter]:bg-black/70"
           </nav>
         </section>
 
+        {/* Payment-review friendly policies */}
         <section className="container mt-2 sm:mt-3 pt-2 text-center text-sm text-zinc-400">
           <nav className="flex flex-wrap justify-center items-center gap-x-2 gap-y-2">
             <PolicyLink href="/legal/refunds" className="link-muted">Refunds &amp; Cancellations</PolicyLink>
@@ -268,10 +263,6 @@ bg-black/85 backdrop-blur supports-[backdrop-filter]:bg-black/70"
 
       {/* Page-scoped tweaks */}
       <style jsx global>{`
-/* lock scroll when splash is up */
-.splash, .splash-lock { overflow: hidden !important; height: 100%; }
-
-/* CTA steady white; flips to black on hover */
 .btn-lit.btn-white {
 box-shadow:
 0 10px 26px rgba(255,255,255,.10),
@@ -281,7 +272,6 @@ border-color: rgba(255,255,255,.28);
 }
 .btn-lit.btn-white:hover { border-color: rgba(255,255,255,.35); }
 
-/* Faster jelly wobble */
 .jelly:hover { animation: jelly 240ms cubic-bezier(.22,1,.36,1); }
 .jelly--pulse { animation: jelly 240ms cubic-bezier(.22,1,.36,1); }
 .jelly, .jelly:hover, .jelly--pulse { will-change: transform; }
