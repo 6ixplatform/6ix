@@ -1,4 +1,5 @@
 // app/api/auth/check-email/route.ts
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { NextResponse } from 'next/server';
 
 export const runtime = 'nodejs';
@@ -42,6 +43,7 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+    const supabase = getSupabaseAdmin();
     try {
         const { email } = await req.json().catch(() => ({}));
         const raw = String(email ?? '').trim().toLowerCase();

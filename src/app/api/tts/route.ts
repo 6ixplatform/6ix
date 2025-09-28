@@ -5,9 +5,10 @@ import OpenAI from 'openai';
 export const runtime = 'edge';
 export const maxDuration = 60;
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
+
 
 export async function POST(req: NextRequest) {
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
     try {
         const { text, voice = 'alloy' } = await req.json();
         if (!text || typeof text !== 'string') {

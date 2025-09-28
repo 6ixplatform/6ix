@@ -1,10 +1,12 @@
 // app/api/support/route.ts
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
 
 export const runtime = 'nodejs';
 
 export async function POST(req: Request) {
+    const supabase = getSupabaseAdmin();
     const { firstName, lastName, location, reason, email } = await req.json().catch(() => ({}));
 
     const resendKey = process.env.RESEND_API_KEY;

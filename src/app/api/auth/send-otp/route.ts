@@ -1,7 +1,7 @@
 // app/api/auth/send-otp/route.ts
 import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
-import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -78,6 +78,7 @@ async function userExistsByEmail(email: string): Promise<boolean> {
 }
 
 export async function POST(req: Request) {
+    const supabase = getSupabaseAdmin();
     try {
         if (!process.env.RESEND_API_KEY) {
             return NextResponse.json({ ok: false, error: 'Email service not configured (RESEND_API_KEY missing)' }, { status: 500 });
@@ -95,7 +96,7 @@ export async function POST(req: Request) {
         const exists = await userExistsByEmail(normalized);
 
         // Check for a still-valid OTP unless "force" is set (used by the Resend button)
-        const { data: recent, error: recentErr } = await supabaseAdmin
+        const { data: recent, error: recentErr } = await getSupabaseAdmin()
             .from('email_otps')
             .select('id, expires_at')
             .eq('email', normalized)
@@ -114,7 +115,7 @@ export async function POST(req: Request) {
         // If we're forcing a resend, clear any previous unused codes (best-effort)
         if (force) {
             try {
-                await supabaseAdmin
+                await getSupabaseAdmin()
                     .from('email_otps')
                     .delete()
                     .eq('email', normalized)
@@ -127,7 +128,7 @@ export async function POST(req: Request) {
         const code_hash = await sha256Hex(`${normalized}:${code}`);
         const expires_at = new Date(Date.now() + 10 * 60 * 1000).toISOString();
 
-        const { error: insErr } = await supabaseAdmin
+        const { error: insErr } = await getSupabaseAdmin()
             .from('email_otps')
             .insert({ email: normalized, code_hash, expires_at, used: false });
         if (insErr) return NextResponse.json({ ok: false, error: insErr.message }, { status: 500 });
@@ -161,7 +162,7 @@ export async function POST(req: Request) {
         }
 
         if (!sent) {
-            await supabaseAdmin.from('email_otps').delete().eq('email', normalized).eq('code_hash', code_hash);
+            await getSupabaseAdmin().from('email_otps').delete().eq('email', normalized).eq('code_hash', code_hash);
             return NextResponse.json({ ok: false, error: `Email send failed: ${sendError}` }, { status: 502 });
         }
 

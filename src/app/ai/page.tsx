@@ -1,5 +1,5 @@
 'use client';
-
+export const dynamic = 'force-dynamic';
 import { loadUserPrefs, saveUserPrefs, parseUserDirective, mergePrefs, type UserPrefs } from '@/lib/prefs'
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';

@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -15,6 +15,7 @@ const sanitize = (raw: string) =>
         .slice(0, 32);
 
 export async function POST(req: Request) {
+    const supabase = getSupabaseAdmin();
     try {
         const { username } = await req.json();
         const value = sanitize(username);
@@ -27,7 +28,7 @@ export async function POST(req: Request) {
         const supabase = createRouteHandlerClient({ cookies });
         const { data: { user } } = await supabase.auth.getUser();
 
-        const q = supabaseAdmin
+        const q = getSupabaseAdmin()
             .from('profiles')
             .select('id', { count: 'exact', head: true })
             .ilike('username', value);

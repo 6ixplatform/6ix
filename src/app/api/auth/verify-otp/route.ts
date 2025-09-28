@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
-import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -14,6 +14,7 @@ async function sha256Hex(s: string) {
 }
 
 export async function POST(req: NextRequest) {
+    const supabase = getSupabaseAdmin();
     try {
         const { email, code, redirect } = await req.json();
         const normalized = String(email || '').trim().toLowerCase();
@@ -47,7 +48,7 @@ export async function POST(req: NextRequest) {
 
         // 1) Lookup OTP
         const code_hash = await sha256Hex(`${normalized}:${digits}`);
-        const { data: row, error: selErr } = await supabaseAdmin
+        const { data: row, error: selErr } = await getSupabaseAdmin()
             .from('email_otps')
             .select('id, token_hash, used, expires_at')
             .eq('email', normalized)
@@ -66,11 +67,11 @@ export async function POST(req: NextRequest) {
 
         // 2) Ensure a valid token_hash (generate if missing)
         const ensureToken = async (): Promise<string> => {
-            const gen = await supabaseAdmin.auth.admin.generateLink({ type: 'magiclink', email: normalized });
+            const gen = await getSupabaseAdmin().auth.admin.generateLink({ type: 'magiclink', email: normalized });
             if (gen.error?.message?.match(/not.*found/i)) {
-                const created = await supabaseAdmin.auth.admin.createUser({ email: normalized });
+                const created = await getSupabaseAdmin().auth.admin.createUser({ email: normalized });
                 if (created.error) throw new Error(created.error.message);
-                const again = await supabaseAdmin.auth.admin.generateLink({ type: 'magiclink', email: normalized });
+                const again = await getSupabaseAdmin().auth.admin.generateLink({ type: 'magiclink', email: normalized });
                 if (again.error) throw new Error(again.error.message);
                 return (
                     (again.data as any)?.properties?.hashed_token ??
@@ -94,7 +95,7 @@ export async function POST(req: NextRequest) {
             if (!tokenHash) {
                 return NextResponse.json({ ok: false, error: 'Could not create session token' }, { status: 500 });
             }
-            await supabaseAdmin.from('email_otps').update({ token_hash: tokenHash }).eq('id', row.id);
+            await getSupabaseAdmin().from('email_otps').update({ token_hash: tokenHash }).eq('id', row.id);
         }
 
         // 3) Verify (this triggers our cookies.set/remove above)
@@ -105,7 +106,7 @@ export async function POST(req: NextRequest) {
         if (verifyErr) {
             try {
                 tokenHash = await ensureToken();
-                await supabaseAdmin.from('email_otps').update({ token_hash: tokenHash }).eq('id', row.id);
+                await getSupabaseAdmin().from('email_otps').update({ token_hash: tokenHash }).eq('id', row.id);
                 ({ data: verifyData, error: verifyErr } = await tryVerify('magiclink'));
             } catch { /* fall through */ }
         }
@@ -119,7 +120,7 @@ export async function POST(req: NextRequest) {
         }
 
         // 4) Mark OTP used (best effort)
-        await supabaseAdmin
+        await getSupabaseAdmin()
             .from('email_otps')
             .update({ used: true, used_at: new Date().toISOString() })
             .eq('id', row.id);
