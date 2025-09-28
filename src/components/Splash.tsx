@@ -12,7 +12,6 @@ export default function Splash({
 }) {
     useEffect(() => {
         const t = setTimeout(onDone, delay);
-        // lock scroll while splash is visible
         document.body.classList.add('splash-lock');
         return () => {
             clearTimeout(t);
@@ -37,38 +36,44 @@ export default function Splash({
                 A 6clement Joshua service · © {new Date().getFullYear()} 6ix
             </div>
 
-            {/* scoped styles: only black/white (dark/light), insulated from other themes */}
             <style jsx>{`
 .splash-root {
 position: fixed;
 inset: 0;
 z-index: 9999;
 display: flex;
-flex-direction: column;
 align-items: center;
 justify-content: center;
-/* cover all modern mobile viewport variants */
-min-height: 100dvh;
-padding-bottom: calc(env(safe-area-inset-bottom) + 18px);
 background: #000;
 color: #9ca3af;
+min-height: 100dvh;
 }
-/* prefer 100svh when supported (iOS 16+ / modern browsers) */
 @supports (height: 100svh) {
 .splash-root { min-height: 100svh; }
 }
 html.theme-light .splash-root { background: #fff; color: #4b5563; }
 
+/* center the logo perfectly */
+.splash-logo {
+position: absolute;
+top: 50%;
+left: 50%;
+transform: translate(-50%, -50%);
+pointer-events: none;
+}
+
+/* ⬇️ Pin © to the real bottom, above iOS toolbars */
 .splash-foot {
-margin-top: 24px;
+position: absolute;
+left: 0;
+right: 0;
+bottom: calc(env(safe-area-inset-bottom) + 22px);
 text-align: center;
 font-size: 0.875rem;
 padding: 0 16px;
-width: 100%;
 }
 `}</style>
 
-            {/* global: lock body scroll while splash is present */}
             <style jsx global>{`
 body.splash-lock { overflow: hidden !important; }
 `}</style>

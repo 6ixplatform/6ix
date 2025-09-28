@@ -8,10 +8,12 @@ import Script from 'next/script';
 import { useEffect, useState } from 'react';
 import Splash from '@/components/Splash';
 
+const HEADER_H = 52; // mobile header background height
+
 export default function Home() {
   const [showSplash, setShowSplash] = useState(true);
 
-  // Alt+Arrow nudge for fixed brand cluster
+  // brand nudge (Alt+Arrows)
   useEffect(() => {
     const root = document.documentElement;
     if (!getComputedStyle(root).getPropertyValue('--brand-x')) {
@@ -44,7 +46,7 @@ export default function Home() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  // Mobile: trigger jelly wobble on tap too
+  // mobile: trigger jelly on tap
   useEffect(() => {
     const handler = (e: TouchEvent) => {
       const el = (e.target as HTMLElement)?.closest?.('.jelly') as HTMLElement | null;
@@ -58,13 +60,10 @@ export default function Home() {
 
   return (
     <main
-      className="min-h-dvh grid grid-rows-[auto,1fr,auto] antialiased sm:pt-0"
-      style={{ paddingTop: 'env(safe-area-inset-top, 12px)' }}
+      className="min-h-dvh grid grid-rows-[auto,1fr,auto] antialiased"
+      style={{ paddingTop: `calc(${HEADER_H}px + env(safe-area-inset-top, 0px))` }}
     >
-      {/* Splash (separate, insulated, full-bleed) */}
-      {showSplash && <Splash delay={1600} onDone={() => setShowSplash(false)} />}
-
-      {/* SEO JSON-LD */}
+      {/* ---- SEO JSON-LD ---- */}
       <Script id="ld-home-org" type="application/ld+json"
         dangerouslySetInnerHTML={{
           __html: JSON.stringify({
@@ -105,18 +104,22 @@ export default function Home() {
         }}
       />
 
-      {/* MOBILE header background (now FIXED, no scrolling) */}
+      {/* ---- FULLSCREEN SPLASH ---- */}
+      {showSplash && <Splash onDone={() => setShowSplash(false)} />}
+
+      {/* ---- FIXED MOBILE HEADER BG (no scrolling/hiding) ---- */}
       <header
-        className="sm:hidden fixed top-0 left-0 right-0 z-20 border-b border-white/10 supports-[backdrop-filter]:bg-black/70 bg-black/85"
-        style={{ pointerEvents: 'none', height: 52 }}
+        className="sm:hidden fixed top-0 inset-x-0 z-40 border-b border-white/10
+bg-black/85 backdrop-blur supports-[backdrop-filter]:bg-black/70"
+        style={{ height: `calc(${HEADER_H}px + env(safe-area-inset-top, 0px))` }}
         aria-hidden
       />
 
-      {/* Fixed brand (6 + IX) */}
+      {/* ---- Fixed brand (6 + IX) ---- */}
       <Link
         href="/"
         aria-label="6ix — home"
-        className="fixed z-30 -mt-2 flex items-center select-none"
+        className="fixed z-50 -mt-2 flex items-center select-none"
         style={{
           top: 'calc(var(--brand-y) + env(safe-area-inset-top, 0px))',
           left: 'var(--brand-x)',
@@ -125,10 +128,10 @@ export default function Home() {
         <Image src="/logo.png" alt="6ix logo" width={48} height={48} priority />
       </Link>
 
-      {/* Content */}
+      {/* ---- CONTENT ---- */}
       <div className="row-start-2 overflow-x-hidden">
-        {/* spacer for mobile brand */}
-        <div className="block sm:hidden" style={{ height: 'calc(env(safe-area-inset-top, 0px) + 10px)' }} />
+        {/* spacer already handled by main paddingTop; keep a tiny extra on very small screens */}
+        <div className="block sm:hidden" style={{ height: 6 }} />
 
         {/* Hero */}
         <section className="container text-center mt-2 sm:mt-4">
@@ -207,7 +210,7 @@ export default function Home() {
           </Link>
         </div>
 
-        {/* ---- LEGAL (standard) ---- */}
+        {/* LEGAL rows */}
         <section className="container mt-8 sm:mt-10 pt-4 text-center text-sm text-zinc-500 space-y-2 select-none">
           <nav className="flex flex-wrap justify-center items-center">
             <PolicyLink href="/legal/terms" className="link-muted">Terms</PolicyLink>
@@ -241,7 +244,6 @@ export default function Home() {
           </nav>
         </section>
 
-        {/* Payment-review friendly policies */}
         <section className="container mt-2 sm:mt-3 pt-2 text-center text-sm text-zinc-400">
           <nav className="flex flex-wrap justify-center items-center gap-x-2 gap-y-2">
             <PolicyLink href="/legal/refunds" className="link-muted">Refunds &amp; Cancellations</PolicyLink>
@@ -264,8 +266,11 @@ export default function Home() {
         A 6clement Joshua service · © {new Date().getFullYear()} 6ix
       </footer>
 
-      {/* page-scoped tweaks */}
+      {/* Page-scoped tweaks */}
       <style jsx global>{`
+/* lock scroll when splash is up */
+.splash, .splash-lock { overflow: hidden !important; height: 100%; }
+
 /* CTA steady white; flips to black on hover */
 .btn-lit.btn-white {
 box-shadow:
@@ -276,7 +281,7 @@ border-color: rgba(255,255,255,.28);
 }
 .btn-lit.btn-white:hover { border-color: rgba(255,255,255,.35); }
 
-/* Faster jelly wobble (desktop + mobile) */
+/* Faster jelly wobble */
 .jelly:hover { animation: jelly 240ms cubic-bezier(.22,1,.36,1); }
 .jelly--pulse { animation: jelly 240ms cubic-bezier(.22,1,.36,1); }
 .jelly, .jelly:hover, .jelly--pulse { will-change: transform; }
