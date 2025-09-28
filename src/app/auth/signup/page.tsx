@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import Script from 'next/script';
 import BackStopper from '@/components/BackStopper';
 
 const EMAIL_DOMAINS = [
@@ -34,13 +35,30 @@ export default function SignUpPage() {
     const existsTimerRef = useRef<number | null>(null);
     const redirectedRef = useRef(false);
 
+    // ---------- Persist/restore draft so users don’t lose progress ----------
+    useEffect(() => {
+        try {
+            const raw = localStorage.getItem('6ix:signup_draft');
+            if (raw) {
+                const d = JSON.parse(raw) as { email?: string; agree?: boolean };
+                if (d.email) setEmail(d.email);
+                if (typeof d.agree === 'boolean') setAgree(d.agree);
+            }
+        } catch { }
+    }, []);
+    useEffect(() => {
+        try {
+            localStorage.setItem('6ix:signup_draft', JSON.stringify({ email, agree }));
+        } catch { }
+    }, [email, agree]);
+
     const redirectToSignin = () => {
         const clean = email.trim().toLowerCase();
         try { localStorage.setItem('6ix:last_email', clean); } catch { }
         router.replace(`/auth/signin?email=${encodeURIComponent(clean)}&src=signup_exists`);
     };
 
-    // safe countdown
+    // Exists modal countdown
     useEffect(() => {
         if (!existsOpen) return;
         redirectedRef.current = false;
@@ -50,7 +68,7 @@ export default function SignUpPage() {
         return () => { if (existsTimerRef.current) window.clearInterval(existsTimerRef.current); existsTimerRef.current = null; };
     }, [existsOpen]);
 
-    // redirect when hits 0
+    // Auto-redirect when hits 0
     useEffect(() => {
         if (!existsOpen) return;
         if (existsCountdown <= 0 && !redirectedRef.current) {
@@ -67,8 +85,6 @@ export default function SignUpPage() {
     };
 
     const emailOk = useMemo(() => looksLikeEmail(email), [email]);
-
-    // disable UI while checking or sending
     const pageDisabled = emailStatus === 'checking' || sending;
 
     // domain suggestions
@@ -81,12 +97,12 @@ export default function SignUpPage() {
         return (pool.length ? pool : EMAIL_DOMAINS).map(d => `${local}@${d}`);
     }, [email]);
 
-    // Prefetch verify page AFTER a successful check (status === 'new')
+    // Prefetch verify page ASAP when the email looks valid (faster UX)
     useEffect(() => {
-        if (emailStatus !== 'new') return;
+        if (!emailOk) return;
         const clean = email.trim().toLowerCase();
         router.prefetch(`/auth/verify?email=${encodeURIComponent(clean)}&redirect=${encodeURIComponent('/profile')}&src=signup`);
-    }, [emailStatus, email, router]);
+    }, [emailOk, email, router]);
 
     // Reset messages when typing
     useEffect(() => { setErr(null); setInfo(null); if (!email) setEmailStatus('idle'); }, [email]);
@@ -137,6 +153,16 @@ export default function SignUpPage() {
         }
     };
 
+    // Debounced auto-check after user stops typing (fast but not spammy)
+    useEffect(() => {
+        if (!emailOk || pageDisabled) return;
+        const id = window.setTimeout(() => {
+            if (emailStatus === 'idle' || emailStatus === 'error') void runEmailCheck();
+        }, 400);
+        return () => window.clearTimeout(id);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [emailOk, email]);
+
     // When user ticks the policy checkbox, automatically run the email check
     const onAgreeToggle = (checked: boolean) => {
         setAgree(checked);
@@ -175,6 +201,7 @@ export default function SignUpPage() {
                 headers: { 'content-type': 'application/json' },
                 body: JSON.stringify({ email: cleanEmail, src: 'signup' }),
                 cache: 'no-store',
+                keepalive: true,
             });
             const data = await r.json().catch(() => ({}));
             if (!r.ok || !data?.ok) throw new Error(data?.error || 'Could not send code');
@@ -195,9 +222,23 @@ export default function SignUpPage() {
 
     return (
         <>
+            {/* SEO JSON-LD for the auth page */}
+            <Script id="ld-signup" type="application/ld+json"
+                dangerouslySetInnerHTML={{
+                    __html: JSON.stringify({
+                        '@context': 'https://schema.org',
+                        '@type': 'WebPage',
+                        name: 'Create your 6ix account',
+                        url: 'https://www.6ixapp.com/auth/signup',
+                        description: 'Create your 6ix account to use instant chat, live calls, and creator tools.',
+                        isPartOf: { '@type': 'WebSite', name: '6ix', url: 'https://www.6ixapp.com' }
+                    })
+                }}
+            />
+
             <BackStopper />
 
-            <main className="no-scroll min-h-dvh bg-black text-zinc-100" style={{ paddingTop: 'env(safe-area-inset-top,0px)' }}>
+            <main className="min-h-dvh bg-black text-zinc-100" style={{ paddingTop: 'env(safe-area-inset-top,0px)' }}>
                 {/* HELP */}
                 <button
                     className={`fixed right-4 top-4 z-40 text-sm px-3 py-2 rounded-full bg-white/10 hover:bg-white/20 btn-water ${pageDisabled ? 'pointer-events-none opacity-60' : ''}`}
@@ -232,7 +273,7 @@ export default function SignUpPage() {
                         <header>
                             <h1 className="text-4xl lg:text-5xl font-semibold leading-tight">Sign up to 6ix today</h1>
                             <p className="mt-3 text-zinc-300 max-w-2xl">
-                             <span style={{ color: 'var(--gold)' }}>earnings</span> and growth are transparent for all.
+                                <span style={{ color: 'var(--gold)' }}>earnings</span> and growth are transparent for all.
                             </p>
                         </header>
 
@@ -255,22 +296,23 @@ export default function SignUpPage() {
                         </div>
                     </section>
 
-                    <footer className="hidden md:block fixed bottom-6 left-1/2 -translate-x-1/2 text-sm text-zinc-500 select-none">
+                    {/* Desktop bottom trademark (fixed) */}
+                    <footer className="hidden md:block fixed bottom-0 left-0 right-0 pb-[calc(env(safe-area-inset-bottom)+12px)] pt-2 text-center text-sm text-zinc-500 select-none bg-gradient-to-t from-black/40 to-transparent">
                         A 6clement Joshua service · © {new Date().getFullYear()} 6ix
                     </footer>
                 </div>
 
                 {/* MOBILE */}
-                <div className="md:hidden pb-10">
+                <div className="md:hidden min-h-dvh flex flex-col">
                     <div className="pt-6 grid place-items-center">
                         <Image src="/splash.png" alt="6ix" width={120} height={120} priority className="rounded-xl object-cover" />
                         <h1 className="mt-4 text-3xl font-semibold text-center px-6">Sign up to 6ix today</h1>
                         <p className="mt-2 text-center px-6 text-zinc-300">
-                             <span style={{ color: 'var(--gold)' }}>earnings</span> and growth are transparent for all.
+                            <span style={{ color: 'var(--gold)' }}>earnings</span> and growth are transparent for all.
                         </p>
                     </div>
 
-                    <div className="px-4 mt-5">
+                    <div className="px-4 mt-5 flex-1">
                         <SignUpCard
                             email={email}
                             setEmail={setEmail}
@@ -289,27 +331,57 @@ export default function SignUpPage() {
                         />
                     </div>
 
-                    <footer className="mt-26 mb-2 text-center text-zinc-500 text-sm">
+                    {/* Mobile footer pinned to absolute bottom with safe-area padding */}
+                    <footer className="mt-8 pb-[calc(env(safe-area-inset-bottom)+10px)] pt-2 text-center text-zinc-500 text-sm">
                         A 6clement Joshua service · © {new Date().getFullYear()} 6ix
                     </footer>
                 </div>
 
-                {/* Page-scoped global styles (unchanged UI) */}
+                {/* Page-scoped global styles (button behaviors, checkbox, accessibility) */}
                 <style jsx global>{`
-html, body { overflow: hidden !important; height: 100%; }
-main.no-scroll { overflow: hidden; }
-#__next, main.no-scroll { min-height: 100dvh; }
+/* Layout safety */
+html, body { height: 100%; background: #000; }
+/* BUTTONS */
+.btn { display:inline-flex; align-items:center; justify-content:center; gap:.5rem; width:100%;
+border-radius:9999px; padding:.65rem 1rem;
+transition: transform .12s ease, box-shadow .20s ease, background .25s ease, color .25s ease, border-color .25s ease;
+font-weight: 600;
+}
+.btn-water:hover { transform: translateY(-.5px); box-shadow: inset 0 8px 30px rgba(255,255,255,.08); }
+.btn-water:active { transform: translateY(.25px) scale(.995); }
+
+/* Primary (white) — always black text, even if some global overrides exist */
+.btn-primary { background:#fff; color:#000 !important; border:1px solid rgba(255,255,255,.25); }
+.btn-primary:hover:not(:disabled) {
+background:#fff; color:#000 !important;
+box-shadow: 0 10px 26px rgba(255,255,255,.12), 0 2px 0 rgba(255,255,255,.22), inset 0 1px 0 rgba(255,255,255,.85);
+}
+.btn-primary:disabled { background:rgba(255,255,255,.28); color:rgba(0,0,0,.55) !important; cursor:not-allowed; border-color:transparent; }
+
+/* Outline (dark/transparent) — white text, inverts to white bg on hover */
+.btn-outline { background:rgba(255,255,255,.06); color:#fff; border:1px solid rgba(255,255,255,.18); }
+.btn-outline:hover:not(:disabled) { background:#fff; color:#000; border-color: transparent; }
+
+/* "Auto-light" when enabled: add glow the moment it becomes clickable */
+[data-enabled="true"].btn-primary { box-shadow: 0 8px 24px rgba(255,255,255,.12); }
+
+/* Checkbox: strictly black in light mode, white in dark mode (no purple/blue) */
+input[type="checkbox"] { accent-color: #fff; }
+html.theme-light input[type="checkbox"],
+@media (prefers-color-scheme: light) {
+input[type="checkbox"] { accent-color: #000; }
+}
+html.theme-dark input[type="checkbox"],
+@media (prefers-color-scheme: dark) {
+input[type="checkbox"] { accent-color: #fff; }
+}
+
+/* Inputs */
 input[list]::-webkit-calendar-picker-indicator { display: none !important; }
 input[list] { appearance: none; -webkit-appearance: none; }
-.btn { display:inline-flex; align-items:center; justify-content:center; gap:.5rem; width:100%;
-border-radius:9999px; padding:.65rem 1rem; transition:transform .12s ease, box-shadow .2s ease, background .35s ease; }
-.btn-primary { background:#fff; color:#000; }
-.btn-primary:disabled { background:rgba(255,255,255,.3); color:rgba(0,0,0,.6); cursor:not-allowed; }
-.btn-outline { background:rgba(255,255,255,.05); color:#fff; border:1px solid rgba(255,255,255,.15); }
-.btn-outline:hover { background:rgba(255,255,255,.10); }
-.btn-water:hover { transform: translateZ(0) scale(1.01); box-shadow: inset 0 8px 30px rgba(255,255,255,.08); }
-.btn-water:active { transform: scale(.99); }
-input[type="checkbox"] { accent-color: #000000ff; }
+.field { background: rgba(255,255,255,.06); color:#fff; border:1px solid rgba(255,255,255,.12); }
+.field:focus { outline: none; border-color: rgba(255,255,255,.34); }
+
 @media (max-width: 767px){ .btn { padding:.5rem .9rem; } }
 `}</style>
             </main>
@@ -317,7 +389,7 @@ input[type="checkbox"] { accent-color: #000000ff; }
     );
 }
 
-/* ---------------- Reusable Card (UI untouched) ---------------- */
+/* ---------------- Reusable Card ---------------- */
 function SignUpCard({
     email, setEmail,
     agree, setAgree,
@@ -367,15 +439,17 @@ function SignUpCard({
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="you@email.com"
-                        className="w-full rounded-lg bg-white/6 border border-white/10 px-3 pr-12 py-2.5
-text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-white/30
-disabled:opacity-60"
+                        className="field w-full rounded-lg px-3 pr-12 py-2.5 text-zinc-100 placeholder-zinc-500 disabled:opacity-60"
                         inputMode="email"
                         autoComplete="email"
                         autoFocus
                         aria-label="Email address"
                         disabled={pageDisabled}
                     />
+
+                    <datalist id="email-suggest">
+                        {suggestions.slice(0, 6).map(s => <option key={s} value={s} />)}
+                    </datalist>
 
                     <div className="absolute inset-y-0 right-2 grid place-items-center w-7">
                         {emailStatus === 'checking' && <Spinner />}
@@ -401,8 +475,7 @@ disabled:opacity-60"
                                 disabled={!looksLikeEmail(email) || pageDisabled}
                                 title="Check email"
                                 aria-label="Check email"
-                                className="pointer-events-auto inline-flex items-center justify-center h-7 w-7 rounded-full
-border border-white/20 bg-black/40 hover:bg-black/60 disabled:opacity-40"
+                                className="pointer-events-auto inline-flex items-center justify-center h-7 w-7 rounded-full border border-white/20 bg-black/40 hover:bg-black/60 disabled:opacity-40"
                             >
                                 <span className="text-xs leading-none">☑︎</span>
                             </button>
@@ -435,6 +508,7 @@ border border-white/20 bg-black/40 hover:bg-black/60 disabled:opacity-40"
 
             <button
                 className={`btn btn-primary btn-water ${(!canSend || pageDisabled) ? 'pointer-events-none' : ''}`}
+                data-enabled={canSend && !pageDisabled}
                 disabled={!canSend || pageDisabled}
                 onClick={onSend}
                 aria-busy={sending}
@@ -504,12 +578,13 @@ function HelpPanel({ onClose, presetEmail }: { onClose: () => void; presetEmail?
                 <button onClick={onClose} className="text-sm text-zinc-300 hover:text-white">Close</button>
             </div>
             <div className="mt-3 grid gap-2">
-                <input className="rounded-lg bg-white/10 border border-white/10 px-3 py-2 text-sm focus:outline-none focus:border-white/30" placeholder="First name" value={firstName} onChange={e => setFirst(e.target.value)} />
-                <input className="rounded-lg bg-white/10 border border-white/10 px-3 py-2 text-sm focus:outline-none focus:border-white/30" placeholder="Last name" value={lastName} onChange={e => setLast(e.target.value)} />
-                <input className="rounded-lg bg-white/10 border border-white/10 px-3 py-2 text-sm focus:outline-none focus:border-white/30" placeholder="Email (reply to)" value={email} onChange={e => setEmail(e.target.value)} />
-                <input className="rounded-lg bg-white/10 border border-white/10 px-3 py-2 text-sm focus:outline-none focus:border-white/30" placeholder="Location (city, country)" value={location} onChange={e => setLoc(e.target.value)} />
-                <textarea className="rounded-lg bg-white/10 border border-white/10 px-3 py-2 text-sm focus:outline-none focus:border-white/30" placeholder="Tell us what went wrong…" rows={3} value={reason} onChange={e => setReason(e.target.value)} />
+                <input className="field rounded-lg px-3 py-2 text-sm" placeholder="First name" value={firstName} onChange={e => setFirst(e.target.value)} />
+                <input className="field rounded-lg px-3 py-2 text-sm" placeholder="Last name" value={lastName} onChange={e => setLast(e.target.value)} />
+                <input className="field rounded-lg px-3 py-2 text-sm" placeholder="Email (reply to)" value={email} onChange={e => setEmail(e.target.value)} />
+                <input className="field rounded-lg px-3 py-2 text-sm" placeholder="Location (city, country)" value={location} onChange={e => setLoc(e.target.value)} />
+                <textarea className="field rounded-lg px-3 py-2 text-sm" placeholder="Tell us what went wrong…" rows={3} value={reason} onChange={e => setReason(e.target.value)} />
                 {done && <p className={`text-sm ${done === 'ok' ? 'text-emerald-400' : 'text-red-400'}`}>{msg}</p>}
+                {/* Primary button uses black text on white background */}
                 <button className="btn btn-primary btn-water" disabled={sending} onClick={submit}>
                     {sending ? 'Sending…' : 'Send to support@6ixapp.com'}
                 </button>
@@ -518,7 +593,7 @@ function HelpPanel({ onClose, presetEmail }: { onClose: () => void; presetEmail?
     );
 }
 
-/* -------- Email-exists modal (UI untouched) -------- */
+/* -------- Email-exists modal -------- */
 function EmailExistsModal({
     email,
     seconds,
