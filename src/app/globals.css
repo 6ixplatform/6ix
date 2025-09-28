@@ -441,7 +441,7 @@ body {
 
 /* Base variants (non-hover state) */
 .btn-primary {
-  background: #fff;
+  background: #000000;
   color: #000;
   border-color: transparent;
 }
@@ -452,22 +452,7 @@ body {
   border-color: rgba(255, 255, 255, .15);
 }
 
-/* Hover → turn **black** with white text (pointer devices only) */
-@media (hover:hover) and (pointer:fine) {
 
-  .btn-primary:hover,
-  .btn-outline:hover {
-    background: #000;
-    color: #fff;
-    border-color: rgba(255, 255, 255, .25);
-    box-shadow: inset 0 0 40px rgba(255, 255, 255, .08);
-    transform: translateZ(0) scale(1.01);
-  }
-
-  .btn:active {
-    transform: scale(.99);
-  }
-}
 
 /* Optional “water/jelly” sheen on hover */
 @media (hover:hover) and (pointer:fine) {
@@ -704,20 +689,6 @@ orb {
   color-scheme: dark;
 }
 
-/* Generic pill buttons used by header + bottom nav */
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: .5rem;
-  border-radius: 9999px;
-  padding: .42rem .66rem;
-  line-height: 1;
-  font-size: 12px;
-  border: 1px solid rgba(255, 255, 255, .16);
-  background: transparent;
-  color: #fff;
-}
 
 .btn:active {
   transform: translateY(.5px);
@@ -1486,4 +1457,22 @@ html.theme-light .auth-scope input[type="checkbox"]:checked {
   font-size: .875rem;
   color: #9ca3af;
   pointer-events: none;
+}
+
+/* AUTH hover – keep white bg + black text for primary; dark for outline */
+@media (hover:hover) {
+  .auth-scope .btn-primary:hover {
+    background: #fff;
+    color: #000;
+  }
+
+  .auth-scope .btn-outline:hover {
+    background: #000;
+    color: #fff;
+  }
+}
+
+/* Mobile tap feedback (no color flip) */
+.auth-scope .btn:active {
+  transform: scale(.985);
 }

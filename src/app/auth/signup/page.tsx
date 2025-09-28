@@ -35,7 +35,7 @@ export default function SignUpPage() {
     const existsTimerRef = useRef<number | null>(null);
     const redirectedRef = useRef(false);
 
-    // ---------- Persist/restore draft so users don’t lose progress ----------
+    // ---------- Persist/restore draft ----------
     useEffect(() => {
         try {
             const raw = localStorage.getItem('6ix:signup_draft');
@@ -47,9 +47,7 @@ export default function SignUpPage() {
         } catch { }
     }, []);
     useEffect(() => {
-        try {
-            localStorage.setItem('6ix:signup_draft', JSON.stringify({ email, agree }));
-        } catch { }
+        try { localStorage.setItem('6ix:signup_draft', JSON.stringify({ email, agree })); } catch { }
     }, [email, agree]);
 
     const redirectToSignin = () => {
@@ -117,7 +115,6 @@ export default function SignUpPage() {
 
         setEmailStatus('checking');
         setErr(null);
-
         try {
             const ac = new AbortController();
             abortRef.current = ac;
@@ -128,7 +125,6 @@ export default function SignUpPage() {
                 signal: ac.signal,
                 cache: 'no-store',
             });
-
             const { ok, exists } = await r.json();
 
             if (!ok || exists == null) {
@@ -136,7 +132,6 @@ export default function SignUpPage() {
                 setErr('Couldn’t check your email right now. Please try again.');
                 return;
             }
-
             if (exists === true) {
                 setEmailStatus('exists');
                 setErr(null);
@@ -153,7 +148,7 @@ export default function SignUpPage() {
         }
     };
 
-    // Debounced auto-check after user stops typing (fast but not spammy)
+    // Debounced auto-check after user stops typing
     useEffect(() => {
         if (!emailOk || pageDisabled) return;
         const id = window.setTimeout(() => {
@@ -166,12 +161,7 @@ export default function SignUpPage() {
     // When user ticks the policy checkbox, automatically run the email check
     const onAgreeToggle = (checked: boolean) => {
         setAgree(checked);
-        if (
-            checked &&
-            looksLikeEmail(email) &&
-            (emailStatus === 'idle' || emailStatus === 'error') &&
-            !pageDisabled
-        ) {
+        if (checked && looksLikeEmail(email) && (emailStatus === 'idle' || emailStatus === 'error') && !pageDisabled) {
             void runEmailCheck();
         }
     };
@@ -185,16 +175,13 @@ export default function SignUpPage() {
 
     const sendCode = async () => {
         if (!canSend) return;
-
         const cleanEmail = email.trim().toLowerCase();
         const verifyUrl = `/auth/verify?email=${encodeURIComponent(cleanEmail)}&redirect=${encodeURIComponent('/profile')}&src=signup`;
 
         setSending(true);
         setErr(null);
         setInfo(null);
-
         try { localStorage.setItem('6ix:last_email', cleanEmail); } catch { }
-
         try {
             const r = await fetch('/api/auth/send-otp', {
                 method: 'POST',
@@ -220,6 +207,35 @@ export default function SignUpPage() {
         return () => window.removeEventListener('keydown', onKey);
     }, [canSend]); // eslint-disable-line
 
+    // Touch flicker helper (adds/removes .pressed briefly)
+    useEffect(() => {
+        const scope = document.querySelector('.auth-scope');
+        if (!scope) return;
+
+        const add = (e: Event) => {
+            const el = (e.target as HTMLElement)?.closest?.('.btn') as HTMLButtonElement | null;
+            if (!el || el.hasAttribute('disabled')) return;
+            el.classList.add('pressed');
+        };
+        const clear = () => {
+            scope.querySelectorAll('.btn.pressed').forEach(b => b.classList.remove('pressed'));
+        };
+
+        // Pointer events work for mouse + touch + pen
+        scope.addEventListener('pointerdown', add, { passive: true });
+        scope.addEventListener('pointerup', clear, { passive: true });
+        scope.addEventListener('pointercancel', clear, { passive: true });
+        scope.addEventListener('pointerleave', clear, { passive: true });
+
+        return () => {
+            scope.removeEventListener('pointerdown', add as any);
+            scope.removeEventListener('pointerup', clear as any);
+            scope.removeEventListener('pointercancel', clear as any);
+            scope.removeEventListener('pointerleave', clear as any);
+        };
+    }, []);
+
+
     return (
         <>
             {/* SEO JSON-LD for the auth page */}
@@ -238,14 +254,18 @@ export default function SignUpPage() {
 
             <BackStopper />
 
-            <main className="auth-scope min-h-dvh bg-black text-zinc-100" style={{ paddingTop: 'env(safe-area-inset-top,0px)' }}>
-                {/* HELP */}
+            <main
+                className="auth-scope min-h-dvh bg-black text-zinc-100 pb-[calc(env(safe-area-inset-bottom)+60px)]"
+                style={{ paddingTop: 'env(safe-area-inset-top,0px)' }}
+            >
                 <button
-                    className={`help-panel fixed right-4 top-4 z-40 text-sm px-3 py-2 rounded-full bg-white/10 hover:bg-white/20 btn-water ${pageDisabled ? 'pointer-events-none opacity-60' : ''}`}
+                    type="button"
+                    className={`help-toggle ${pageDisabled ? 'is-disabled' : ''}`}
                     onClick={() => setHelpOpen(v => !v)}
                     disabled={pageDisabled}
+                    aria-label="Need help?"
                 >
-                    Need help?
+                    Need Help?
                 </button>
                 {helpOpen && <HelpPanel onClose={() => setHelpOpen(false)} presetEmail={email} />}
 
@@ -273,7 +293,7 @@ export default function SignUpPage() {
                         <header>
                             <h1 className="text-4xl lg:text-5xl font-semibold leading-tight">Sign up to 6ix today</h1>
                             <p className="mt-3 text-zinc-300 max-w-2xl">
-                                <span style={{ color: 'var(--gold)' }}>earnings</span> and growth are transparent for all.
+                                Where <span style={{ color: 'var(--gold)' }}>earnings</span> and growth are transparent for all.
                             </p>
                         </header>
 
@@ -308,7 +328,7 @@ export default function SignUpPage() {
                         <Image src="/splash.png" alt="6ix" width={120} height={120} priority className="rounded-xl object-cover" />
                         <h1 className="mt-4 text-3xl font-semibold text-center px-6">Sign up to 6ix today</h1>
                         <p className="mt-2 text-center px-6 text-zinc-300">
-                            <span style={{ color: 'var(--gold)' }}>earnings</span> and growth are transparent for all.
+                            Where <span style={{ color: 'var(--gold)' }}>earnings</span> and growth are transparent for all.
                         </p>
                     </div>
 
@@ -331,58 +351,191 @@ export default function SignUpPage() {
                         />
                     </div>
 
-                    {/* Mobile footer pinned to absolute bottom with safe-area padding */}
-                    <footer className="mt-8 pb-[calc(env(safe-area-inset-bottom)+10px)] pt-2 text-center text-zinc-500 text-sm">
+                    {/* Mobile footer pinned absolute bottom */}
+                    <footer className="md:hidden fixed left-0 right-0 bottom-0 pb-[calc(env(safe-area-inset-bottom)+10px)] pt-2 text-center text-zinc-500 text-sm bg-gradient-to-t from-black/40 to-transparent">
                         A 6clement Joshua service · © {new Date().getFullYear()} 6ix
                     </footer>
                 </div>
 
-                {/* Page-scoped global styles (button behaviors, checkbox, accessibility) */}
+                {/* Page-scoped styles (NO HOVER; tap-only effects) */}
                 <style jsx global>{`
-/* Layout safety */
-html, body { height: 100%; background: #000; }
-/* BUTTONS */
-.btn { display:inline-flex; align-items:center; justify-content:center; gap:.5rem; width:100%;
-border-radius:9999px; padding:.65rem 1rem;
-transition: transform .12s ease, box-shadow .20s ease, background .25s ease, color .25s ease, border-color .25s ease;
-font-weight: 600;
-}
-.btn-water:hover { transform: translateY(-.5px); box-shadow: inset 0 8px 30px rgba(255,255,255,.08); }
-.btn-water:active { transform: translateY(.25px) scale(.995); }
+                /* Tiny top-right Help pill (NOT full width) */
+.auth-scope .help-toggle{
+position: fixed;
+top: calc(env(safe-area-inset-top) + 10px);
+right: calc(env(safe-area-inset-right) + 10px);
+z-index: 50;
 
-/* Primary (white) — always black text, even if some global overrides exist */
-.btn-primary { background:#fff; color:#000 !important; border:1px solid rgba(255,255,255,.25); }
-.btn-primary:hover:not(:disabled) {
+display: inline-flex;
+align-items: center;
+justify-content: center;
+
+width: auto; min-width: 0;
+padding: .28rem .55rem; /* small */
+border-radius: 9999px;
+font-size: 12px; line-height: 1;
+letter-spacing: .1px;
+
+background: rgba(255,255,255,.10);
+border: 1px solid rgba(255,255,255,.18);
+color: #fff;
+
+-webkit-backdrop-filter: blur(10px);
+backdrop-filter: blur(10px);
+box-shadow:
+inset 0 1px 0 rgba(255,255,255,.22),
+inset 0 -1px 0 rgba(0,0,0,.35),
+0 4px 12px rgba(0,0,0,.35);
+
+transition: transform .12s ease, opacity .2s ease, box-shadow .2s ease;
+}
+
+/* tap “flick” */
+.auth-scope .help-toggle:active { transform: scale(.98); }
+.auth-scope .help-toggle.is-disabled{ opacity:.6; pointer-events:none; }
+
+/* Light theme flip */
+html.theme-light .auth-scope .help-toggle{
+background: rgba(0,0,0,.06);
+border-color: rgba(0,0,0,.18);
+color: #000;
+}
+
+                /* Pressed state: quick 3D push-in, no color flip */
+.auth-scope .btn.pressed {
+transform: translateY(1px) scale(.995);
+box-shadow: inset 0 10px 28px rgba(255,255,255,.10),
+0 0 0 1px rgba(0,0,0,.06);
+}
+
+/* Primary stays white bg + black text */
+.auth-scope .btn-primary.pressed {
+background: #fff;
+color: #000 !important;
+box-shadow: inset 0 6px 18px rgba(0,0,0,.18), /* inner bevel */
+0 0 0 1px rgba(0,0,0,.06);
+}
+
+/* Outline stays dark with white text */
+.auth-scope .btn-outline.pressed {
+background: rgba(0,0,0,.88);
+color: #fff !important;
+box-shadow: inset 0 8px 26px rgba(255,255,255,.08);
+}
+
+/* Scope */
+.auth-scope * { -webkit-tap-highlight-color: transparent; }
+
+/* ---- Buttons (tap-only) ---- */
+.auth-scope .btn {
+display:inline-flex; align-items:center; justify-content:center; gap:.5rem; width:100%;
+border-radius:9999px; padding:.65rem 1rem; font-weight:600; user-select:none; cursor:pointer;
+border:1px solid transparent;
+transition: transform .12s ease, box-shadow .22s ease, background .22s ease, color .22s ease, border-color .22s ease;
+position:relative;
+}
+@media (max-width:767px){ .auth-scope .btn { padding:.55rem .9rem; } }
+
+.auth-scope .btn:disabled { opacity:.6; cursor:not-allowed; }
+
+/* 3D bevel base */
+.auth-scope .btn-primary {
 background:#fff; color:#000 !important;
-box-shadow: 0 10px 26px rgba(255,255,255,.12), 0 2px 0 rgba(255,255,255,.22), inset 0 1px 0 rgba(255,255,255,.85);
+border:1px solid rgba(255,255,255,.25);
+box-shadow:
+0 8px 22px rgba(255,255,255,.10),
+0 2px 0 rgba(255,255,255,.18),
+inset 0 1px 0 rgba(255,255,255,.85);
 }
-.btn-primary:disabled { background:rgba(255,255,255,.28); color:rgba(0,0,0,.55) !important; cursor:not-allowed; border-color:transparent; }
-
-/* Outline (dark/transparent) — white text, inverts to white bg on hover */
-.btn-outline { background:rgba(255,255,255,.06); color:#fff; border:1px solid rgba(255,255,255,.18); }
-.btn-outline:hover:not(:disabled) { background:#fff; color:#000; border-color: transparent; }
-
-/* "Auto-light" when enabled: add glow the moment it becomes clickable */
-[data-enabled="true"].btn-primary { box-shadow: 0 8px 24px rgba(255,255,255,.12); }
-
-/* Checkbox: strictly black in light mode, white in dark mode (no purple/blue) */
-input[type="checkbox"] { accent-color: #fff; }
-html.theme-light input[type="checkbox"],
-@media (prefers-color-scheme: light) {
-input[type="checkbox"] { accent-color: #000; }
+.auth-scope .btn-outline {
+background:rgba(0,0,0,.85); color:#fff !important;
+border:1px solid rgba(255,255,255,.15);
+box-shadow:
+0 10px 30px rgba(0,0,0,.35),
+inset 0 1px 0 rgba(255,255,255,.06);
 }
-html.theme-dark input[type="checkbox"],
-@media (prefers-color-scheme: dark) {
-input[type="checkbox"] { accent-color: #fff; }
+
+/* NO hover styles (override anything global) */
+@media (hover:hover) {
+.auth-scope .btn:hover,
+.auth-scope .btn-primary:hover,
+.auth-scope .btn-outline:hover {
+background: inherit !important;
+color: inherit !important;
+border-color: inherit !important;
+transform: none !important;
+box-shadow: inherit !important;
+}
+.auth-scope .btn-water:hover::after { opacity:0 !important; }
+}
+
+/* Tap flicker + push-in (mobile and desktop click) */
+.auth-scope .btn:active,
+.auth-scope .btn.pressed {
+transform: translateY(1px) scale(.995);
+box-shadow:
+0 4px 14px rgba(255,255,255,.10),
+inset 0 2px 10px rgba(0,0,0,.20),
+inset 0 1px 0 rgba(255,255,255,.65);
+}
+.auth-scope .btn:active::after,
+.auth-scope .btn.pressed::after {
+content:""; position:absolute; inset:0; border-radius:inherit; pointer-events:none;
+background: radial-gradient(120% 60% at 50% 0%, rgba(255,255,255,.25), transparent 60%);
+animation: tapFlash .18s ease;
+}
+@keyframes tapFlash { from { opacity:.8; } to { opacity:0; } }
+
+/* Subtle “enabled” glow when actionable */
+.auth-scope .btn-primary[data-enabled="true"] {
+box-shadow:
+0 12px 28px rgba(255,255,255,.16),
+0 2px 0 rgba(255,255,255,.20),
+inset 0 1px 0 rgba(255,255,255,.85);
 }
 
 /* Inputs */
-input[list]::-webkit-calendar-picker-indicator { display: none !important; }
-input[list] { appearance: none; -webkit-appearance: none; }
-.field { background: rgba(255,255,255,.06); color:#fff; border:1px solid rgba(255,255,255,.12); }
-.field:focus { outline: none; border-color: rgba(255,255,255,.34); }
+.auth-scope .field {
+background: rgba(255,255,255,.06);
+color:#fff;
+border:1px solid rgba(255,255,255,.12);
+}
+.auth-scope .field:focus { outline:none; border-color: rgba(255,255,255,.34); }
+.auth-scope input[list]::-webkit-calendar-picker-indicator { display:none !important; }
+.auth-scope input[list] { appearance:none; -webkit-appearance:none; }
 
-@media (max-width: 767px){ .btn { padding:.5rem .9rem; } }
+/* Checkbox strictly black/white (no purple) */
+.auth-scope input[type="checkbox"] {
+appearance:none; -webkit-appearance:none;
+width:16px; height:16px; border-radius:4px;
+border:1.5px solid rgba(255,255,255,.35); background:transparent; position:relative;
+}
+.auth-scope input[type="checkbox"]:checked { background:#000; border-color:#000; }
+.auth-scope input[type="checkbox"]:checked::after {
+content:""; position:absolute; left:4px; top:1px; width:5px; height:9px;
+border:2px solid #fff; border-top:none; border-left:none; transform:rotate(45deg);
+}
+
+/* Light theme flips – still only black/white */
+html.theme-light .auth-scope { color-scheme: light; }
+html.theme-light .auth-scope { background:#fff; color:#000; }
+html.theme-light .auth-scope .field {
+background: rgba(0,0,0,.03);
+color:#111; border-color: rgba(0,0,0,.12);
+}
+html.theme-light .auth-scope .field:focus { border-color: rgba(0,0,0,.35); }
+html.theme-light .auth-scope .btn-outline {
+background:#111; color:#fff !important; border-color: rgba(0,0,0,.8);
+}
+html.theme-light .auth-scope input[type="checkbox"] { border-color: rgba(0,0,0,.45); }
+html.theme-light .auth-scope input[type="checkbox"]:checked { background:#000; border-color:#000; }
+
+/* Trademark pinned bottom on mobile (space already reserved in <main>) */
+.auth-scope footer { pointer-events:none; }
+
+/* Small utilities */
+.auth-scope .text-link { text-decoration: underline; text-decoration-color: rgba(255,255,255,.3); }
+html.theme-light .auth-scope .text-link { text-decoration-color: rgba(0,0,0,.3); }
 `}</style>
             </main>
         </>
@@ -425,7 +578,7 @@ function SignUpCard({
     };
 
     return (
-        <div className={`relative rounded-2xl border border-white/10 bg-white/6 backdrop-blur-xl shadow-[0_10px_60px_-10px_rgba(0,0,0,.6)] p-5 sm:p-6 ${mobile ? 'water-mobile' : ''} ${pageDisabled ? 'opacity-90' : ''}`}>
+        <div className={`relative rounded-2xl border border-white/10 bg-white/6 backdrop-blur-xl shadow-[0_10px_60px_-10px_rgba(0,0,0,.6)] p-5 sm:p-6 ${mobile ? '' : ''} ${pageDisabled ? 'opacity-90' : ''}`}>
             <div className="flex items-center gap-3 mb-4">
                 <div className="text-lg sm:text-xl font-semibold">Create your 6ix account</div>
             </div>
@@ -475,7 +628,7 @@ function SignUpCard({
                                 disabled={!looksLikeEmail(email) || pageDisabled}
                                 title="Check email"
                                 aria-label="Check email"
-                                className="pointer-events-auto inline-flex items-center justify-center h-7 w-7 rounded-full border border-white/20 bg-black/40 hover:bg-black/60 disabled:opacity-40"
+                                className="pointer-events-auto inline-flex items-center justify-center h-7 w-7 rounded-full border border-white/20 bg-black/40 disabled:opacity-40 btn"
                             >
                                 <span className="text-xs leading-none">☑︎</span>
                             </button>
@@ -495,19 +648,19 @@ function SignUpCard({
                     type="checkbox"
                     checked={agree}
                     onChange={(e) => setAgree(e.target.checked)}
-                    className="mt-0.5 h-4 w-4 rounded border-white/20 bg-dark/0"
+                    className="mt-0.5 h-4 w-4 rounded bg-transparent"
                     disabled={pageDisabled}
                 />
                 <span className="text-sm text-zinc-400">
                     I agree to the{' '}
-                    <Link href="/legal/terms" className="underline decoration-white/30 hover:decoration-white transition">Terms</Link>{' '}
+                    <Link href="/legal/terms" className="text-link transition">Terms</Link>{' '}
                     and{' '}
-                    <Link href="/legal/privacy" className="underline decoration-white/30 hover:decoration-white transition">Privacy Policy</Link>.
+                    <Link href="/legal/privacy" className="text-link transition">Privacy Policy</Link>.
                 </span>
             </label>
 
             <button
-                className={`btn btn-primary btn-water ${(!canSend || pageDisabled) ? 'pointer-events-none' : ''}`}
+                className={`btn btn-primary ${(!canSend || pageDisabled) ? 'pointer-events-none' : ''}`}
                 data-enabled={canSend && !pageDisabled}
                 disabled={!canSend || pageDisabled}
                 onClick={onSend}
@@ -523,16 +676,16 @@ function SignUpCard({
             <button
                 onClick={goSignin}
                 disabled={navBusy || pageDisabled}
-                className={`btn btn-outline btn-water w-full mt-2 text-center ${(navBusy || pageDisabled) ? 'pointer-events-none opacity-60' : ''}`}
+                className={`btn btn-outline w-full mt-2 text-center ${(navBusy || pageDisabled) ? 'pointer-events-none opacity-60' : ''}`}
             >
                 {navBusy && <Spinner />} {navBusy ? 'Opening…' : 'Sign in'}
             </button>
 
             <p className="mt-4 text-xs text-zinc-500 text-center">
                 By continuing with signin, you agree to our{' '}
-                <Link href="/legal/terms" className="underline decoration-white/20 hover:decoration-white">Terms</Link>{' '}
+                <Link href="/legal/terms" className="text-link">Terms</Link>{' '}
                 and{' '}
-                <Link href="/legal/privacy" className="underline decoration-white/20 hover:decoration-white">Privacy Policy</Link>.
+                <Link href="/legal/privacy" className="text-link">Privacy Policy</Link>.
             </p>
         </div>
     );
@@ -573,9 +726,9 @@ function HelpPanel({ onClose, presetEmail }: { onClose: () => void; presetEmail?
 
     return (
         <div className="fixed right-4 top-14 z-40 w-[min(92vw,360px)] rounded-2xl border border-white/10 bg-black/50 backdrop-blur-xl p-4 shadow-lg">
-            <div className="flex items-center justify-between">
+            <div className="container justify-between">
                 <div className="font-medium">Need help?</div>
-                <button onClick={onClose} className="text-sm text-zinc-300 hover:text-white">Close</button>
+                <button onClick={onClose} className="text-sm text-zinc-300">Close</button>
             </div>
             <div className="mt-3 grid gap-2">
                 <input className="field rounded-lg px-3 py-2 text-sm" placeholder="First name" value={firstName} onChange={e => setFirst(e.target.value)} />
@@ -585,7 +738,7 @@ function HelpPanel({ onClose, presetEmail }: { onClose: () => void; presetEmail?
                 <textarea className="field rounded-lg px-3 py-2 text-sm" placeholder="Tell us what went wrong…" rows={3} value={reason} onChange={e => setReason(e.target.value)} />
                 {done && <p className={`text-sm ${done === 'ok' ? 'text-emerald-400' : 'text-red-400'}`}>{msg}</p>}
                 {/* Primary button uses black text on white background */}
-                <button className="btn btn-primary btn-water" disabled={sending} onClick={submit}>
+                <button className="btn btn-primary" disabled={sending} onClick={submit}>
                     {sending ? 'Sending…' : 'Send to support@6ixapp.com'}
                 </button>
             </div>
@@ -616,7 +769,7 @@ function EmailExistsModal({
                 <button
                     onClick={onCancel}
                     aria-label="Close"
-                    className="absolute right-3 top-3 rounded-full px-2 py-1 text-sm bg-white/10 hover:bg-white/20"
+                    className="absolute right-3 top-3 rounded-full px-2 py-1 text-sm bg-white/10"
                 >
                     Close
                 </button>
@@ -627,15 +780,14 @@ function EmailExistsModal({
 
                 <p className="mt-2 text-zinc-300 break-all">{email}</p>
                 <p className="mt-3 text-sm text-zinc-400">
-                    You can <b>Cancel</b> and use another address, or we’ll redirect you to <b>Sign in</b> in{' '}
-                    <b>{seconds}</b>s.
+                    You can <b>Cancel</b> and use another address, or we’ll redirect you to <b>Sign in</b> in <b>{seconds}</b>s.
                 </p>
 
                 <div className="mt-5 flex items-center justify-end gap-3">
-                    <button className="btn btn-outline btn-water w-auto" onClick={onCancel}>
+                    <button className="btn btn-outline w-auto" onClick={onCancel}>
                         Cancel
                     </button>
-                    <button className="btn btn-primary btn-water w-auto" onClick={onProceed}>
+                    <button className="btn btn-primary w-auto" onClick={onProceed}>
                         Go to sign in
                     </button>
                 </div>
