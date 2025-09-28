@@ -238,10 +238,10 @@ export default function SignUpPage() {
 
             <BackStopper />
 
-            <main className="min-h-dvh bg-black text-zinc-100" style={{ paddingTop: 'env(safe-area-inset-top,0px)' }}>
+            <main className="auth-scope min-h-dvh bg-black text-zinc-100" style={{ paddingTop: 'env(safe-area-inset-top,0px)' }}>
                 {/* HELP */}
                 <button
-                    className={`fixed right-4 top-4 z-40 text-sm px-3 py-2 rounded-full bg-white/10 hover:bg-white/20 btn-water ${pageDisabled ? 'pointer-events-none opacity-60' : ''}`}
+                    className={`help-panel fixed right-4 top-4 z-40 text-sm px-3 py-2 rounded-full bg-white/10 hover:bg-white/20 btn-water ${pageDisabled ? 'pointer-events-none opacity-60' : ''}`}
                     onClick={() => setHelpOpen(v => !v)}
                     disabled={pageDisabled}
                 >
