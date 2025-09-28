@@ -6,7 +6,8 @@ import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const LOGO_URL = 'https://tjtsqgsztcfaialwtjmb.supabase.co/storage/v1/object/public/branding/splash_white.png';
+const SITE = 'https://www.6ixapp.com';
+const LOGO_URL = `${SITE}/splash.png`; // use your on-domain splash/logo
 
 function renderVerifyEmail(code: string) {
     return `<!doctype html><html><head>
@@ -39,11 +40,11 @@ body{margin:0;background:#000}
 </div>
 <div class="footerCard">
 <div class="links">
-<a href="https://6ix.app/privacy">Privacy</a> •
-<a href="https://6ix.app/terms">Terms</a> •
+<a href="${SITE}/legal/privacy">Privacy</a> •
+<a href="${SITE}/legal/terms">Terms</a> •
 <a href="mailto:support@6ixapp.com">Contact</a>
 </div>
-<div style="margin-top:6px">6ix · © A 6Clement Joshua Service</div>
+<div style="margin-top:6px">A 6clement Joshua service · © 6ix</div>
 </div>
 </div>
 </body></html>`;
@@ -69,6 +70,7 @@ async function userExistsByEmail(email: string): Promise<boolean> {
             apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
         },
         cache: 'no-store',
+        // small timeout via AbortController could be added if needed
     });
     if (res.status === 404) return false;
     if (!res.ok) return false;
@@ -79,47 +81,53 @@ async function userExistsByEmail(email: string): Promise<boolean> {
 
 export async function POST(req: Request) {
     const supabase = getSupabaseAdmin();
+
     try {
         if (!process.env.RESEND_API_KEY) {
-            return NextResponse.json({ ok: false, error: 'Email service not configured (RESEND_API_KEY missing)' }, { status: 500 });
+            return NextResponse.json(
+                { ok: false, error: 'Email service not configured (RESEND_API_KEY missing)' },
+                { status: 500, headers: { 'Cache-Control': 'no-store' } }
+            );
         }
         if (!process.env.SUPABASE_SERVICE_ROLE_KEY || !process.env.NEXT_PUBLIC_SUPABASE_URL) {
-            return NextResponse.json({ ok: false, error: 'Server misconfigured (Supabase env missing)' }, { status: 500 });
+            return NextResponse.json(
+                { ok: false, error: 'Server misconfigured (Supabase env missing)' },
+                { status: 500, headers: { 'Cache-Control': 'no-store' } }
+            );
         }
 
         const { email, force } = await req.json();
         const normalized = String(email || '').trim().toLowerCase();
         if (!/^\S+@\S+\.\S+$/.test(normalized)) {
-            return NextResponse.json({ ok: false, error: 'Invalid email' }, { status: 400 });
+            return NextResponse.json({ ok: false, error: 'Invalid email' }, { status: 400, headers: { 'Cache-Control': 'no-store' } });
         }
 
-        const exists = await userExistsByEmail(normalized);
+        // Do the two reads in parallel for speed
+        const [exists, recentQuery] = await Promise.all([
+            userExistsByEmail(normalized),
+            supabase
+                .from('email_otps')
+                .select('id, expires_at')
+                .eq('email', normalized)
+                .eq('used', false)
+                .gt('expires_at', new Date().toISOString())
+                .order('id', { ascending: false })
+                .limit(1),
+        ]);
 
-        // Check for a still-valid OTP unless "force" is set (used by the Resend button)
-        const { data: recent, error: recentErr } = await getSupabaseAdmin()
-            .from('email_otps')
-            .select('id, expires_at')
-            .eq('email', normalized)
-            .eq('used', false)
-            .gt('expires_at', new Date().toISOString())
-            .order('id', { ascending: false })
-            .limit(1);
-
-        if (recentErr) return NextResponse.json({ ok: false, error: recentErr.message }, { status: 500 });
-
-        if (recent?.length && !force) {
-            // Reuse existing valid OTP
-            return NextResponse.json({ ok: true, exists, reused: true }, { status: 200 });
+        if (recentQuery.error) {
+            return NextResponse.json({ ok: false, error: recentQuery.error.message }, { status: 500, headers: { 'Cache-Control': 'no-store' } });
         }
 
-        // If we're forcing a resend, clear any previous unused codes (best-effort)
+        if (recentQuery.data?.length && !force) {
+            // Reuse existing valid OTP (instant path — no email send needed)
+            return NextResponse.json({ ok: true, exists, reused: true }, { status: 200, headers: { 'Cache-Control': 'no-store' } });
+        }
+
+        // If forcing a resend, clear any previous unused codes (best-effort)
         if (force) {
             try {
-                await getSupabaseAdmin()
-                    .from('email_otps')
-                    .delete()
-                    .eq('email', normalized)
-                    .eq('used', false);
+                await supabase.from('email_otps').delete().eq('email', normalized).eq('used', false);
             } catch { }
         }
 
@@ -128,12 +136,12 @@ export async function POST(req: Request) {
         const code_hash = await sha256Hex(`${normalized}:${code}`);
         const expires_at = new Date(Date.now() + 10 * 60 * 1000).toISOString();
 
-        const { error: insErr } = await getSupabaseAdmin()
-            .from('email_otps')
-            .insert({ email: normalized, code_hash, expires_at, used: false });
-        if (insErr) return NextResponse.json({ ok: false, error: insErr.message }, { status: 500 });
+        const ins = await supabase.from('email_otps').insert({ email: normalized, code_hash, expires_at, used: false });
+        if (ins.error) {
+            return NextResponse.json({ ok: false, error: ins.error.message }, { status: 500, headers: { 'Cache-Control': 'no-store' } });
+        }
 
-        // 2) Send your custom email via Resend
+        // 2) Send via Resend (with safe fallback)
         const resend = new Resend(process.env.RESEND_API_KEY!);
         const html = renderVerifyEmail(code);
 
@@ -156,18 +164,24 @@ export async function POST(req: Request) {
         };
 
         let sent = await trySend(preferredFrom);
-        // Fallback to a Resend sandbox/verified sender if your domain isn’t verified yet
+        // Fallback if sender/domain not verified yet
         if (!sent && /domain|sender|verified|dkim|spf/i.test(sendError || '')) {
             sent = await trySend('6ix <onboarding@resend.dev>');
         }
 
         if (!sent) {
-            await getSupabaseAdmin().from('email_otps').delete().eq('email', normalized).eq('code_hash', code_hash);
-            return NextResponse.json({ ok: false, error: `Email send failed: ${sendError}` }, { status: 502 });
+            await supabase.from('email_otps').delete().eq('email', normalized).eq('code_hash', code_hash);
+            return NextResponse.json(
+                { ok: false, error: `Email send failed: ${sendError}` },
+                { status: 502, headers: { 'Cache-Control': 'no-store' } }
+            );
         }
 
-        return NextResponse.json({ ok: true, exists, forced: !!force }, { status: 200 });
+        return NextResponse.json({ ok: true, exists, forced: !!force }, { status: 200, headers: { 'Cache-Control': 'no-store' } });
     } catch (e: any) {
-        return NextResponse.json({ ok: false, error: e?.message || 'Server error' }, { status: 500 });
+        return NextResponse.json(
+            { ok: false, error: e?.message || 'Server error' },
+            { status: 500, headers: { 'Cache-Control': 'no-store' } }
+        );
     }
 }
