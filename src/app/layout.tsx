@@ -61,8 +61,7 @@ export const metadata: Metadata = {
     description:
       'Instant chat, calls & live video — secure and fast. Live rooms, podcasts, events, and creator posts.',
     images: [
-      { url: '/og.png', width: 1200, height: 630, alt: '6ix' },
-      { url: '/icon.png', width: 512, height: 512, alt: '6ix App Icon' },
+      { url: '/splash.png', width: 1200, height: 630, alt: '6ix' }
     ],
   },
   twitter: {
@@ -72,7 +71,7 @@ export const metadata: Metadata = {
     title: '6ix',
     description:
       '6ix — instant chat, calls & live video — secure and fast.',
-    images: ['/og.png'],
+    images: ['/splash.png'],
   },
   robots: {
     index: true, follow: true,
