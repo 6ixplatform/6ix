@@ -1296,3 +1296,194 @@ canvas {
     -webkit-transform: translateZ(0);
   }
 }
+
+/* ===== AUTH-ONLY SCOPE ===== */
+.auth-scope {
+  --btnGlow: 0 8px 26px rgba(255, 255, 255, .18);
+  --btnInset: inset 0 1px 0 rgba(255, 255, 255, .85);
+  --btnBorder: rgba(255, 255, 255, .28);
+}
+
+.auth-scope * {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Buttons (base) */
+.auth-scope .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
+  width: 100%;
+  border-radius: 9999px;
+  padding: .65rem 1rem;
+  transition: transform .12s ease, box-shadow .18s ease,
+    background-color .18s ease, color .18s ease, border-color .18s ease;
+  user-select: none;
+}
+
+@media (max-width:767px) {
+  .auth-scope .btn {
+    padding: .55rem .9rem;
+  }
+}
+
+.auth-scope .btn:active {
+  transform: scale(.985);
+}
+
+/* Primary (white) — must be black text */
+.auth-scope .btn-primary {
+  background: #fff;
+  color: #000;
+  border: 1px solid var(--btnBorder);
+  box-shadow: var(--btnGlow), var(--btnInset);
+}
+
+@media (hover:hover) {
+  .auth-scope .btn-primary:hover {
+    background: #fff;
+    color: #000;
+    box-shadow: 0 12px 34px rgba(255, 255, 255, .25), var(--btnInset);
+    transform: translateY(-.5px);
+  }
+}
+
+.auth-scope .btn-primary:active {
+  box-shadow: 0 4px 18px rgba(255, 255, 255, .22), var(--btnInset);
+}
+
+.auth-scope .btn-primary:disabled {
+  background: rgba(255, 255, 255, .35);
+  color: rgba(0, 0, 0, .55);
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+/* Outline / dark button — must be white text */
+.auth-scope .btn-outline {
+  background: rgba(0, 0, 0, .85);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, .15);
+}
+
+@media (hover:hover) {
+  .auth-scope .btn-outline:hover {
+    background: rgba(0, 0, 0, .92);
+    color: #fff;
+    box-shadow: 0 8px 24px rgba(255, 255, 255, .06);
+  }
+}
+
+.auth-scope .btn-outline:active {
+  box-shadow: 0 3px 10px rgba(255, 255, 255, .05);
+}
+
+.auth-scope .btn-outline:disabled {
+  opacity: .55;
+  box-shadow: none;
+}
+
+/* Inputs (dark) */
+.auth-scope input, .auth-scope textarea {
+  color: #fff;
+  background: rgba(255, 255, 255, .06);
+  border: 1px solid rgba(255, 255, 255, .12);
+}
+
+.auth-scope input::placeholder, .auth-scope textarea::placeholder {
+  color: #9ca3af;
+}
+
+.auth-scope input:focus, .auth-scope textarea:focus {
+  border-color: rgba(255, 255, 255, .3);
+  outline: none;
+}
+
+/* Checkbox — black/white only (no purple iOS) */
+.auth-scope input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  border: 1.5px solid rgba(255, 255, 255, .35);
+  background: transparent;
+  position: relative;
+}
+
+.auth-scope input[type="checkbox"]:checked {
+  background: #000;
+  border-color: #000;
+}
+
+.auth-scope input[type="checkbox"]:checked::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 1px;
+  width: 5px;
+  height: 9px;
+  border: 2px solid #fff;
+  border-top: none;
+  border-left: none;
+  transform: rotate(45deg);
+}
+
+/* Help panel buttons inherit correct colors */
+.auth-scope .help-panel .btn-primary {
+  background: #fff;
+  color: #000;
+}
+
+.auth-scope .help-panel .btn-outline {
+  background: #000;
+  color: #fff;
+}
+
+/* Light theme overrides (black/white preserved) */
+html.theme-light .auth-scope {
+  color-scheme: light;
+}
+
+html.theme-light .auth-scope input, html.theme-light .auth-scope textarea {
+  color: #111;
+  background: rgba(0, 0, 0, .03);
+  border-color: rgba(0, 0, 0, .12);
+}
+
+html.theme-light .auth-scope input::placeholder,
+html.theme-light .auth-scope textarea::placeholder {
+  color: #6b7280;
+}
+
+html.theme-light .auth-scope input:focus,
+html.theme-light .auth-scope textarea:focus {
+  border-color: rgba(0, 0, 0, .3);
+}
+
+html.theme-light .auth-scope .btn-outline {
+  background: #111;
+  color: #fff;
+}
+
+html.theme-light .auth-scope input[type="checkbox"] {
+  border-color: rgba(0, 0, 0, .45);
+}
+
+html.theme-light .auth-scope input[type="checkbox"]:checked {
+  background: #000;
+  border-color: #000;
+}
+
+/* Trademark pinned at the very bottom on mobile */
+.auth-scope .auth-footer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: max(env(safe-area-inset-bottom), 8px);
+  text-align: center;
+  font-size: .875rem;
+  color: #9ca3af;
+  pointer-events: none;
+}
