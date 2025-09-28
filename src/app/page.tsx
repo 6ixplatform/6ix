@@ -6,21 +6,10 @@ import Link from 'next/link';
 import PolicyLink from '@/components/PolicyLink';
 import Script from 'next/script';
 import { useEffect, useState } from 'react';
+import Splash from '@/components/Splash';
 
 export default function Home() {
   const [showSplash, setShowSplash] = useState(true);
-
-  // Splash timing + lock scroll while visible
-  useEffect(() => {
-    const t = setTimeout(() => setShowSplash(false), 1600);
-    document.body.classList.add('splash');
-    return () => {
-      clearTimeout(t);
-      document.body.classList.remove('splash');
-    };
-  }, []);
-
-  
 
   // Alt+Arrow nudge for fixed brand cluster
   useEffect(() => {
@@ -72,6 +61,9 @@ export default function Home() {
       className="min-h-dvh grid grid-rows-[auto,1fr,auto] antialiased sm:pt-0"
       style={{ paddingTop: 'env(safe-area-inset-top, 12px)' }}
     >
+      {/* Splash (separate, insulated, full-bleed) */}
+      {showSplash && <Splash delay={1600} onDone={() => setShowSplash(false)} />}
+
       {/* SEO JSON-LD */}
       <Script id="ld-home-org" type="application/ld+json"
         dangerouslySetInnerHTML={{
@@ -113,23 +105,12 @@ export default function Home() {
         }}
       />
 
-      {/* Splash – fills entire screen on mobile, respects safe areas, © line visible */}
-      {showSplash && (
-        <div className="fixed left-0 top-0 z-[9999] w-screen h-[100dvh] sm:h-screen grid place-items-center bg-black overflow-hidden">
-          <div className="relative sheen-auto">
-            <Image src="/splash.png" alt="6ix splash" width={260} height={260} className="rounded-2xl object-cover" priority />
-          </div>
-          <div className="absolute w-full text-center text-zinc-500 text-sm"
-            style={{ bottom: 'calc(env(safe-area-inset-bottom, 16px))' }}>
-            A 6clement Joshua service · © {new Date().getFullYear()} 6ix
-          </div>
-        </div>
-      )}
-
-      {/* MOBILE-ONLY sticky header background */}
-      <header className="sm:hidden sticky top-0 z-20 bg-black/85 backdrop-blur supports-[backdrop-filter]:bg-black/70 border-b border-white/10">
-        <div style={{ height: 52 }} />
-      </header>
+      {/* MOBILE header background (now FIXED, no scrolling) */}
+      <header
+        className="sm:hidden fixed top-0 left-0 right-0 z-20 border-b border-white/10 supports-[backdrop-filter]:bg-black/70 bg-black/85"
+        style={{ pointerEvents: 'none', height: 52 }}
+        aria-hidden
+      />
 
       {/* Fixed brand (6 + IX) */}
       <Link
@@ -144,7 +125,7 @@ export default function Home() {
         <Image src="/logo.png" alt="6ix logo" width={48} height={48} priority />
       </Link>
 
-      {/* ROW 2: content */}
+      {/* Content */}
       <div className="row-start-2 overflow-x-hidden">
         {/* spacer for mobile brand */}
         <div className="block sm:hidden" style={{ height: 'calc(env(safe-area-inset-top, 0px) + 10px)' }} />
@@ -226,7 +207,7 @@ export default function Home() {
           </Link>
         </div>
 
-        {/* ---- LEGAL (now ON TOP) ---- */}
+        {/* ---- LEGAL (standard) ---- */}
         <section className="container mt-8 sm:mt-10 pt-4 text-center text-sm text-zinc-500 space-y-2 select-none">
           <nav className="flex flex-wrap justify-center items-center">
             <PolicyLink href="/legal/terms" className="link-muted">Terms</PolicyLink>
@@ -260,7 +241,7 @@ export default function Home() {
           </nav>
         </section>
 
-        {/* Payment-review friendly policies (now BELOW the standard legal row) */}
+        {/* Payment-review friendly policies */}
         <section className="container mt-2 sm:mt-3 pt-2 text-center text-sm text-zinc-400">
           <nav className="flex flex-wrap justify-center items-center gap-x-2 gap-y-2">
             <PolicyLink href="/legal/refunds" className="link-muted">Refunds &amp; Cancellations</PolicyLink>
@@ -283,9 +264,9 @@ export default function Home() {
         A 6clement Joshua service · © {new Date().getFullYear()} 6ix
       </footer>
 
-      {/* Page-scoped tweaks */}
+      {/* page-scoped tweaks */}
       <style jsx global>{`
-/* CTA is steady white; flips to black on hover */
+/* CTA steady white; flips to black on hover */
 .btn-lit.btn-white {
 box-shadow:
 0 10px 26px rgba(255,255,255,.10),
@@ -299,11 +280,6 @@ border-color: rgba(255,255,255,.28);
 .jelly:hover { animation: jelly 240ms cubic-bezier(.22,1,.36,1); }
 .jelly--pulse { animation: jelly 240ms cubic-bezier(.22,1,.36,1); }
 .jelly, .jelly:hover, .jelly--pulse { will-change: transform; }
-
-/* Make splash absolutely cover even with mobile browser UI changes */
-@supports (height: 100svh) {
-.splash-active { min-height: 100svh; }
-}
 `}</style>
     </main>
   );
