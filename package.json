@@ -3,12 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -H 0.0.0.0 -p 3000",
+    "dev": "next dev",
+    "preview": "next build && next start",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
     "seed:users": "node -r dotenv/config scripts/seed-users.mjs dotenv_config_path=.env.local"
   },
+  "engines": { "node": ">=18.18" },
   "dependencies": {
     "@supabase/auth-helpers-nextjs": "^0.10.0",
     "@supabase/ssr": "^0.7.0",
