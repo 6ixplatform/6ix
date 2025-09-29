@@ -472,7 +472,7 @@ export default function BillingPolicyPage() {
                         <Card title="Reactivation">
                             <p>
                                 As soon as payment succeeds, features restore automatically. If not, re-activate in{' '}
-                                <Ref href="/billing">Settings → Billing</Ref>.
+                                Settings → Billing
                             </p>
                         </Card>
                     </Split>
@@ -584,7 +584,7 @@ export default function BillingPolicyPage() {
                 <Section id="change-plan" heading="Change plan">
                     <Card>
                         <p>
-                            Switch between Free, Pro, Pro Max, or request Elite from <Ref href="/billing">Settings → Billing</Ref>.
+                            Switch between Free, Pro, Pro Max, or request Elite from Settings → Billing
                             Upgrades apply immediately with proration; downgrades apply on the next cycle.
                         </p>
                     </Card>
