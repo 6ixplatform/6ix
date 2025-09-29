@@ -8,18 +8,18 @@ Config
 ──────────────────────────────────────────────────────────────────────────── */
 const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || '').replace(/\/+$/, '');
 const CANONICAL_HOST = SITE_URL ? new URL(SITE_URL).host : '';
-const RESUME_DEFAULT = '/profile'; // onboarding page
+const RESUME_DEFAULT = '/profile'; // onboarding page (setup flow root)
 
-// Public (no auth required) app pages
+// Public pages
 const PUBLIC_ALLOW = [
     '/', '/auth', '/auth/signup', '/auth/signin', '/auth/verify',
     '/legal', '/legal/terms', '/legal/privacy', '/faq', '/health'
 ];
 
-// OTP endpoints (rate-limited separately)
+// OTP endpoints (rate-limited)
 const OTP_ENDPOINTS = ['/api/auth/send-otp', '/api/auth/verify-otp'];
 
-// APIs that must be available while user is still onboarding
+// APIs usable while onboarding (saving profile, support, etc.)
 const API_ALLOW_DURING_ONBOARD = [
     '/api/profile',
     '/api/profile/check-username',
@@ -31,11 +31,7 @@ const API_ALLOW_DURING_ONBOARD = [
 Helpers
 ──────────────────────────────────────────────────────────────────────────── */
 function isLocalHost(host: string) {
-    return (
-        host === 'localhost' ||
-        host === '127.0.0.1' ||
-        /^\d+\.\d+\.\d+\.\d+$/.test(host)
-    );
+    return host === 'localhost' || host === '127.0.0.1' || /^\d+\.\d+\.\d+\.\d+$/.test(host);
 }
 
 const isSkippablePath = (p: string) =>
@@ -44,15 +40,24 @@ const isSkippablePath = (p: string) =>
     p.startsWith('/images') ||
     p.startsWith('/fonts') ||
     p === '/favicon.ico' ||
-    /\.[A-Za-z0-9]+$/.test(p); // static files
+    /\.[A-Za-z0-9]+$/.test(p);
 
 const isPublicPath = (p: string) =>
     PUBLIC_ALLOW.some(base => p === base || p.startsWith(base + '/'));
 
-// Treat /profile as the onboarding/setup screen in this app
 const isSetupPath = (p: string) =>
     p === '/profile' || p.startsWith('/profile/') ||
     p === '/onboarding' || p.startsWith('/onboarding/');
+
+function secureCookieOpts() {
+    const prod = process.env.NODE_ENV === 'production';
+    return {
+        httpOnly: true,
+        sameSite: 'lax' as const,
+        secure: prod,
+        path: '/',
+    };
+}
 
 /* ────────────────────────────────────────────────────────────────────────────
 Security headers
@@ -62,7 +67,8 @@ function addSecurityHeaders(res: NextResponse) {
     const supabaseHost = supabase ? new URL(supabase).host : '';
     const csp = [
         "default-src 'self'",
-        `connect-src 'self' https://${supabaseHost} https://api.resend.com`,
+        // Supabase REST/Realtime + Resend + Vercel edge/websocket
+        `connect-src 'self' https://${supabaseHost} https://*.supabase.co wss://*.supabase.co https://api.resend.com`,
         "img-src 'self' data: blob: https:",
         "script-src 'self'",
         "style-src 'self' 'unsafe-inline'",
@@ -70,6 +76,7 @@ function addSecurityHeaders(res: NextResponse) {
         "frame-ancestors 'none'",
         "base-uri 'self'",
         "form-action 'self'",
+        "worker-src 'self' blob:",
     ].join('; ');
     res.headers.set('Content-Security-Policy', csp);
     res.headers.set('X-Frame-Options', 'DENY');
@@ -85,7 +92,7 @@ function addSecurityHeaders(res: NextResponse) {
     res.headers.set('Cross-Origin-Opener-Policy', 'same-origin');
     res.headers.set('Cross-Origin-Resource-Policy', 'same-origin');
     res.headers.set('X-XSS-Protection', '0');
-    res.headers.set('Cache-Control', 'no-store');
+    res.headers.set('Cache-Control', 'private, no-store');
     return res;
 }
 
@@ -99,8 +106,7 @@ async function rateLimit(req: NextRequest, key: string, limit = 5, windowSec = 6
 
     const ip =
         req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-        (req as any).ip ||
-        '0.0.0.0';
+        (req as any).ip || '0.0.0.0';
 
     const id = `${key}:${ip}`;
     const pipeline = [
@@ -124,10 +130,10 @@ async function rateLimit(req: NextRequest, key: string, limit = 5, windowSec = 6
 Middleware
 ──────────────────────────────────────────────────────────────────────────── */
 export async function middleware(req: NextRequest) {
-    const { nextUrl, method, headers } = req;
+    const { nextUrl, method, headers, cookies } = req;
     const path = nextUrl.pathname;
 
-    // Canonical host (prod only)
+    // Canonical host + HTTPS (prod)
     const host = nextUrl.host;
     const prodCanonical = SITE_URL && CANONICAL_HOST && !isLocalHost(host);
     if (
@@ -141,10 +147,10 @@ export async function middleware(req: NextRequest) {
         return addSecurityHeaders(NextResponse.redirect(url, 308));
     }
 
-    // Static / assets
+    // Skip static
     if (isSkippablePath(path)) return addSecurityHeaders(NextResponse.next());
 
-    // Rate-limit OTP endpoints
+    // Rate-limit OTP
     if (OTP_ENDPOINTS.includes(path)) {
         const { allowed } = await rateLimit(req, path, 5, 60);
         if (!allowed) {
@@ -159,43 +165,47 @@ export async function middleware(req: NextRequest) {
         return addSecurityHeaders(new NextResponse(null, { status: 204 }));
     }
 
-    // CSRF-ish guard for non-GET app APIs (excluding OTP)
+    // CSRF-ish for API writes (exclude OTP)
     if (method !== 'GET' && path.startsWith('/api/') && !OTP_ENDPOINTS.includes(path)) {
         const origin = headers.get('origin') || '';
-        const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
-            .split(',')
-            .map(s => s.trim())
-            .filter(Boolean);
-
-        const sameHost = (() => {
-            try { return origin && new URL(origin).host === nextUrl.host; } catch { return false; }
-        })();
-
-        if (!sameHost && SITE_URL && origin !== SITE_URL && !allowedOrigins.includes(origin)) {
+        const allow = (process.env.ALLOWED_ORIGINS || '')
+            .split(',').map(s => s.trim()).filter(Boolean);
+        const sameHost = (() => { try { return origin && new URL(origin).host === nextUrl.host; } catch { return false; } })();
+        if (!sameHost && SITE_URL && origin !== SITE_URL && !allow.includes(origin)) {
             return addSecurityHeaders(NextResponse.json({ error: 'Forbidden' }, { status: 403 }));
         }
     }
 
-    // Allow visiting the onboarding screen itself unconditionally.
-    if (isSetupPath(path)) return addSecurityHeaders(NextResponse.next());
-
-    // Auth session (for everything else)
+    // Prepare response + Supabase client
     let res = NextResponse.next();
     const supabase = createMiddlewareClient({ req, res });
-    const { data: { session } } = await supabase.auth.getSession();
 
-    // Not signed in → allow public & auth pages, redirect others to signin
-    if (!session) {
-        if (!isPublicPath(path) && !OTP_ENDPOINTS.includes(path)) {
-            const to = new URL('/auth/signin', req.url);
-            to.searchParams.set('next', path);
-            // ✅ PRESERVE Set-Cookie from Supabase on redirect
-            return addSecurityHeaders(NextResponse.redirect(to, { headers: res.headers }));
-        }
+    // If user is on a setup route, remember it (so refresh/back cannot escape)
+    if (method === 'GET' && isSetupPath(path)) {
+        const resumeUrl = nextUrl.pathname + (nextUrl.search || '');
+        const value = encodeURIComponent(resumeUrl).slice(0, 512);
+        res.cookies.set('6ix_onboard_resume', value, { ...secureCookieOpts(), maxAge: 60 * 60 * 24 * 2 }); // 2 days
+    }
+
+    // Let users view the onboarding screen itself (sign-in may land them here)
+    if (isSetupPath(path)) return addSecurityHeaders(res);
+
+    // Public pages allowed without auth
+    if (isPublicPath(path) || OTP_ENDPOINTS.includes(path)) {
         return addSecurityHeaders(res);
     }
 
-    // Signed in → fetch onboarding flag
+    // Auth session (supabase sets cookies in "res")
+    const { data: { session } } = await supabase.auth.getSession();
+
+    // Not signed in → send to signin
+    if (!session) {
+        const to = new URL('/auth/signin', req.url);
+        to.searchParams.set('next', path);
+        return addSecurityHeaders(NextResponse.redirect(to, { headers: res.headers }));
+    }
+
+    // Signed in: fetch onboarding flag
     const { data: profile } = await supabase
         .from('profiles')
         .select('onboarding_completed')
@@ -204,29 +214,33 @@ export async function middleware(req: NextRequest) {
 
     const onboarded = Boolean(profile?.onboarding_completed);
 
-    // If not onboarded yet:
+    // If not onboarded, lock them into the last setup route (or default)
     if (!onboarded) {
-        // allow specific APIs needed during onboarding
+        // Allow certain APIs while onboarding
         if (path.startsWith('/api/')) {
             const allowed = API_ALLOW_DURING_ONBOARD.some(b => path === b || path.startsWith(b + '/'));
             if (allowed) return addSecurityHeaders(res);
-            // ✅ PRESERVE headers on JSON error too
             return addSecurityHeaders(
                 NextResponse.json({ error: 'onboarding_required' }, { status: 428, headers: res.headers })
             );
         }
-        // send any other route to the onboarding page (/profile)
-        if (!isSetupPath(path)) {
-            const to = new URL(RESUME_DEFAULT, req.url);
-            // ✅ PRESERVE headers on redirect
-            return addSecurityHeaders(NextResponse.redirect(to, { headers: res.headers }));
-        }
+
+        // Resume to last remembered setup page
+        const stored = cookies.get('6ix_onboard_resume')?.value;
+        const resume = stored ? decodeURIComponent(stored) : RESUME_DEFAULT;
+        const to = new URL(resume.startsWith('/') ? resume : RESUME_DEFAULT, req.url);
+        return addSecurityHeaders(NextResponse.redirect(to, { headers: res.headers }));
     }
 
-    // Already onboarded: keep users away from /auth/*
+    // Onboarded: clear resume cookie if present
+    if (req.cookies.get('6ix_onboard_resume')) {
+        const c = secureCookieOpts();
+        res.cookies.set('6ix_onboard_resume', '', { ...c, maxAge: 0 });
+    }
+
+    // Keep authenticated users away from /auth/* once onboarded
     if (path === '/auth' || path.startsWith('/auth/')) {
         const to = new URL('/ai', req.url);
-        // ✅ PRESERVE headers on redirect
         return addSecurityHeaders(NextResponse.redirect(to, { headers: res.headers }));
     }
 
@@ -240,7 +254,7 @@ export const config = {
     matcher: [
         // All app routes except static assets
         '/((?!_next/|images/|assets/|favicon.ico|.*\\.(?:png|jpg|jpeg|gif|svg|webp|ico|css|js|txt|map)).*)',
-        // Ensure these segments are always matched
+        // Ensure these segments are matched
         '/profile/:path*',
         '/onboarding/:path*',
         // OTP endpoints for rate limiting

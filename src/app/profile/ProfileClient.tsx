@@ -3,7 +3,6 @@ import Image from 'next/image';
 import { useEffect, useMemo, useRef, useState, useCallback, useMemo as useMemo2 } from 'react';
 import { useRouter } from 'next/navigation';
 import BackStopper from '@/components/BackStopper';
-import HelpWidget from '@/components/HelpWidget';
 import { supabaseBrowser } from '@/lib/supabaseBrowser';
 import { uploadAvatar } from '@/lib/avatar';
 
@@ -30,6 +29,9 @@ type Form = {
     state?: string;
     country_code?: string;
 
+    locale: string; // NEW: primary language (BCP-47)
+    languages: string[]; // NEW: other languages (codes)
+
     bio?: string;
     tagline?: string;
 };
@@ -37,32 +39,59 @@ type Form = {
 const TOTAL_STEPS = 3;
 const AVATAR_BUCKET = 'avatars';
 
+// Small curated list (add more as you like)
+const LANGS: { code: string; name: string }[] = [
+    { code: 'en', name: 'English' },
+    { code: 'en-GB', name: 'English (UK)' },
+    { code: 'en-US', name: 'English (US)' },
+    { code: 'es', name: 'Spanish' },
+    { code: 'fr', name: 'French' },
+    { code: 'pt', name: 'Portuguese' },
+    { code: 'de', name: 'German' },
+    { code: 'it', name: 'Italian' },
+    { code: 'tr', name: 'Turkish' },
+    { code: 'ru', name: 'Russian' },
+    { code: 'ar', name: 'Arabic' },
+    { code: 'zh', name: 'Chinese (Simplified)' },
+    { code: 'ja', name: 'Japanese' },
+    { code: 'ko', name: 'Korean' },
+    { code: 'hi', name: 'Hindi' },
+    // Nigeria & Africa picks
+    { code: 'yo', name: 'Yoruba' },
+    { code: 'ig', name: 'Igbo' },
+    { code: 'ha', name: 'Hausa' },
+    { code: 'pcm', name: 'Nigerian Pidgin' },
+    { code: 'sw', name: 'Swahili' },
+];
+
 export default function ProfileSetupProfileClient() {
     const r = useRouter();
     const supabase = useMemo(() => supabaseBrowser(), []);
     const [me, setMe] = useState<{ id: string; email: string | null } | null>(null);
+    const [helpOpen, setHelpOpen] = useState(false);
 
     const [form, setForm] = useState<Form>({
         username: '', first_name: '', middle_name: '', last_name: '',
         display_name: '', nickname: '', email: '',
         dob: '', gender: '', pronouns: '',
         city: '', state: '', country_code: '',
+        locale: 'en',
+        languages: [],
         bio: '', tagline: '',
         avatar_file: null, avatar_url: '',
     });
 
     const [step, setStep] = useState(1);
-    const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [err, setErr] = useState<string>();
-    const [dobOpen, setDobOpen] = useState(false); // <-- for the Why DOB modal
+    const [dobOpen, setDobOpen] = useState(false);
 
     // username availability
     type UN = 'idle' | 'checking' | 'ok' | 'taken' | 'invalid' | 'error';
     const [uname, setUname] = useState<UN>('idle');
     const unTimer = useRef<number | null>(null);
 
-    /* ───────── helpers ───────── */
+    /* helpers */
     const onChange = (k: keyof Form, v: any) => setForm(f => ({ ...f, [k]: v }));
     const sanitizeUsername = useCallback(
         (s: string) => s.toLowerCase().replace(/[^a-z0-9_.]/g, '').slice(0, 32),
@@ -75,7 +104,6 @@ export default function ProfileSetupProfileClient() {
         return supabase.storage.from(AVATAR_BUCKET).getPublicUrl(path).data.publicUrl ?? null;
     };
 
-    // Prefetch home for instant nav
     useEffect(() => { r.prefetch('/ai'); }, [r]);
 
     // Prefill from auth + profiles
@@ -106,14 +134,15 @@ export default function ProfileSetupProfileClient() {
                 bio: safe(data?.bio),
                 tagline: safe(data?.tagline),
                 avatar_url: safe(data?.avatar_url),
+                // NEW
+                locale: safe(data?.locale || 'en'),
+                languages: Array.isArray(data?.languages) ? data!.languages : [],
             }));
-
-            setLoading(false);
         })();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    /* ---------- username check (unique) ---------- */
+    /* username check */
     useEffect(() => {
         const run = async () => {
             if (!form.username) { setUname('idle'); return; }
@@ -127,13 +156,9 @@ export default function ProfileSetupProfileClient() {
                 try {
                     const { data: { session } } = await supabase.auth.getSession();
                     const token = session?.access_token;
-
                     const res = await fetch('/api/profile/check-username', {
                         method: 'POST',
-                        headers: {
-                            'content-type': 'application/json',
-                            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-                        },
+                        headers: { 'content-type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
                         body: JSON.stringify({ username: val }),
                         credentials: 'include',
                     });
@@ -148,7 +173,7 @@ export default function ProfileSetupProfileClient() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [form.username]);
 
-    // avatar choose (preview immediately)
+    // avatar choose (preview)
     const chooseAvatar = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -156,18 +181,24 @@ export default function ProfileSetupProfileClient() {
         onChange('avatar_url', URL.createObjectURL(file));
     };
 
-    // required fields (avatar is mandatory)
+    /* requireds */
     const canNextStep1 =
-        !!form.display_name &&
-        !!form.username &&
-        uname === 'ok' &&
-        !!form.email &&
+        !!form.display_name?.trim() &&
+        !!form.username?.trim() && uname === 'ok' &&
+        !!form.first_name?.trim() &&
+        !!form.last_name?.trim() &&
+        !!form.email?.trim() &&
         (!!form.avatar_file || !!form.avatar_url);
 
-    const canNextStep2 = true;
-    const canFinish = canNextStep1 && !saving;
+    const canNextStep2 =
+        !!form.city?.trim() &&
+        !!form.state?.trim() &&
+        !!form.country_code?.trim() &&
+        !!form.locale?.trim(); // primary language required
 
-    // derived age (from dob)
+    const canFinish = canNextStep1 && canNextStep2 && !saving;
+
+    // derived age
     const age = useMemo2(() => {
         if (!form.dob) return '';
         const d = new Date(form.dob);
@@ -179,25 +210,23 @@ export default function ProfileSetupProfileClient() {
         return a >= 0 && a < 130 ? String(a) : '';
     }, [form.dob]);
 
-    // finish/save
+    // save
     const finish = async () => {
         if (!me || !canFinish) return;
         setSaving(true); setErr(undefined);
 
         try {
-            // 1) Ensure avatar uploaded (mandatory)
+            // 1) avatar upload (mandatory)
             let avatar_storage_path = isStoragePath(form.avatar_url) ? (form.avatar_url as string) : '';
             if (!avatar_storage_path && form.avatar_file) {
-                avatar_storage_path = await uploadAvatar(form.avatar_file, me.id); // should return storage path
-            }
-            if (!avatar_storage_path) {
-                setErr('Please add an avatar to continue.');
-                setSaving(false);
-                setStep(1);
-                return;
+                avatar_storage_path = await uploadAvatar(form.avatar_file, me.id);
             }
 
-            // 2) Build payload
+            // ensure primary language appears in languages array (dedup)
+            const langs = Array.from(new Set([...(form.languages || [])].filter(Boolean)));
+            if (!langs.includes(form.locale)) langs.unshift(form.locale);
+
+            // 2) payload -> profiles
             const payload = {
                 username: sanitizeUsername(form.username),
                 first_name: form.first_name?.trim() || null,
@@ -215,43 +244,37 @@ export default function ProfileSetupProfileClient() {
                 bio: form.bio?.trim() || null,
                 tagline: form.tagline?.trim() || null,
                 onboarding_completed: true,
-                avatar_url: avatar_storage_path, // store storage path in DB
+                avatar_url: avatar_storage_path,
+                // NEW
+                locale: form.locale,
+                languages: langs,
             };
 
-            // 3) Save via API
+            // 3) save
             const { data: { session } } = await supabase.auth.getSession();
             const token = session?.access_token;
 
             const res = await fetch('/api/profile', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-                },
+                headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
                 body: JSON.stringify(payload),
                 credentials: 'include',
             });
             const j = await res.json().catch(() => ({}));
-            if (!res.ok) throw new Error(j?.error || 'save_failed');
+            if (!res.ok) throw new Error(j?.error || 'Failed to save profile');
 
-            // 4) Seed the AI page 3-dot menu immediately
+            // 4) local cache for 6IXAI header
             const publicAvatar = toPublicUrl(avatar_storage_path);
             try {
-                const displayName =
-                    payload.display_name || (payload.email?.split('@')?.[0] ?? 'Guest');
-                localStorage.setItem('6ixai:profile', JSON.stringify({
-                    displayName,
-                    avatarUrl: publicAvatar,
-                }));
+                const displayName = payload.display_name || (payload.email?.split('@')?.[0] ?? 'Guest');
+                localStorage.setItem('6ixai:profile', JSON.stringify({ displayName, avatarUrl: publicAvatar }));
+                localStorage.setItem('6ix_onboarded', '1');
             } catch { }
 
-            // 5) local flag to avoid loops
-            try { localStorage.setItem('6ix_onboarded', '1'); } catch { }
-
-            // 6) Navigate home
+            // 5) go to app
             r.replace('/ai');
             try { r.refresh(); } catch { }
-            setTimeout(() => { try { window.location.assign('/ai'); } catch { } }, 40);
+            setTimeout(() => { try { window.location.assign('/ai'); } catch { } }, 30);
         } catch (e: any) {
             setErr(e?.message || 'Failed to save profile');
             setStep(1);
@@ -260,11 +283,21 @@ export default function ProfileSetupProfileClient() {
         }
     };
 
-    /* ───────── UI ───────── */
+    /* UI */
     return (
         <>
             <BackStopper />
-            <HelpWidget presetEmail={form.email} />
+
+            {/* Need help? chip (right, not hugging edge) */}
+            <button
+                type="button"
+                className="help-toggle fixed right-4 top-4 z-40 btn btn-outline btn-water"
+                onClick={() => setHelpOpen(v => !v)}
+                aria-label="Need help?"
+            >
+                Need help?
+            </button>
+            {helpOpen && <HelpPanel onClose={() => setHelpOpen(false)} />}
 
             <main className="min-h-dvh bg-black text-zinc-100" style={{ paddingTop: 'env(safe-area-inset-top,0px)' }}>
                 {/* Desktop */}
@@ -277,12 +310,12 @@ export default function ProfileSetupProfileClient() {
                         </div>
                     </aside>
 
-                    <section className="relative px-8 lg:px-12 pt-22 pb-12 overflow-visible">
-                        <header className="mb-6">
+                    <section className="relative px-8 lg:px-12 pt-20 pb-12 overflow-visible">
+                        <header className="mb-4">
                             <h1 className="text-4xl lg:text-5xl font-semibold leading-tight">Profile setup</h1>
                         </header>
 
-                        <div className="max-w-xl">
+                        <div className="max-w-[820px]">
                             <Stepper step={step} total={TOTAL_STEPS} />
                             <div className="mt-3 rounded-2xl border border-white/10 bg-white/6 backdrop-blur-xl shadow-[0_10px_60px_-10px_rgba(0,0,0,.6)] p-6 sm:p-7">
                                 {step === 1 && (
@@ -298,14 +331,12 @@ export default function ProfileSetupProfileClient() {
                                         form={form}
                                         onChange={onChange}
                                         age={age}
-                                        onWhyDob={() => setDobOpen(true)} // <-- FIXED: proper handler
                                     />
                                 )}
                                 {step === 3 && (
                                     <Step3Bio
                                         form={form}
                                         onChange={onChange}
-                                        onWhyDob={() => setDobOpen(true)} // <-- FIXED: prop present & typed
                                     />
                                 )}
 
@@ -363,8 +394,8 @@ export default function ProfileSetupProfileClient() {
                         <Stepper step={step} total={TOTAL_STEPS} mobile />
                         <div className="mt-4 rounded-2xl border border-white/10 bg-white/6 backdrop-blur-xl shadow-[0_10px_60px_-10px_rgba(0,0,0,.6)] p-6 sm:p-7">
                             {step === 1 && <Step1Identity form={form} onChange={onChange} chooseAvatar={chooseAvatar} uname={uname} />}
-                            {step === 2 && <Step2Details form={form} onChange={onChange} age={age} onWhyDob={() => setDobOpen(true)} />}
-                            {step === 3 && <Step3Bio form={form} onChange={onChange} onWhyDob={() => setDobOpen(true)} />}
+                            {step === 2 && <Step2Details form={form} onChange={onChange} age={age} />}
+                            {step === 3 && <Step3Bio form={form} onChange={onChange} />}
 
                             {err && <p className="mt-4 text-sm text-red-400">{err}</p>}
 
@@ -413,22 +444,13 @@ export default function ProfileSetupProfileClient() {
             {dobOpen && (
                 <div className="fixed inset-0 z-[100] grid place-items-center bg-black/70 backdrop-blur-sm p-4">
                     <div className="relative w-[min(92vw,640px)] rounded-2xl border border-white/12 bg-white/10 backdrop-blur-xl p-6 sm:p-7 shadow-[0_20px_120px_-20px_rgba(0,0,0,.85)]">
-                        <button
-                            onClick={() => setDobOpen(false)}
-                            aria-label="Close"
-                            className="absolute right-3 top-3 rounded-full px-2 py-1 text-sm bg-white/10 hover:bg-white/20"
-                        >
-                            Close
-                        </button>
+                        <button onClick={() => setDobOpen(false)} aria-label="Close" className="absolute right-3 top-3 rounded-full px-2 py-1 text-sm bg-white/10 hover:bg-white/20">Close</button>
                         <h2 className="text-xl sm:text-2xl font-semibold">Why we ask for your Date of Birth</h2>
                         <p className="mt-3 text-sm text-zinc-300">
                             We use your date of birth to keep the community safe and to tailor age-appropriate features.
-                            It’s stored securely and never sold. See our{' '}
-                            <a className="underline hover:text-white" href="/legal/privacy">Privacy Policy</a>.
+                            It’s stored securely and never sold. See our <a className="underline hover:text-white" href="/legal/privacy">Privacy Policy</a>.
                         </p>
-                        <p className="mt-3 text-sm text-zinc-400">
-                            Your public profile will <b>not</b> show your exact birth date.
-                        </p>
+                        <p className="mt-3 text-sm text-zinc-400">Your public profile will <b>not</b> show your exact birth date.</p>
                     </div>
                 </div>
             )}
@@ -441,17 +463,25 @@ export default function ProfileSetupProfileClient() {
 .btn-outline { background:rgba(255,255,255,.05); color:#fff; border:1px solid rgba(255,255,255,.15); }
 .btn-outline:hover { background:rgba(255,255,255,.10); }
 .btn-water:hover { transform: translateZ(0) scale(1.01); box-shadow: inset 0 8px 30px rgba(255,255,255,.08); }
+
 .inp { width:100%; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12); border-radius:12px; padding:12px 14px; outline:none; transition:.2s; }
 .inp:focus { border-color: rgba(255,255,255,.3); background: rgba(255,255,255,.1); }
+
 select.inp, select.inp option { background: rgba(12,14,17,.92); color:#fff; }
 input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); opacity:.9; }
-@media (max-width: 767px){ .btn { padding:.5rem .9rem; } }
+
+.help-toggle { width:auto; padding:.42rem .66rem; font-size:.9rem; }
+@media (max-width:767px){ .btn{ padding:.5rem .9rem; } .help-toggle{ padding:.38rem .6rem; font-size:.85rem; } }
+
+/* language chips */
+.lang-chip { display:inline-flex; align-items:center; gap:.4rem; padding:.25rem .5rem; border-radius:999px; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.15); margin:.25rem .35rem .25rem 0; }
+.lang-chip button { opacity:.8; }
 `}</style>
         </>
     );
 }
 
-/* ---------- UI fragments ---------- */
+/* ---------- UI Fragments ---------- */
 
 function Stepper({ step, total, mobile = false }: { step: number; total: number; mobile?: boolean }) {
     return (
@@ -492,13 +522,10 @@ function Step1Identity({
                 <div className="relative">
                     <label className="block cursor-pointer">
                         <div className={`w-28 h-28 rounded-full overflow-hidden ring-2 ${needAvatar ? 'ring-red-400/60' : 'ring-white/20'} shadow grid place-items-center bg-white/10`}>
-                            {form.avatar_url
-                                ? <img src={form.avatar_url} alt="avatar" className="w-full h-full object-cover" />
-                                : <span className="text-sm opacity-80">Add</span>}
+                            {form.avatar_url ? <img src={form.avatar_url} alt="avatar" className="w-full h-full object-cover" /> : <span className="text-sm opacity-80">Add</span>}
                         </div>
                         <input type="file" accept="image/*" className="hidden" onChange={chooseAvatar} />
                     </label>
-
                     {form.avatar_url && (
                         <label className="absolute -bottom-2 right-0 text-xs rounded-full px-3 py-1 bg-white/10 hover:bg-white/20 cursor-pointer border border-white/10">
                             Change
@@ -510,25 +537,12 @@ function Step1Identity({
             </div>
 
             <Row cols={2}>
-                <Field label="First name">
-                    <input className="inp" value={form.first_name} onChange={e => onChange('first_name', e.target.value)} />
-                </Field>
-                <Field label="Last name">
-                    <input className="inp" value={form.last_name} onChange={e => onChange('last_name', e.target.value)} />
-                </Field>
-                <Field label="Middle name">
-                    <input className="inp" value={form.middle_name} onChange={e => onChange('middle_name', e.target.value)} />
-                </Field>
-                <Field label="Display name">
-                    <input className="inp" value={form.display_name} onChange={e => onChange('display_name', e.target.value)} />
-                </Field>
+                <Field label="First name"><input className="inp" value={form.first_name} onChange={e => onChange('first_name', e.target.value)} /></Field>
+                <Field label="Last name"><input className="inp" value={form.last_name} onChange={e => onChange('last_name', e.target.value)} /></Field>
+                <Field label="Middle name"><input className="inp" value={form.middle_name} onChange={e => onChange('middle_name', e.target.value)} /></Field>
+                <Field label="Display name"><input className="inp" value={form.display_name} onChange={e => onChange('display_name', e.target.value)} /></Field>
                 <Field label="Username (handle)">
-                    <input
-                        className="inp"
-                        value={form.username}
-                        onChange={(e) => onChange('username', e.target.value)}
-                        aria-invalid={uname === 'taken' || uname === 'invalid'}
-                    />
+                    <input className="inp" value={form.username} onChange={(e) => onChange('username', e.target.value)} aria-invalid={uname === 'taken' || uname === 'invalid'} />
                     <div className="mt-1 text-[12px]">
                         {uname === 'checking' && <span className="text-zinc-400">Checking…</span>}
                         {uname === 'ok' && <span className="text-emerald-400">Available</span>}
@@ -537,16 +551,11 @@ function Step1Identity({
                         {uname === 'error' && <span className="text-red-400">Couldn’t check now</span>}
                     </div>
                 </Field>
-                <Field label="Nickname">
-                    <input className="inp" value={form.nickname} onChange={e => onChange('nickname', e.target.value)} />
-                </Field>
+                <Field label="Nickname"><input className="inp" value={form.nickname} onChange={e => onChange('nickname', e.target.value)} /></Field>
             </Row>
 
             <Row cols={1}>
-                <Field
-                    label="Email (your messaging identity on 6ix)"
-                    hint="People can find and message you by this email. Username helps search & discovery."
-                >
+                <Field label="Email (your messaging identity on 6ix)" hint="People can find and message you by this email. Username helps search & discovery.">
                     <input className="inp opacity-75" value={form.email} readOnly />
                 </Field>
             </Row>
@@ -555,37 +564,40 @@ function Step1Identity({
 }
 
 function Step2Details({
-    form, onChange, age, onWhyDob,
+    form, onChange, age,
 }: {
     form: Form;
     onChange: (k: keyof Form, v: any) => void;
     age: string;
-    onWhyDob?: () => void; // optional prop
 }) {
+    const [langText, setLangText] = useState('');
+
+    const addLang = (raw: string) => {
+        const code = raw.trim();
+        if (!code) return;
+        const c = code.toLowerCase();
+        if (c === form.locale.toLowerCase()) return;
+        const exists = (form.languages || []).some(x => x.toLowerCase() === c);
+        if (exists) return;
+        const next = [...(form.languages || []), c].slice(0, 5);
+        onChange('languages', next);
+        setLangText('');
+    };
+    const removeLang = (c: string) => onChange('languages', (form.languages || []).filter(x => x !== c));
+
     return (
         <>
             <Row cols={2}>
                 <Field label="City"><input className="inp" value={form.city} onChange={e => onChange('city', e.target.value)} /></Field>
                 <Field label="State / Region"><input className="inp" value={form.state} onChange={e => onChange('state', e.target.value)} /></Field>
                 <Field label="Country (code)"><input className="inp" value={form.country_code} onChange={e => onChange('country_code', e.target.value.toUpperCase())} /></Field>
+                <Field label="Date of birth">
+                    <input className="inp" type="date" value={form.dob} onChange={e => onChange('dob', e.target.value)} />
+                    <div className="mt-1 text-[12px] text-zinc-400">{age ? `Age: ${age}` : 'Age is calculated from your DOB'}</div>
+                </Field>
             </Row>
 
-            <div className="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <label className="block">
-                    <div className="flex items-center justify-between">
-                        <div className="text-xs uppercase tracking-wide text-zinc-400 mb-1">Date of birth</div>
-                        <button
-                            type="button"
-                            onClick={() => onWhyDob?.()} // safe optional call
-                            className="text-[12px] text-zinc-300 hover:text-white underline underline-offset-4"
-                        >
-                            Why?
-                        </button>
-                    </div>
-                    <input className="inp" type="date" value={form.dob} onChange={e => onChange('dob', e.target.value)} />
-                    <div className="mt-1 text-[12px] text-zinc-400">{age ? `Age: ${age}` : 'Age will be computed from your DOB'}</div>
-                </label>
-
+            <Row cols={3}>
                 <Field label="Gender">
                     <select className="inp" value={form.gender} onChange={e => onChange('gender', e.target.value as Gender)}>
                         <option value=""></option>
@@ -594,9 +606,40 @@ function Step2Details({
                         <option value="prefer_not_to_say">Prefer not to say</option>
                     </select>
                 </Field>
-
                 <Field label="Pronouns"><input className="inp" value={form.pronouns} onChange={e => onChange('pronouns', e.target.value)} /></Field>
-            </div>
+                <Field label="Primary language (required)" hint="Used by 6IXAI & UI defaults.">
+                    <select className="inp" value={form.locale} onChange={e => onChange('locale', e.target.value)}>
+                        {LANGS.map(l => <option key={l.code} value={l.code}>{`${l.name} — ${l.code}`}</option>)}
+                    </select>
+                </Field>
+            </Row>
+
+            <Row cols={1}>
+                <Field label="Other languages (up to 5)" hint="Optional. Add codes like en, fr, yo, ig…">
+                    <div className="flex items-center gap-2">
+                        <input
+                            className="inp"
+                            list="lang-list"
+                            placeholder="Type a language code and press Add"
+                            value={langText}
+                            onChange={e => setLangText(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addLang(langText); } }}
+                        />
+                        <button type="button" className="btn btn-outline btn-water w-auto" onClick={() => addLang(langText)}>Add</button>
+                    </div>
+                    <datalist id="lang-list">
+                        {LANGS.map(l => <option key={l.code} value={l.code}>{l.name}</option>)}
+                    </datalist>
+                    <div className="mt-2">
+                        {(form.languages || []).map(c => (
+                            <span key={c} className="lang-chip">
+                                <span>{c}</span>
+                                <button type="button" onClick={() => removeLang(c)} aria-label={`Remove ${c}`}>×</button>
+                            </span>
+                        ))}
+                    </div>
+                </Field>
+            </Row>
 
             <Row cols={1}>
                 <Field label="Tagline"><input className="inp" value={form.tagline} onChange={e => onChange('tagline', e.target.value)} /></Field>
@@ -606,11 +649,10 @@ function Step2Details({
 }
 
 function Step3Bio({
-    form, onChange, onWhyDob,
+    form, onChange,
 }: {
     form: Form;
     onChange: (k: keyof Form, v: any) => void;
-    onWhyDob?: () => void; // optional to keep prop shapes consistent
 }) {
     return (
         <>
@@ -618,5 +660,53 @@ function Step3Bio({
                 <textarea className="inp h-28" value={form.bio} onChange={e => onChange('bio', e.target.value)} />
             </Field>
         </>
+    );
+}
+
+/* -------- Help mini dialog -------- */
+function HelpPanel({ onClose }: { onClose: () => void }) {
+    const [firstName, setFirst] = useState('');
+    const [lastName, setLast] = useState('');
+    const [location, setLoc] = useState('');
+    const [reason, setReason] = useState('');
+    const [email, setEmail] = useState('');
+    const [sending, setSending] = useState(false);
+    const [done, setDone] = useState<null | 'ok' | 'err'>(null);
+    const [msg, setMsg] = useState<string>('');
+
+    const submit = async () => {
+        setSending(true); setDone(null); setMsg('');
+        try {
+            const r = await fetch('/api/support', {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({ firstName, lastName, location, reason, email })
+            });
+            const data = await r.json();
+            if (!r.ok) throw new Error(data?.error || 'Could not send');
+            setDone('ok'); setMsg('Thanks! Our team will reach out.');
+        } catch (e: any) {
+            setDone('err'); setMsg(e?.message || 'Could not send');
+        } finally { setSending(false); }
+    };
+
+    return (
+        <div className="fixed right-4 top-14 z-40 w-[min(92vw,360px)] rounded-2xl border border-white/10 bg-white/10 backdrop-blur-xl p-4 shadow-lg">
+            <div className="flex items-center justify-between">
+                <div className="font-medium">Need help?</div>
+                <button onClick={onClose} className="text-sm text-zinc-300 hover:text-white">Close</button>
+            </div>
+            <div className="mt-3 grid gap-2">
+                <input className="inp text-sm" placeholder="First name" value={firstName} onChange={e => setFirst(e.target.value)} />
+                <input className="inp text-sm" placeholder="Last name" value={lastName} onChange={e => setLast(e.target.value)} />
+                <input className="inp text-sm" placeholder="Email (reply to)" value={email} onChange={e => setEmail(e.target.value)} />
+                <input className="inp text-sm" placeholder="Location (city, country)" value={location} onChange={e => setLoc(e.target.value)} />
+                <textarea className="inp text-sm" placeholder="Tell us what went wrong…" rows={3} value={reason} onChange={e => setReason(e.target.value)} />
+                {done && <p className={`text-sm ${done === 'ok' ? 'text-emerald-400' : 'text-red-400'}`}>{msg}</p>}
+                <button className="btn btn-primary btn-water" disabled={sending} onClick={submit}>
+                    {sending ? 'Sending…' : 'Send to support@6ixapp.com'}
+                </button>
+            </div>
+        </div>
     );
 }

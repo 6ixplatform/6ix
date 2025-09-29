@@ -616,7 +616,7 @@ function SignUpCard({
                         {suggestions.slice(0, 6).map(s => <option key={s} value={s} />)}
                     </datalist>
 
-                    <div className="absolute inset-y-0 right-2 grid place-items-center w-7">
+                    <div className="absolute inset-y-0 right-4 grid place-items-center w-7">
                         {emailStatus === 'checking' && <Spinner />}
 
                         {emailStatus === 'new' && (
