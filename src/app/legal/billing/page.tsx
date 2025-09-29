@@ -22,7 +22,7 @@ export default function BillingPage() {
     return (
         <PageShell
             title="6ix — Billing & Subscriptions"
-            subtitle={
+            lead={
                 <>
                     This page explains how plans, renewals, receipts, taxes, and 6IXAI usage work. Read with
                     <span> </span><Ref href="/legal/refunds">Refunds & Cancellations</Ref> and <Ref href="/legal/disputes">Disputes & Chargebacks</Ref>.
@@ -31,7 +31,7 @@ export default function BillingPage() {
         >
             <Toc items={toc} />
 
-            <Section id="plans" title="1) Plans & verification">
+            <Section id="plans" heading="1) Plans & verification">
                 <div className="grid gap-4 lg:grid-cols-3">
                     <Card title="Free (Creator Starter)">
                         <ul className="list-disc pl-5 space-y-2 text-zinc-300">
@@ -64,7 +64,7 @@ export default function BillingPage() {
                 </Card>
             </Section>
 
-            <Section id="pricing" title="2) Pricing & taxes">
+            <Section id="pricing" heading="2) Pricing & taxes">
                 <Split>
                     <Card title="Transparency">
                         <p className="text-zinc-300">
@@ -79,7 +79,7 @@ export default function BillingPage() {
                 </Split>
             </Section>
 
-            <Section id="renewals" title="3) Renewals & upgrades">
+            <Section id="renewals" heading="3) Renewals & upgrades">
                 <Split>
                     <Card title="Renewals">
                         <p className="text-zinc-300">Plans renew automatically until canceled in Settings → Billing.</p>
@@ -93,7 +93,7 @@ export default function BillingPage() {
                 </Split>
             </Section>
 
-            <Section id="invoices" title="4) Invoices & receipts">
+            <Section id="invoices" heading="4) Invoices & receipts">
                 <Split>
                     <Card title="Where to find them">
                         <p className="text-zinc-300">Settings → Billing shows active plan, invoices, and download links.</p>
@@ -104,7 +104,7 @@ export default function BillingPage() {
                 </Split>
             </Section>
 
-            <Section id="6ixai" title="5) 6IXAI usage & fairness">
+            <Section id="6ixai" heading="5) 6IXAI usage & fairness">
                 <Split>
                     <Card title="Premium is almost fee-free">
                         <p className="text-zinc-300">
@@ -120,7 +120,7 @@ export default function BillingPage() {
                 </Split>
             </Section>
 
-            <Section id="teams" title="6) Teams & business plans">
+            <Section id="teams" heading="6) Teams & business plans">
                 <Split>
                     <Card title="Business ($66.6 / month)">
                         <p className="text-zinc-300">Team controls, roles, analytics, and priority support.</p>
@@ -133,7 +133,7 @@ export default function BillingPage() {
                 </Split>
             </Section>
 
-            <Section id="failed-payments" title="7) Failed payments & dunning">
+            <Section id="failed-payments" heading="7) Failed payments & dunning">
                 <Card>
                     <p className="text-zinc-300">
                         If a renewal fails, we’ll retry and notify you. Continued failure may pause premium features and verification ticks until resolved.
@@ -142,7 +142,7 @@ export default function BillingPage() {
                 </Card>
             </Section>
 
-            <Section id="compliance" title="8) Compliance & records">
+            <Section id="compliance" heading="8) Compliance & records">
                 <Card>
                     <p className="text-zinc-300">
                         We maintain transaction records required by law and audit. See <Ref href="/legal/kyc-aml-sanctions">KYC / AML & Sanctions</Ref>.

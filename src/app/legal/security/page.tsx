@@ -35,7 +35,7 @@ export default function SecurityPage() {
             <Toc items={toc} />
 
             {/* 1) Account security */}
-            <Section id="account" title="1) Account security">
+            <Section id="account" heading="1) Account security">
                 <Split>
                     <Card title="Best practices">
                         <ul className="list-disc pl-5 space-y-2 text-zinc-300">
@@ -93,7 +93,7 @@ export default function SecurityPage() {
             </Section>
 
             {/* 2) Data storage & encryption */}
-            <Section id="storage" title="2) Data storage & encryption">
+            <Section id="storage" heading="2) Data storage & encryption">
                 <Split>
                     <Card title="Encryption">
                         <ul className="list-disc pl-5 space-y-2 text-zinc-300">
@@ -143,7 +143,7 @@ export default function SecurityPage() {
             </Section>
 
             {/* 3) Infrastructure & access */}
-            <Section id="infra" title="3) Infrastructure & access">
+            <Section id="infra" heading="3) Infrastructure & access">
                 <Split>
                     <Card title="Production access">
                         <ul className="list-disc pl-5 space-y-2 text-zinc-300">
@@ -183,7 +183,7 @@ export default function SecurityPage() {
             </Section>
 
             {/* 4) Application security */}
-            <Section id="appsec" title="4) Application security">
+            <Section id="appsec" heading="4) Application security">
                 <Split>
                     <Card title="Defensive coding">
                         <ul className="list-disc pl-5 space-y-2 text-zinc-300">
@@ -222,7 +222,7 @@ export default function SecurityPage() {
             </Section>
 
             {/* 5) Incident response */}
-            <Section id="incident" title="5) Incident response">
+            <Section id="incident" heading="5) Incident response">
                 <Split>
                     <Card title="Detection & triage">
                         <ul className="list-disc pl-5 space-y-2 text-zinc-300">
@@ -267,7 +267,7 @@ export default function SecurityPage() {
             </Section>
 
             {/* 6) Vulnerability reporting */}
-            <Section id="bug-bounty" title="6) Vulnerability reporting (responsible disclosure)">
+            <Section id="bug-bounty" heading="6) Vulnerability reporting (responsible disclosure)">
                 <Split>
                     <Card title="How to report">
                         <p className="text-zinc-300">
@@ -324,7 +324,7 @@ export default function SecurityPage() {
             </Section>
 
             {/* 7) Compliance & privacy */}
-            <Section id="compliance" title="7) Compliance & privacy">
+            <Section id="compliance" heading="7) Compliance & privacy">
                 <Split>
                     <Card title="Privacy by design">
                         <ul className="list-disc pl-5 space-y-2 text-zinc-300">
@@ -366,7 +366,7 @@ export default function SecurityPage() {
             </Section>
 
             {/* 8) Vendors & subprocessors */}
-            <Section id="third-parties" title="8) Vendors & subprocessors">
+            <Section id="third-parties" heading="8) Vendors & subprocessors">
                 <Split>
                     <Card title="Due diligence">
                         <ul className="list-disc pl-5 space-y-2 text-zinc-300">
@@ -386,7 +386,7 @@ export default function SecurityPage() {
             </Section>
 
             {/* 9) Requests */}
-            <Section id="requests" title="9) Law-enforcement & data requests">
+            <Section id="requests" heading="9) Law-enforcement & data requests">
                 <Split>
                     <Card title="Guidelines">
                         <p className="text-zinc-300">
@@ -406,7 +406,7 @@ export default function SecurityPage() {
             </Section>
 
             {/* 10) Contact */}
-            <Section id="support" title="10) Contact & security notifications">
+            <Section id="support" heading="10) Contact & security notifications">
                 <Split>
                     <Card title="Security contact">
                         <p className="text-zinc-300">

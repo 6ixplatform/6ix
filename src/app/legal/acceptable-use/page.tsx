@@ -21,7 +21,7 @@ export default function AupPage() {
         <PageShell title="6ix — Acceptable Use & Prohibited Activities">
             <Toc items={toc} />
 
-            <Section id="principles" title="1) Principles">
+            <Section id="principles" heading="1) Principles">
                 <Split>
                     <Card title="Be safe, be respectful">
                         <p className="text-zinc-300">Creators flourish when the community is safe. We remove content or behavior that risks harm.</p>
@@ -32,7 +32,7 @@ export default function AupPage() {
                 </Split>
             </Section>
 
-            <Section id="content" title="2) Content rules (examples)">
+            <Section id="content" heading="2) Content rules (examples)">
                 <div className="grid gap-4 lg:grid-cols-2">
                     <Card title="Prohibited">
                         <ul className="list-disc pl-5 space-y-2 text-zinc-300">
@@ -51,7 +51,7 @@ export default function AupPage() {
                 </div>
             </Section>
 
-            <Section id="conduct" title="3) Conduct rules (examples)">
+            <Section id="conduct" heading="3) Conduct rules (examples)">
                 <Split>
                     <Card title="Not allowed">
                         <ul className="list-disc pl-5 space-y-2 text-zinc-300">
@@ -66,7 +66,7 @@ export default function AupPage() {
                 </Split>
             </Section>
 
-            <Section id="integrity" title="4) Platform integrity">
+            <Section id="integrity" heading="4) Platform integrity">
                 <Split>
                     <Card title="Manipulation">
                         <p className="text-zinc-300">Coordinated inauthentic behavior, fake engagement, or fraud schemes are prohibited and may trigger permanent bans.</p>
@@ -77,7 +77,7 @@ export default function AupPage() {
                 </Split>
             </Section>
 
-            <Section id="ai" title="5) 6IXAI usage">
+            <Section id="ai" heading="5) 6IXAI usage">
                 <Split>
                     <Card title="Safety">
                         <p className="text-zinc-300">Don’t use 6IXAI to generate or amplify prohibited content or to deceive users. We log safety signals.</p>
@@ -88,7 +88,7 @@ export default function AupPage() {
                 </Split>
             </Section>
 
-            <Section id="enforcement" title="6) Enforcement">
+            <Section id="enforcement" heading="6) Enforcement">
                 <Split>
                     <Card title="Actions we may take">
                         <ul className="list-disc pl-5 space-y-2 text-zinc-300">
@@ -103,7 +103,7 @@ export default function AupPage() {
                 </Split>
             </Section>
 
-            <Section id="appeals" title="7) Appeals">
+            <Section id="appeals" heading="7) Appeals">
                 <Card>
                     <p className="text-zinc-300">You can appeal moderation decisions via the in-app appeal tool or email <a className="link-muted" href="mailto:safety@6ixapp.com">safety@6ixapp.com</a>.</p>
                 </Card>

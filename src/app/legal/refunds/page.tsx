@@ -25,7 +25,7 @@ export default function RefundsPage() {
     return (
         <PageShell
             title="6ix — Refunds & Cancellations"
-            subtitle={
+            lead={
                 <>
                     This policy explains how refunds and cancellations work for 6ix subscriptions and purchases. It should be read
                     with our <Ref href="/legal/billing">Billing & Subscriptions</Ref>, <Ref href="/legal/disputes">Disputes & Chargebacks</Ref>,
@@ -35,7 +35,7 @@ export default function RefundsPage() {
         >
             <Toc items={toc} />
 
-            <Section id="overview" title="1) Overview">
+            <Section id="overview" heading="1) Overview">
                 <Split>
                     <Card title="Simple, fair refunds">
                         <ul className="list-disc pl-5 space-y-2 text-zinc-300">
@@ -54,7 +54,7 @@ export default function RefundsPage() {
                 </Split>
             </Section>
 
-            <Section id="free-trials" title="2) Trials & first charges">
+            <Section id="free-trials" heading="2) Trials & first charges">
                 <Split>
                     <Card title="Trials">
                         <p className="text-zinc-300">
@@ -71,7 +71,7 @@ export default function RefundsPage() {
                 </Split>
             </Section>
 
-            <Section id="renewals" title="3) Renewals & cooling-off">
+            <Section id="renewals" heading="3) Renewals & cooling-off">
                 <Split>
                     <Card title="Renewals">
                         <p className="text-zinc-300">
@@ -88,7 +88,7 @@ export default function RefundsPage() {
                 </Split>
             </Section>
 
-            <Section id="how-to-cancel" title="4) How to cancel">
+            <Section id="how-to-cancel" heading="4) How to cancel">
                 <div className="grid gap-4 lg:grid-cols-3">
                     <Card title="From the web">
                         <ol className="list-decimal pl-5 space-y-2 text-zinc-300">
@@ -110,7 +110,7 @@ export default function RefundsPage() {
                 </div>
             </Section>
 
-            <Section id="refund-eligibility" title="5) Refund eligibility">
+            <Section id="refund-eligibility" heading="5) Refund eligibility">
                 <div className="grid gap-4 lg:grid-cols-2">
                     <Card title="Eligible (examples)">
                         <ul className="list-disc pl-5 space-y-2 text-zinc-300">
@@ -129,7 +129,7 @@ export default function RefundsPage() {
                 </div>
             </Section>
 
-            <Section id="promos" title="6) Promotions, coupons & credits">
+            <Section id="promos" heading="6) Promotions, coupons & credits">
                 <Split>
                     <Card title="Credits">
                         <p className="text-zinc-300">
@@ -145,7 +145,7 @@ export default function RefundsPage() {
                 </Split>
             </Section>
 
-            <Section id="marketplaces" title="7) App stores & third-party marketplaces">
+            <Section id="marketplaces" heading="7) App stores & third-party marketplaces">
                 <Card>
                     <p className="text-zinc-300">
                         Purchases made through Apple App Store, Google Play, or other marketplaces are subject to the store’s own refund policies. We typically
@@ -154,7 +154,7 @@ export default function RefundsPage() {
                 </Card>
             </Section>
 
-            <Section id="how-to-request" title="8) How to request a refund">
+            <Section id="how-to-request" heading="8) How to request a refund">
                 <Split>
                     <Card title="Contact">
                         <p className="text-zinc-300">
@@ -172,7 +172,7 @@ export default function RefundsPage() {
                 </Split>
             </Section>
 
-            <Section id="abuse" title="9) Abuse & exceptions">
+            <Section id="abuse" heading="9) Abuse & exceptions">
                 <Card>
                     <p className="text-zinc-300">
                         We reserve the right to refuse refunds in cases of abuse (e.g., repeated chargebacks, fraud, or systematic trial gaming).
@@ -181,7 +181,7 @@ export default function RefundsPage() {
                 </Card>
             </Section>
 
-            <Section id="changes" title="10) Changes to this policy">
+            <Section id="changes" heading="10) Changes to this policy">
                 <Card>
                     <p className="text-zinc-300">
                         We may update this policy from time to time. Material changes will be announced in-product or via email. Continued use of 6ix after

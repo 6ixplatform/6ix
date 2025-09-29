@@ -21,7 +21,7 @@ export default function KYCAmlPage() {
         <PageShell title="6ix — KYC / AML & Sanctions">
             <Toc items={toc} />
 
-            <Section id="why" title="1) Why we verify">
+            <Section id="why" heading="1) Why we verify">
                 <Split>
                     <Card title="Protect the platform">
                         <p className="text-zinc-300">Verification helps stop fraud, money laundering, and abuse, and protects creators’ earnings.</p>
@@ -32,7 +32,7 @@ export default function KYCAmlPage() {
                 </Split>
             </Section>
 
-            <Section id="what" title="2) What we collect (examples)">
+            <Section id="what" heading="2) What we collect (examples)">
                 <div className="grid gap-4 lg:grid-cols-2">
                     <Card title="Identity & risk">
                         <ul className="list-disc pl-5 space-y-2 text-zinc-300">
@@ -50,7 +50,7 @@ export default function KYCAmlPage() {
                 </div>
             </Section>
 
-            <Section id="how" title="3) How we verify">
+            <Section id="how" heading="3) How we verify">
                 <Split>
                     <Card title="Vendors & checks">
                         <p className="text-zinc-300">We use reputable verification partners for ID, liveness, and risk checks. Signals feed our trust systems.</p>
@@ -61,13 +61,13 @@ export default function KYCAmlPage() {
                 </Split>
             </Section>
 
-            <Section id="sanctions" title="4) Sanctions screening">
+            <Section id="sanctions" heading="4) Sanctions screening">
                 <Card>
                     <p className="text-zinc-300">We do not provide services to individuals or entities on applicable sanctions lists or in embargoed regions.</p>
                 </Card>
             </Section>
 
-            <Section id="creators" title="5) Creators & payouts">
+            <Section id="creators" heading="5) Creators & payouts">
                 <Split>
                     <Card title="Eligibility">
                         <p className="text-zinc-300">You must pass KYC to receive payouts or hold white/blue verification. Violations can remove ticks.</p>
@@ -78,7 +78,7 @@ export default function KYCAmlPage() {
                 </Split>
             </Section>
 
-            <Section id="privacy" title="6) Privacy & retention">
+            <Section id="privacy" heading="6) Privacy & retention">
                 <Split>
                     <Card title="Security">
                         <p className="text-zinc-300">KYC data is stored by vendors or encrypted at rest with strict access controls.</p>
@@ -89,7 +89,7 @@ export default function KYCAmlPage() {
                 </Split>
             </Section>
 
-            <Section id="violations" title="7) Violations & reporting">
+            <Section id="violations" heading="7) Violations & reporting">
                 <Card>
                     <p className="text-zinc-300">
                         We may file SAR/STR reports where required and cooperate with law enforcement per <Ref href="/legal/law-enforcement">Law Enforcement Guidelines</Ref>.
