@@ -8,9 +8,10 @@ Config
 ──────────────────────────────────────────────────────────────────────────── */
 const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || '').replace(/\/+$/, '');
 const CANONICAL_HOST = SITE_URL ? new URL(SITE_URL).host : '';
-const RESUME_DEFAULT = '/profile'; // onboarding page
 
-// Public (no auth required) app pages
+const UNAUTH_REDIRECT = '/'; // landing page (change to '/auth/signin' if you prefer)
+
+// Public (no auth required) pages
 const PUBLIC_ALLOW = [
     '/', '/auth', '/auth/signup', '/auth/signin', '/auth/verify',
     '/legal', '/legal/terms', '/legal/privacy', '/faq', '/health'
@@ -19,23 +20,11 @@ const PUBLIC_ALLOW = [
 // OTP endpoints (rate-limited separately)
 const OTP_ENDPOINTS = ['/api/auth/send-otp', '/api/auth/verify-otp'];
 
-// APIs that must be available while user is still onboarding
-const API_ALLOW_DURING_ONBOARD = [
-    '/api/profile',
-    '/api/profile/check-username',
-    '/api/onboarding/welcome',
-    '/api/support',
-];
-
 /* ────────────────────────────────────────────────────────────────────────────
 Helpers
 ──────────────────────────────────────────────────────────────────────────── */
 function isLocalHost(host: string) {
-    return (
-        host === 'localhost' ||
-        host === '127.0.0.1' ||
-        /^\d+\.\d+\.\d+\.\d+$/.test(host)
-    );
+    return host === 'localhost' || host === '127.0.0.1' || /^\d+\.\d+\.\d+\.\d+$/.test(host);
 }
 
 const isSkippablePath = (p: string) =>
@@ -48,11 +37,6 @@ const isSkippablePath = (p: string) =>
 
 const isPublicPath = (p: string) =>
     PUBLIC_ALLOW.some(base => p === base || p.startsWith(base + '/'));
-
-// Treat /profile as the onboarding/setup screen in this app
-const isSetupPath = (p: string) =>
-    p === '/profile' || p.startsWith('/profile/') ||
-    p === '/onboarding' || p.startsWith('/onboarding/');
 
 /* ────────────────────────────────────────────────────────────────────────────
 Security headers
@@ -127,7 +111,7 @@ export async function middleware(req: NextRequest) {
     const { nextUrl, method, headers } = req;
     const path = nextUrl.pathname;
 
-    // Canonical host (prod only)
+    // Canonical host + HTTPS (prod only)
     const host = nextUrl.host;
     const prodCanonical = SITE_URL && CANONICAL_HOST && !isLocalHost(host);
     if (
@@ -141,7 +125,7 @@ export async function middleware(req: NextRequest) {
         return addSecurityHeaders(NextResponse.redirect(url, 308));
     }
 
-    // Static / assets
+    // Skip static/assets
     if (isSkippablePath(path)) return addSecurityHeaders(NextResponse.next());
 
     // Rate-limit OTP endpoints
@@ -176,60 +160,37 @@ export async function middleware(req: NextRequest) {
         }
     }
 
-    // Allow visiting the onboarding screen itself unconditionally.
-    if (isSetupPath(path)) return addSecurityHeaders(NextResponse.next());
-
-    // Auth session (for everything else)
+    // Auth session
     let res = NextResponse.next();
     const supabase = createMiddlewareClient({ req, res });
     const { data: { session } } = await supabase.auth.getSession();
 
-    // Not signed in → allow public & auth pages, redirect others to signin
+    // ── Unauthenticated users ────────────────────────────────────────────────
     if (!session) {
-        if (!isPublicPath(path) && !OTP_ENDPOINTS.includes(path)) {
-            const to = new URL('/auth/signin', req.url);
-            to.searchParams.set('next', path);
-            // ✅ PRESERVE Set-Cookie from Supabase on redirect
+        // APIs: allow OTP only; block others with 401 JSON
+        if (path.startsWith('/api/')) {
+            const allowed = OTP_ENDPOINTS.includes(path);
+            if (!allowed) {
+                return addSecurityHeaders(
+                    NextResponse.json({ error: 'auth_required' }, { status: 401, headers: res.headers })
+                );
+            }
+            return addSecurityHeaders(res);
+        }
+
+        // Pages: allow only public; any other path → land them on the main page
+        if (!isPublicPath(path)) {
+            const to = new URL(UNAUTH_REDIRECT, req.url);
+            to.searchParams.set('next', path); // so landing/signin can send them back post-auth
             return addSecurityHeaders(NextResponse.redirect(to, { headers: res.headers }));
         }
+
         return addSecurityHeaders(res);
     }
 
-    // Signed in → fetch onboarding flag
-    const { data: profile } = await supabase
-        .from('profiles')
-        .select('onboarding_completed')
-        .eq('id', session.user.id)
-        .maybeSingle();
-
-    const onboarded = Boolean(profile?.onboarding_completed);
-
-    // If not onboarded yet:
-    if (!onboarded) {
-        // allow specific APIs needed during onboarding
-        if (path.startsWith('/api/')) {
-            const allowed = API_ALLOW_DURING_ONBOARD.some(b => path === b || path.startsWith(b + '/'));
-            if (allowed) return addSecurityHeaders(res);
-            // ✅ PRESERVE headers on JSON error too
-            return addSecurityHeaders(
-                NextResponse.json({ error: 'onboarding_required' }, { status: 428, headers: res.headers })
-            );
-        }
-        // send any other route to the onboarding page (/profile)
-        if (!isSetupPath(path)) {
-            const to = new URL(RESUME_DEFAULT, req.url);
-            // ✅ PRESERVE headers on redirect
-            return addSecurityHeaders(NextResponse.redirect(to, { headers: res.headers }));
-        }
-    }
-
-    // Already onboarded: keep users away from /auth/*
-    if (path === '/auth' || path.startsWith('/auth/')) {
-        const to = new URL('/ai', req.url);
-        // ✅ PRESERVE headers on redirect
-        return addSecurityHeaders(NextResponse.redirect(to, { headers: res.headers }));
-    }
-
+    // ── Signed-in users ─────────────────────────────────────────────────────
+    // Your rule: do NOT force them anywhere. They can access any route.
+    // (We intentionally do NOT redirect away from /profile or /auth here.)
     return addSecurityHeaders(res);
 }
 
