@@ -196,9 +196,10 @@ export default function Home() {
             <span aria-hidden="true" className="sm:hidden">↓</span>
             <span aria-hidden="true" className="hidden sm:inline">→</span>
           </Link>
-          <Link href="/auth/signup" className="btn btn-ghost jelly sheen water-mobile w-full justify-between items-center" style={{ color: 'var(--fg)', borderColor: 'var(--hairline)' }}>
-            <span><span style={{ color: 'var(--gold)' }}>You earn</span> and grow from your moments</span>
+           <Link href="/auth/signup" className="btn btn-ghost jelly sheen water-mobile w-full justify-between items-center" style={{ color: 'var(--fg)', borderColor: 'var(--hairline)' }}>
+            <span>Glassy real-time chat that feels instant</span>
             <span aria-hidden="true" className="sm:hidden">↓</span>
+            
           </Link>
         </section>
 
