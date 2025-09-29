@@ -86,7 +86,7 @@ export default function ContactPage() {
                     </Split>
                     <Callout>
                         Learn more about us:{" "}
-                        <Link href="/about" className="underline" target="_blank" rel="noopener noreferrer">About 6ix</Link>
+                        <Link href="/legal/about" className="underline" target="_blank" rel="noopener noreferrer">About 6ix</Link>
                     </Callout>
                 </Section>
 
@@ -108,7 +108,7 @@ export default function ContactPage() {
                             </ul>
                             <p className="text-zinc-400 text-sm mt-2">
                                 Read our story:{" "}
-                                <Link href="/about" className="underline" target="_blank" rel="noopener noreferrer">About</Link>
+                                <Link href="/legal/about" className="underline" target="_blank" rel="noopener noreferrer">About</Link>
                             </p>
                         </Card>
                     </Split>
@@ -188,7 +188,7 @@ export default function ContactPage() {
                             </p>
                             <p className="text-zinc-400 text-sm mt-2">
                                 Learn more:{" "}
-                                <Link href="/about" className="underline" target="_blank" rel="noopener noreferrer">About 6ix</Link>
+                                <Link href="/legal/about" className="underline" target="_blank" rel="noopener noreferrer">About 6ix</Link>
                             </p>
                         </Card>
                         <Card title="Business details">
