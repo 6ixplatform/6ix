@@ -9,7 +9,9 @@ Config
 const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || '').replace(/\/+$/, '');
 const CANONICAL_HOST = SITE_URL ? new URL(SITE_URL).host : '';
 
-const UNAUTH_REDIRECT = '/'; // landing page (change to '/auth/signin' if you prefer)
+const APP_HOME = '/ai'; // main app page after onboarding
+const RESUME_DEFAULT = '/profile'; // onboarding entry page
+const UNAUTH_REDIRECT = '/'; // where unauth’d users land (set to '/auth/signin' if you prefer)
 
 // Public (no auth required) pages
 const PUBLIC_ALLOW = [
@@ -19,6 +21,14 @@ const PUBLIC_ALLOW = [
 
 // OTP endpoints (rate-limited separately)
 const OTP_ENDPOINTS = ['/api/auth/send-otp', '/api/auth/verify-otp'];
+
+// APIs that must be available while user is still onboarding
+const API_ALLOW_DURING_ONBOARD = [
+    '/api/profile',
+    '/api/profile/check-username',
+    '/api/onboarding/welcome',
+    '/api/support',
+];
 
 /* ────────────────────────────────────────────────────────────────────────────
 Helpers
@@ -37,6 +47,11 @@ const isSkippablePath = (p: string) =>
 
 const isPublicPath = (p: string) =>
     PUBLIC_ALLOW.some(base => p === base || p.startsWith(base + '/'));
+
+// Treat these as onboarding/setup screens
+const isSetupPath = (p: string) =>
+    p === '/profile' || p.startsWith('/profile/') ||
+    p === '/onboarding' || p.startsWith('/onboarding/');
 
 /* ────────────────────────────────────────────────────────────────────────────
 Security headers
@@ -165,7 +180,7 @@ export async function middleware(req: NextRequest) {
     const supabase = createMiddlewareClient({ req, res });
     const { data: { session } } = await supabase.auth.getSession();
 
-    // ── Unauthenticated users ────────────────────────────────────────────────
+    /* ── Unauthenticated users ─────────────────────────────────────────────── */
     if (!session) {
         // APIs: allow OTP only; block others with 401 JSON
         if (path.startsWith('/api/')) {
@@ -181,16 +196,50 @@ export async function middleware(req: NextRequest) {
         // Pages: allow only public; any other path → land them on the main page
         if (!isPublicPath(path)) {
             const to = new URL(UNAUTH_REDIRECT, req.url);
-            to.searchParams.set('next', path); // so landing/signin can send them back post-auth
+            to.searchParams.set('next', path); // so landing/signin can return them after auth
             return addSecurityHeaders(NextResponse.redirect(to, { headers: res.headers }));
         }
-
         return addSecurityHeaders(res);
     }
 
-    // ── Signed-in users ─────────────────────────────────────────────────────
-    // Your rule: do NOT force them anywhere. They can access any route.
-    // (We intentionally do NOT redirect away from /profile or /auth here.)
+    /* ── Signed-in users ───────────────────────────────────────────────────── */
+    // Check onboarding flag
+    const { data: profile } = await supabase
+        .from('profiles')
+        .select('onboarding_completed')
+        .eq('id', session.user.id)
+        .maybeSingle();
+
+    const onboarded = Boolean(profile?.onboarding_completed);
+
+    // If not onboarded yet:
+    if (!onboarded) {
+        // allow specific APIs needed during onboarding
+        if (path.startsWith('/api/')) {
+            const allowed = API_ALLOW_DURING_ONBOARD.some(b => path === b || path.startsWith(b + '/'));
+            if (allowed) return addSecurityHeaders(res);
+            return addSecurityHeaders(
+                NextResponse.json({ error: 'onboarding_required' }, { status: 428, headers: res.headers })
+            );
+        }
+        // For pages, force into onboarding (RESUME_DEFAULT)
+        if (!isSetupPath(path)) {
+            const to = new URL(RESUME_DEFAULT, req.url);
+            return addSecurityHeaders(NextResponse.redirect(to, { headers: res.headers }));
+        }
+        // Already on setup paths — allow
+        return addSecurityHeaders(res);
+    }
+
+    // Already onboarded:
+    // 1) Keep users OUT of onboarding pages forever (strong redirect to APP_HOME)
+    if (isSetupPath(path)) {
+        const to = new URL(APP_HOME, req.url);
+        // 308 to keep method; prevents caching + back-button “revisit”
+        return addSecurityHeaders(NextResponse.redirect(to, 308));
+    }
+
+    // 2) Everything else is allowed (including /auth/* since you said "not auth flow")
     return addSecurityHeaders(res);
 }
 
