@@ -227,16 +227,16 @@ export default function VerifyClient() {
     };
 
     return (
-        <main className="min-h-dvh bg-black text-zinc-100" style={{ paddingTop: 'env(safe-area-inset-top,0px)' }}>
-            {/* HELP */}
+        <main className="verify-scope min-h-dvh" style={{ paddingTop: 'env(safe-area-inset-top,0px)' }}>
+            {/* HELP (smaller) */}
             <button
-                className="fixed right-4 top-4 z-40 text-sm px-3 py-2 rounded-full bg-white/10 hover:bg:white/20 btn-water"
-                onClick={() => setHelpOpen((v) => !v)}
+                className="help-toggle"
+                onClick={() => setHelpOpen(v => !v)}
+                aria-label="Need help?"
             >
                 Need help?
             </button>
             {helpOpen && <HelpPanel onClose={() => setHelpOpen(false)} presetEmail={email} />}
-
             {/* Desktop */}
             <div className="hidden md:grid grid-cols-2 min-h-dvh">
                 <aside className="relative overflow-hidden">
@@ -305,7 +305,7 @@ export default function VerifyClient() {
 
             {/* Trademark */}
             <footer
-                className="fixed left-1/2 -translate-x-1/2 text-center text-zinc-500 text-sm"
+                className="verify-tm fixed left-1/2 -translate-x-1/2 text-sm"
                 style={{ bottom: 'calc(env(safe-area-inset-bottom,12px) + 12px)' }}
             >
                 A 6clement Joshua service · © {new Date().getFullYear()} 6ix
@@ -313,6 +313,93 @@ export default function VerifyClient() {
 
             {/* Minimal global styles (keep your UI) */}
             <style jsx global>{`
+            /* ===== Verify page theming ===== */
+.verify-scope { background:#0a0b0d; color:#e9e9f0; }
+html.theme-light .verify-scope { background:#ffffff; color:#0b0c10; }
+
+/* smaller Help pill that adapts to theme */
+.help-toggle{
+position:fixed; z-index:50;
+top:calc(env(safe-area-inset-top)+10px);
+right:calc(env(safe-area-inset-right)+10px);
+padding:.22rem .5rem; font-size:11px; line-height:1;
+border-radius:9999px; backdrop-filter:blur(8px);
+border:1px solid rgba(255,255,255,.18);
+background:rgba(255,255,255,.12); color:#fff;
+}
+html.theme-light .help-toggle{
+border-color:rgba(0,0,0,.18);
+background:rgba(0,0,0,.06); color:#000;
+}
+
+/* Glass card (dark) / crystal card (light) */
+.verify-card{
+border-radius:20px;
+border:1px solid rgba(255,255,255,.12);
+background:rgba(255,255,255,.06);
+box-shadow:
+0 16px 60px rgba(0,0,0,.55),
+inset 0 1px 0 rgba(255,255,255,.08);
+backdrop-filter:blur(16px);
+}
+html.theme-light .verify-card{
+background:#ffffff;
+border:1px solid #e5e7eb;
+box-shadow:0 16px 60px rgba(0,0,0,.08);
+}
+
+/* OTP cells */
+.verify-cell{
+background:rgba(255,255,255,.08);
+border:1px solid rgba(255,255,255,.16);
+color:#fff;
+}
+.verify-cell:focus{ outline:none; border-color:rgba(255,255,255,.34); }
+html.theme-light .verify-cell{
+background:#f6f7f9;
+border:1px solid #e5e7eb;
+color:#0b0c10;
+}
+html.theme-light .verify-cell:focus{ border-color:#9ca3af; }
+
+/* Buttons: deep-gray disabled, crisp when active */
+.btn{ display:inline-flex; align-items:center; justify-content:center; gap:.5rem; width:100%;
+border-radius:9999px; padding:.65rem 1rem; font-weight:600; border:1px solid transparent;
+transition:transform .12s, box-shadow .22s, background .22s, color .22s, border-color .22s; }
+.btn-primary{ background:#fff; color:#000; }
+.btn-primary:disabled{ background:#2d3137; color:#9ca3af; }
+html.theme-light .btn-primary:disabled{ background:#e5e7eb; color:#6b7280; }
+
+.btn-outline{
+background:rgba(255,255,255,.06); color:#fff; border:1px solid rgba(255,255,255,.15);
+}
+.btn-outline:disabled{ background:rgba(255,255,255,.04); color:#9ca3af; border-color:rgba(255,255,255,.12); }
+html.theme-light .btn-outline{ background:#111; color:#fff; border-color:#0b0c10; }
+html.theme-light .btn-outline:disabled{ background:#f3f4f6; color:#9ca3af; border-color:#e5e7eb; }
+
+/* One-line trademark */
+.verify-tm{ color:#9ca3af; white-space:nowrap; text-align:center; }
+html.theme-light .verify-tm{ color:#6b7280; }
+
+/* Help panel surfaces */
+.help-panel{
+background:rgba(0,0,0,.55);
+border:1px solid rgba(255,255,255,.12);
+color:#fff;
+box-shadow:0 18px 60px rgba(0,0,0,.45);
+}
+html.theme-light .help-panel{
+background:rgba(255,255,255,.94);
+border:1px solid #e5e7eb;
+color:#0b0c10;
+box-shadow:0 18px 60px rgba(0,0,0,.10);
+}
+
+/* Links inside the card stay visible on light */
+html.theme-light .verify-card a{
+color:#0b0c10; text-decoration:underline; text-decoration-color:rgba(0,0,0,.25);
+}
+
 .btn { display:inline-flex; align-items:center; justify-content:center; gap:.5rem; width:100%;
 border-radius:9999px; padding:.65rem 1rem; transition:transform .12s ease, box-shadow .2s ease, background .35s ease; }
 .btn-primary { background:#fff; color:#000; }
@@ -359,7 +446,7 @@ function VerifyCard({
     const inputsDisabled = verifying;
 
     return (
-        <div className={`relative rounded-2xl w=[min(92vw,40rem)] border border-white/10 bg-white/6 backdrop-blur-xl shadow-[0_10px_60px_-10px_rgba(0,0,0,.6)] p-5 sm:p-6`}>
+        <div className="verify-card relative w-[min(92vw,40rem)] p-5 sm:p-6">
             <div className="mb-4 relative z-10">
                 <div className="text-lg sm:text-xl font-semibold">Enter code</div>
             </div>
@@ -383,10 +470,9 @@ function VerifyCard({
                         pattern="[0-9]*"
                         autoFocus={i === 0}
                         disabled={inputsDisabled}
-                        className={`h-12 sm:h-14 text-center text-lg sm:text-xl rounded-lg
-bg-white/6 border border-white/10 text-zinc-100
-focus:outline-none focus:border-white/30
+                        className={`verify-cell h-12 sm:h-14 text-center text-lg sm:text-xl rounded-lg
 ${inputsDisabled ? 'opacity-60 cursor-not-allowed' : ''}`}
+
                         aria-label={`Digit ${i + 1}`}
                     />
                 ))}
@@ -469,7 +555,7 @@ function HelpPanel({ onClose, presetEmail }: { onClose: () => void; presetEmail?
     };
 
     return (
-        <div className="fixed right-4 top-14 z-40 w-[min(92vw,360px)] rounded-2xl border border-black/50 bg-white/10 backdrop-blur-xl p-4 shadow-lg">
+        <div className="help-panel fixed right-4 top-14 z-40 w-[min(92vw,360px)] rounded-2xl backdrop-blur-xl p-4 shadow-lg">
             <div className="flex items-center justify-between">
                 <div className="font-medium">Need help?</div>
                 <button onClick={onClose} className="text-sm text-zinc-300 hover:text-white">Close</button>

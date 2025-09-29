@@ -1476,3 +1476,37 @@ html.theme-light .auth-scope input[type="checkbox"]:checked {
 .auth-scope .btn:active {
   transform: scale(.985);
 }
+
+/* Light/Dark theme tokens */
+html {
+  color-scheme: light dark;
+}
+
+:root {
+  --bg: #ffffff;
+  --fg: #0b0c10;
+  --muted: #4b5563;
+  --card: #f6f7f9;
+  --card-border: #e5e7eb;
+  --card-shadow: 0 16px 60px rgba(0, 0, 0, .08);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0b0d;
+    --fg: #e9e9f0;
+    --muted: #9ca3af;
+    --card: #111317;
+    --card-border: rgba(255, 255, 255, .12);
+    --card-shadow: 0 16px 60px rgba(0, 0, 0, .45);
+  }
+}
+
+/* Shared card styles use vars (works in both modes) */
+.card-3d {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  box-shadow: var(--card-shadow);
+  border-radius: 16px;
+  transition: transform .18s, box-shadow .25s, background .4s, border-color .4s;
+}

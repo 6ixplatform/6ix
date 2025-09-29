@@ -36,6 +36,7 @@ export default function Splash({
                 A 6clement Joshua service · © {new Date().getFullYear()} 6ix
             </div>
 
+            {/* Component-scoped styles with light/dark auto theming */}
             <style jsx>{`
 .splash-root {
 position: fixed;
@@ -44,14 +45,27 @@ z-index: 9999;
 display: flex;
 align-items: center;
 justify-content: center;
-background: #000;
-color: #9ca3af;
+
+/* follow global tokens if present; otherwise use light fallbacks */
+background: var(--bg, #ffffff);
+color: var(--muted, #4b5563);
+
 min-height: 100dvh;
+-webkit-font-smoothing: antialiased;
+-moz-osx-font-smoothing: grayscale;
+color-scheme: light dark;
 }
 @supports (height: 100svh) {
 .splash-root { min-height: 100svh; }
 }
-html.theme-light .splash-root { background: #fff; color: #4b5563; }
+
+/* auto switch to dark if system prefers; still respects global vars if defined */
+@media (prefers-color-scheme: dark) {
+.splash-root {
+background: var(--bg, #0a0b0d);
+color: var(--muted, #9ca3af);
+}
+}
 
 /* center the logo perfectly */
 .splash-logo {
@@ -74,6 +88,7 @@ padding: 0 16px;
 }
 `}</style>
 
+            {/* lock scroll while splash is visible */}
             <style jsx global>{`
 body.splash-lock { overflow: hidden !important; }
 `}</style>

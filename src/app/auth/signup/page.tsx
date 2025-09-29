@@ -371,6 +371,12 @@ export default function SignUpPage() {
 
                 {/* Page-scoped styles (NO HOVER; tap-only effects) */}
                 <style jsx global>{`
+                /* suffix button flips for light mode */
+html.theme-light .auth-scope .field-suffix{
+background: rgba(0,0,0,.06);
+border-color: rgba(0,0,0,.18);
+color:#111;
+}
                 /* Tiny top-right Help pill (NOT full width) */
 .auth-scope .help-toggle{
 position: fixed;
@@ -548,6 +554,23 @@ html.theme-light .auth-scope input[type="checkbox"]:checked { background:#000; b
 /* Small utilities */
 .auth-scope .text-link { text-decoration: underline; text-decoration-color: rgba(255,255,255,.3); }
 html.theme-light .auth-scope .text-link { text-decoration-color: rgba(0,0,0,.3); }
+/* Help panel dark/light surfaces */
+.auth-scope .help-panel{
+background: rgba(0,0,0,.55);
+border-color: rgba(255,255,255,.12);
+color:#fff;
+box-shadow: 0 18px 60px rgba(0,0,0,.45);
+}
+html.theme-light .auth-scope .help-panel{
+background: rgba(255,255,255,.92);
+border-color: rgba(0,0,0,.12);
+color:#111;
+box-shadow: 0 18px 60px rgba(0,0,0,.12);
+}
+/* Close pill inside panel */
+.auth-scope .help-panel .close-pill{ background: rgba(255,255,255,.10); }
+html.theme-light .auth-scope .help-panel .close-pill{ background: rgba(0,0,0,.06); color:#111; }
+
 `}</style>
             </main>
         </>
@@ -598,55 +621,50 @@ function SignUpCard({
             <label className="block">
                 <div className="text-sm text-zinc-400 mb-1">Email</div>
 
-                <div className="relative">
-                    <input
-                        list="email-suggest"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        placeholder="you@email.com"
-                        className="field w-full rounded-lg px-3 pr-12 py-2.5 text-zinc-100 placeholder-zinc-500 disabled:opacity-60"
-                        inputMode="email"
-                        autoComplete="email"
-                        autoFocus
-                        aria-label="Email address"
-                        disabled={pageDisabled}
-                    />
+                <input
+                    list="email-suggest"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@email.com"
+                    className="field w-full rounded-lg pl-3 pr-14 py-2.5 placeholder-zinc-500 disabled:opacity-60"
+                    inputMode="email"
+                    autoComplete="email"
+                    autoFocus
+                    aria-label="Email address"
+                    disabled={pageDisabled}
+                />
 
-                    <datalist id="email-suggest">
-                        {suggestions.slice(0, 6).map(s => <option key={s} value={s} />)}
-                    </datalist>
+                <div className="absolute top-1/2 -translate-y-1/2 right-3 grid place-items-center w-8">
+                    {emailStatus === 'checking' && <Spinner />}
 
-                    <div className="absolute inset-y-0 right-2 grid place-items-center w-7">
-                        {emailStatus === 'checking' && <Spinner />}
+                    {emailStatus === 'new' && (
+                        <svg viewBox="0 0 20 20" className="h-5 w-5">
+                            <circle cx="10" cy="10" r="8.5" fill="none" className="stroke-emerald-400" strokeWidth="1.8" />
+                            <path d="M6 10.5l2.2 2.2L14 7.8" className="stroke-emerald-400" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                    )}
 
-                        {emailStatus === 'new' && (
-                            <svg viewBox="0 0 20 20" className="h-5 w-5">
-                                <circle cx="10" cy="10" r="8.5" fill="none" className="stroke-emerald-400" strokeWidth="1.8" />
-                                <path d="M6 10.5l2.2 2.2L14 7.8" className="stroke-emerald-400" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
-                        )}
+                    {emailStatus === 'exists' && (
+                        <svg viewBox="0 0 20 20" className="h-5 w-5">
+                            <circle cx="10" cy="10" r="8.5" fill="none" className="stroke-red-400" strokeWidth="1.8" />
+                            <path d="M10 6v6M10 14.5h.01" className="stroke-red-400" strokeWidth="2" fill="none" strokeLinecap="round" />
+                        </svg>
+                    )}
 
-                        {emailStatus === 'exists' && (
-                            <svg viewBox="0 0 20 20" className="h-5 w-5">
-                                <circle cx="10" cy="10" r="8.5" fill="none" className="stroke-red-400" strokeWidth="1.8" />
-                                <path d="M10 6v6M10 14.5h.01" className="stroke-red-400" strokeWidth="2" fill="none" strokeLinecap="round" />
-                            </svg>
-                        )}
-
-                        {(emailStatus === 'idle' || emailStatus === 'error') && (
-                            <button
-                                type="button"
-                                onClick={onCheckEmail}
-                                disabled={!looksLikeEmail(email) || pageDisabled}
-                                title="Check email"
-                                aria-label="Check email"
-                                className="pointer-events-auto inline-flex items-center justify-center h-7 w-7 rounded-full border border-white/20 bg-black/40 disabled:opacity-40 btn"
-                            >
-                                <span className="text-xs leading-none">☑︎</span>
-                            </button>
-                        )}
-                    </div>
+                    {(emailStatus === 'idle' || emailStatus === 'error') && (
+                        <button
+                            type="button"
+                            onClick={onCheckEmail}
+                            disabled={!looksLikeEmail(email) || pageDisabled}
+                            title="Check email"
+                            aria-label="Check email"
+                            className="field-suffix pointer-events-auto inline-flex items-center justify-center h-8 w-8 rounded-full border bg-black/40 border-white/20 disabled:opacity-40 btn"
+                        >
+                            <span className="text-xs leading-none">☑︎</span>
+                        </button>
+                    )}
                 </div>
+
             </label>
 
             {err && <p className="mt-3 text-sm text-red-400" aria-live="polite">{err}</p>}
@@ -737,7 +755,7 @@ function HelpPanel({ onClose, presetEmail }: { onClose: () => void; presetEmail?
     };
 
     return (
-        <div className="fixed right-4 top-14 z-40 w-[min(92vw,360px)] rounded-2xl border border-white/10 bg-black/50 backdrop-blur-xl p-4 shadow-lg">
+        <div className="help-panel fixed right-4 top-14 z-40 w-[min(92vw,360px)] rounded-2xl border backdrop-blur-xl p-4 shadow-lg">
             <div className="container justify-between">
                 <div className="font-medium">Need help?</div>
                 <button onClick={onClose} className="text-sm text-zinc-300">Close</button>
