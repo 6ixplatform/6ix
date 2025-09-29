@@ -146,10 +146,10 @@ export default function SignInClient() {
     return (
         <>
             <BackStopper />
-            <main className="min-h-dvh bg-black text-zinc-100" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
+            <main className="auth-scope min-h-dvh bg-black text-white" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
                 {/* HELP button top-right */}
                 <button
-                    className="fixed right-4 top-4 z-40 text-sm px-3 py-2 rounded-full bg-white/10 hover:bg-white/20 btn-water"
+                    className="help-fab fixed right-4 top-4 z-40"
                     onClick={() => setHelpOpen(v => !v)}
                 >
                     Need help?
@@ -254,6 +254,114 @@ export default function SignInClient() {
 
                 {/* Global tweaks (UI unchanged) */}
                 <style jsx global>{`
+                :root{ color-scheme: light dark; }
+
+/* Scope the page */
+.auth-scope *{ -webkit-tap-highlight-color:transparent; }
+html.theme-light .auth-scope{ background:#fff; color:#111; }
+
+/* --- Glass card --- */
+.auth-scope .auth-card{
+background:rgba(255,255,255,.06);
+border:1px solid rgba(255,255,255,.12);
+border-radius:16px;
+box-shadow:0 10px 60px -10px rgba(0,0,0,.6);
+}
+html.theme-light .auth-scope .auth-card{
+background:rgba(255,255,255,.86);
+border-color:rgba(0,0,0,.10);
+color:#111;
+box-shadow:0 18px 50px rgba(0,0,0,.16), inset 0 1px 0 rgba(255,255,255,.85);
+}
+
+/* --- Floating help chip --- */
+.auth-scope .help-fab{
+font-size:12px; padding:.35rem .6rem; border-radius:9999px;
+border:1px solid rgba(255,255,255,.22); background:rgba(255,255,255,.12); color:#fff;
+backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+}
+.auth-scope .help-fab:hover{ background:rgba(255,255,255,.18); }
+html.theme-light .auth-scope .help-fab{
+border-color:rgba(0,0,0,.12); background:rgba(0,0,0,.06); color:#000;
+}
+html.theme-light .auth-scope .help-fab:hover{ background:rgba(0,0,0,.10); }
+
+/* --- Help panel --- */
+.auth-scope .help-panel{
+background:rgba(255,255,255,.10);
+border-color:rgba(255,255,255,.14);
+color:#fff;
+}
+html.theme-light .auth-scope .help-panel{
+background:rgba(255,255,255,.88);
+border-color:rgba(0,0,0,.10);
+color:#111;
+}
+.auth-scope .chip-sm{
+font-size:12px; line-height:1; padding:.28rem .55rem; border-radius:9999px;
+border:1px solid rgba(255,255,255,.22); background:rgba(255,255,255,.12); color:#fff;
+}
+html.theme-light .auth-scope .chip-sm{
+border-color:rgba(0,0,0,.14); background:rgba(0,0,0,.06); color:#000;
+}
+
+/* --- Text tones --- */
+.auth-scope .text-subtle{ color:rgba(255,255,255,.80); }
+.auth-scope .text-soft{ color:rgba(255,255,255,.72); }
+html.theme-light .auth-scope .text-subtle{ color:#222; }
+html.theme-light .auth-scope .text-soft{ color:#444; }
+
+/* --- Links in copy --- */
+.auth-scope .lnk{ text-decoration:underline; text-underline-offset:3px; }
+.auth-scope .lnk{ color:inherit; opacity:.9; }
+.auth-scope .lnk:hover{ opacity:1; }
+
+/* --- Buttons (reuse existing, add light overrides) --- */
+.auth-scope .btn{ display:inline-flex; align-items:center; justify-content:center; gap:.5rem; width:100%;
+border-radius:9999px; padding:.6rem 1rem; font-weight:600;
+transition:transform .12s ease, box-shadow .2s ease, background .35s ease; }
+@media (max-width:767px){ .auth-scope .btn{ padding:.52rem .92rem; } }
+
+.auth-scope .btn-primary{ background:#fff; color:#000; }
+.auth-scope .btn-primary:disabled{ background:rgba(255,255,255,.30); color:rgba(0,0,0,.55); cursor:not-allowed; }
+
+.auth-scope .btn-outline{ background:rgba(255,255,255,.06); color:#fff; border:1px solid rgba(255,255,255,.15); }
+.auth-scope .btn-outline:hover{ background:rgba(255,255,255,.10); }
+html.theme-light .auth-scope .btn-outline{ background:#111; color:#fff; border-color:rgba(0,0,0,.86); }
+
+/* --- Inputs / textarea (shorter height) --- */
+.auth-scope .inp{
+width:100%; color:#fff; background:rgba(255,255,255,.06);
+border:1px solid rgba(255,255,255,.12); border-radius:12px;
+padding:10px 12px; line-height:1.25; outline:none;
+transition:border-color .2s, background .2s;
+}
+.auth-scope textarea.inp{ min-height:90px; }
+.auth-scope .inp:focus{ border-color:rgba(255,255,255,.34); background:rgba(255,255,255,.10); }
+
+html.theme-light .auth-scope .inp{
+color:#111; background:rgba(0,0,0,.04); border-color:rgba(0,0,0,.12);
+}
+html.theme-light .auth-scope .inp:focus{
+border-color:rgba(0,0,0,.38); background:rgba(0,0,0,.06);
+}
+
+/* --- Checkbox --- */
+.auth-scope .chk{
+appearance:auto;
+border:1px solid rgba(255,255,255,.35); background:rgba(255,255,255,.10);
+}
+html.theme-light .auth-scope .chk{
+border-color:rgba(0,0,0,.45); background:#fff;
+}
+
+/* keep your existing global tweaks */
+input[list]::-webkit-calendar-picker-indicator { display: none !important; }
+input[list] { appearance: none; -webkit-appearance: none; }
+.btn-water:hover { transform: translateZ(0) scale(1.01); box-shadow: inset 0 8px 30px rgba(255,255,255,.08); }
+.btn-water:active { transform: scale(.99); }
+@media (min-width:768px){ html, body { overflow:hidden; } }
+
 input[list]::-webkit-calendar-picker-indicator { display: none !important; }
 input[list] { appearance: none; -webkit-appearance: none; }
 .btn { display:inline-flex; align-items:center; justify-content:center; gap:.5rem; width:100%;
@@ -305,26 +413,24 @@ function SignInCard({
         setNavBusy(true);
         router.push('/auth/signup');
     };
-
     return (
-        <div className="rounded-2xl border border-white/10 bg-white/6 backdrop-blur-xl shadow-[0_10px_60px_-10px_rgba(0,0,0,.6)] p-5 sm:p-6 sheen-auto water-mobile">
+        <div className="auth-card p-5 sm:p-6 sheen-auto water-mobile">
             <div className="flex items-center gap-3 mb-4">
                 <div className="text-lg sm:text-xl font-semibold">Sign in to 6ix</div>
             </div>
 
             <label className="block">
-                <div className="text-sm text-zinc-400 mb-1">Email</div>
+                <div className="text-sm text-soft mb-1">Email</div>
                 <input
                     list="email-suggest"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="you@email.com"
-                    className="w-full rounded-lg bg-white/6 border border-white/10 px-3 py-2.5 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-white/30"
+                    className="inp"
                     inputMode="email"
                     autoComplete="email"
                     autoFocus
                 />
-                {/* (UI left as-is; suggestions list not rendered intentionally) */}
             </label>
 
             <label className="mt-4 flex items-start gap-2 cursor-pointer select-none">
@@ -332,13 +438,13 @@ function SignInCard({
                     type="checkbox"
                     checked={agree}
                     onChange={(e) => setAgree(e.target.checked)}
-                    className="mt-0.5 h-4 w-4 rounded border-white/20 bg-white/5"
+                    className="chk mt-0.5 h-4 w-4 rounded"
                 />
-                <span className="text-sm text-zinc-400">
+                <span className="text-sm text-soft">
                     I agree to the{' '}
-                    <Link href="/legal/terms" className="underline decoration-white/30 hover:decoration-white transition">Terms</Link>{' '}
+                    <Link href="/legal/terms" className="lnk">Terms</Link>{' '}
                     and{' '}
-                    <Link href="/legal/privacy" className="underline decoration-white/30 hover:decoration-white transition">Privacy Policy</Link>.
+                    <Link href="/legal/privacy" className="lnk">Privacy Policy</Link>.
                 </span>
             </label>
 
@@ -346,18 +452,15 @@ function SignInCard({
                 <div className="mt-3 text-sm text-emerald-400" aria-live="polite">
                     {notice}
                     {counting && (
-                        <div className="mt-2 text-zinc-300">
+                        <div className="mt-2 text-subtle">
                             Redirecting to Sign up in <span className="font-semibold">{secsLeft}s</span>.{' '}
-                            <button className="underline decoration-white/30 hover:decoration-white" onClick={onCancelRedirect}>
-                                Cancel
-                            </button>
+                            <button className="lnk" onClick={onCancelRedirect}>Cancel</button>
                         </div>
                     )}
                 </div>
             )}
-            {err && <p className="mt-3 text-sm text-red-400" aria-live="polite">{err}</p>}
+            {err && <p className="mt-3 text-sm text-red-500" aria-live="polite">{err}</p>}
 
-            {/* PRIMARY CTA — spinner built-in */}
             <button
                 className={`btn btn-primary btn-water ${loading ? 'pointer-events-none' : ''}`}
                 disabled={!canSend}
@@ -366,11 +469,10 @@ function SignInCard({
                 {loading && <Spinner />} {loading ? 'Signing…' : 'Sign in'}
             </button>
 
-            <div className="mt-4 text-center text-sm text-zinc-400">
+            <div className="mt-4 text-center text-sm text-soft">
                 New to 6ix? <span role="img" aria-label="down">↓</span>
             </div>
 
-            {/* CREATE ACCOUNT with spinner while navigating */}
             <button
                 className={`btn btn-outline btn-water w-full mt-2 text-center ${navBusy ? 'pointer-events-none' : ''}`}
                 onClick={goSignup}
@@ -380,18 +482,17 @@ function SignInCard({
             </button>
         </div>
     );
-}
 
-function Spinner() {
-    return (
-        <span
-            className="inline-block h-4 w-4 rounded-full border-2 border-zinc-700 border-t-transparent animate-spin"
-            aria-hidden="true"
-        />
-    );
+    function Spinner() {
+        return (
+            <span
+                className="inline-block h-4 w-4 rounded-full border-2 border-zinc-700 border-t-transparent animate-spin"
+                aria-hidden="true"
+            />
+        );
+    }
 }
-
-/* -------- Help mini dialog (UI unchanged) -------- */
+/* -------- Help mini dialog (theme-aware) -------- */
 function HelpPanel({ onClose, presetEmail }: { onClose: () => void; presetEmail?: string }) {
     const [firstName, setFirst] = useState('');
     const [lastName, setLast] = useState('');
@@ -415,24 +516,22 @@ function HelpPanel({ onClose, presetEmail }: { onClose: () => void; presetEmail?
             setDone('ok'); setMsg('Thanks! Our team will reach out.');
         } catch (e: any) {
             setDone('err'); setMsg(e?.message || 'Could not send');
-        } finally {
-            setSending(false);
-        }
+        } finally { setSending(false); }
     };
 
     return (
-        <div className="fixed right-4 top-14 z-40 w-[min(92vw,360px)] rounded-2xl border border-white/10 bg-black/50 backdrop-blur-xl p-4 shadow-lg">
+        <div className="help-panel fixed right-4 top-14 z-40 w-[min(92vw,360px)] rounded-2xl border backdrop-blur-xl p-4 shadow-lg">
             <div className="flex items-center justify-between">
                 <div className="font-medium">Need help?</div>
-                <button onClick={onClose} className="text-sm text-zinc-300 hover:text-white">Close</button>
+                <button onClick={onClose} className="chip-sm">Close</button>
             </div>
             <div className="mt-3 grid gap-2">
-                <input className="rounded-lg bg-white/10 border border-white/10 px-3 py-2 text-sm focus:outline-none focus:border-white/30" placeholder="First name" value={firstName} onChange={e => setFirst(e.target.value)} />
-                <input className="rounded-lg bg-white/10 border border-white/10 px-3 py-2 text-sm focus:outline-none focus:border-white/30" placeholder="Last name" value={lastName} onChange={e => setLast(e.target.value)} />
-                <input className="rounded-lg bg-white/10 border border-white/10 px-3 py-2 text-sm focus:outline-none focus:border-white/30" placeholder="Email (reply to)" value={email} onChange={e => setEmail(e.target.value)} />
-                <input className="rounded-lg bg-white/10 border border-white/10 px-3 py-2 text-sm focus:outline-none focus:border-white/30" placeholder="Location (city, country)" value={location} onChange={e => setLoc(e.target.value)} />
-                <textarea className="rounded-lg bg-white/10 border border-white/10 px-3 py-2 text-sm focus:outline-none focus:border-white/30" placeholder="Tell us what went wrong…" rows={3} value={reason} onChange={e => setReason(e.target.value)} />
-                {done && <p className={`text-sm ${done === 'ok' ? 'text-emerald-400' : 'text-red-400'}`}>{msg}</p>}
+                <input className="inp" placeholder="First name" value={firstName} onChange={e => setFirst(e.target.value)} />
+                <input className="inp" placeholder="Last name" value={lastName} onChange={e => setLast(e.target.value)} />
+                <input className="inp" placeholder="Email (reply to)" value={email} onChange={e => setEmail(e.target.value)} />
+                <input className="inp" placeholder="Location (city, country)" value={location} onChange={e => setLoc(e.target.value)} />
+                <textarea className="inp" rows={3} placeholder="Tell us what went wrong…" value={reason} onChange={e => setReason(e.target.value)} />
+                {done && <p className={`text-sm ${done === 'ok' ? 'text-emerald-600' : 'text-red-600'}`}>{msg}</p>}
                 <button className="btn btn-primary btn-water" disabled={sending} onClick={submit}>
                     {sending ? 'Sending…' : 'Send to support@6ixapp.com'}
                 </button>

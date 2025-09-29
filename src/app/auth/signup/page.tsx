@@ -371,6 +371,41 @@ export default function SignUpPage() {
 
                 {/* Page-scoped styles (NO HOVER; tap-only effects) */}
                 <style jsx global>{`
+                /* --- Email-exists modal theming --- */
+.auth-scope .auth-overlay{ background:rgba(0,0,0,.68); }
+html.theme-light .auth-scope .auth-overlay{ background:rgba(0,0,0,.22); }
+
+.auth-scope .auth-modal{
+background:rgba(255,255,255,.10);
+border-color:rgba(255,255,255,.14);
+color:#fff;
+box-shadow:0 14px 60px rgba(0,0,0,.55);
+}
+html.theme-light .auth-scope .auth-modal{
+background:rgba(255,255,255,.86);
+border-color:rgba(0,0,0,.10);
+color:#111;
+box-shadow:
+0 20px 60px rgba(0,0,0,.18),
+inset 0 1px 0 rgba(255,255,255,.85);
+}
+
+/* small rounded Close chip that flips correctly */
+.auth-scope .auth-modal .chip{
+-webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+padding:.3rem .6rem; border-radius:9999px; font-size:12px; line-height:1;
+border:1px solid rgba(255,255,255,.22); background:rgba(255,255,255,.12); color:#fff;
+}
+html.theme-light .auth-scope .auth-modal .chip{
+border-color:rgba(0,0,0,.12); background:rgba(0,0,0,.06); color:#000;
+}
+
+/* modal body text that adapts (avoid hard-coded Tailwind grays) */
+.auth-scope .auth-modal .text-subtle{ color:rgba(255,255,255,.80); }
+.auth-scope .auth-modal .text-soft{ color:rgba(255,255,255,.70); }
+html.theme-light .auth-scope .auth-modal .text-subtle{ color:#222; }
+html.theme-light .auth-scope .auth-modal .text-soft{ color:#444; }
+
                 /* suffix button flips for light mode */
 html.theme-light .auth-scope .field-suffix{
 background: rgba(0,0,0,.06);
@@ -776,7 +811,7 @@ function HelpPanel({ onClose, presetEmail }: { onClose: () => void; presetEmail?
     );
 }
 
-/* -------- Email-exists modal -------- */
+/* -------- Email-exists modal (light/dark glass) -------- */
 function EmailExistsModal({
     email,
     seconds,
@@ -790,16 +825,16 @@ function EmailExistsModal({
 }) {
     return (
         <div
-            className="fixed inset-0 z-[100] grid place-items-center bg-black/70 backdrop-blur-sm"
+            className="fixed inset-0 z-[100] grid place-items-center auth-overlay"
             role="dialog"
             aria-modal="true"
             aria-labelledby="exists-title"
         >
-            <div className="relative w-[min(92vw,520px)] rounded-2xl border border-white/12 bg-white/10 backdrop-blur-xl p-5 sm:p-6 shadow-[0_20px_120px_-20px_rgba(0,0,0,.85)]">
+            <div className="auth-modal relative w-[min(92vw,520px)] rounded-2xl border backdrop-blur-xl p-5 sm:p-6 shadow-[0_20px_120px_-20px_rgba(0,0,0,.45)]">
                 <button
                     onClick={onCancel}
                     aria-label="Close"
-                    className="absolute right-3 top-3 rounded-full px-2 py-1 text-sm bg-white/10"
+                    className="chip absolute right-3 top-3"
                 >
                     Close
                 </button>
@@ -808,8 +843,8 @@ function EmailExistsModal({
                     Email already registered
                 </h2>
 
-                <p className="mt-2 text-zinc-300 break-all">{email}</p>
-                <p className="mt-3 text-sm text-zinc-400">
+                <p className="mt-2 text-subtle break-all">{email}</p>
+                <p className="mt-3 text-sm text-soft">
                     You can <b>Cancel</b> and use another address, or we’ll redirect you to <b>Sign in</b> in <b>{seconds}</b>s.
                 </p>
 

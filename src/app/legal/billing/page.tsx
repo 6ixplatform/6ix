@@ -153,517 +153,587 @@ export default function BillingPolicyPage() {
     };
 
     return (
-        <PageShell
-            title="6ix — Billing & Subscriptions"
-            lead={
-                <>
-                    <p>
-                        This page explains how billing works on <span translate="no">6ix</span>: subscriptions, coins, cards/banks,
-                        wallets, gift cards, in-app purchases, invoices, proration, taxes, and what happens when a payment fails.
-                        It should be read with{' '}
-                        <Ref href="/legal/refunds">Refunds & Cancellations</Ref>,{' '}
-                        <Ref href="/legal/disputes">Disputes & Chargebacks</Ref>,{' '}
-                        <Ref href="/legal/acceptable-use">Acceptable Use</Ref>,{' '}
-                        <Ref href="/legal/kyc-aml">KYC / AML</Ref>, <Ref href="/legal/privacy">Privacy</Ref>, and{' '}
-                        <Ref href="/legal/terms">Terms</Ref>.
-                    </p>
-                    <p className="text-sm text-zinc-400 mt-2">Last updated: {updated}</p>
-                </>
-            }
-        >
-            <Toc items={toc} />
-
-            {/* 1) OVERVIEW */}
-            <Section id="overview" heading="1) Overview">
-                <Split>
-                    <Card title="What you can buy on 6ix">
-                        <ul className="list-disc pl-5 space-y-2">
-                            <li>Subscriptions (Free, Pro, Pro Max, Elite).</li>
-                            <li>Consumables (e.g., 6IXAI credits/minutes, boosts, placements).</li>
-                            <li>Add-ons and creator tools (where offered).</li>
-                        </ul>
-                    </Card>
-                    <Card title="How we bill">
-                        <ul className="list-disc pl-5 space-y-2">
-                            <li>
-                                We support multiple payment rails: <strong>coins balance</strong>, <strong>cards/banks</strong>,{' '}
-                                <strong>wallets</strong>, <strong>gift cards</strong>, and some <strong>in-app purchases</strong>.
-                            </li>
-                            <li>
-                                By default, <em>coins balance</em> is charged first for eligible items, then your default method.
-                            </li>
-                            <li>You can change charge priority in <Ref href="/billing">Settings → Billing</Ref>.</li>
-                        </ul>
-                    </Card>
-                </Split>
-            </Section>
-
-            {/* 2) PLANS & VERIFICATION */}
-            <Section id="plans" heading="2) Plans & verification">
-                <Section id="free" heading="Free">
-                    <Card>
+        <div className="policy-scope">
+            <PageShell
+                title="6ix — Billing & Subscriptions"
+                lead={
+                    <>
                         <p>
-                            Free lets you try 6ix with essential features. Some actions may use coins or have light limits. Free
-                            users can still purchase consumables and gift cards. 6IXAI access is available with a small per-use fee,
-                            while premium/verified users get it almost fee-free (see <Ref href="#6ixai">6IXAI</Ref>).
+                            This page explains how billing works on <span translate="no">6ix</span>: subscriptions, coins, cards/banks,
+                            wallets, gift cards, in-app purchases, invoices, proration, taxes, and what happens when a payment fails.
+                            It should be read with{' '}
+                            <Ref href="/legal/refunds">Refunds & Cancellations</Ref>,{' '}
+                            <Ref href="/legal/disputes">Disputes & Chargebacks</Ref>,{' '}
+                            <Ref href="/legal/acceptable-use">Acceptable Use</Ref>,{' '}
+                            <Ref href="/legal/kyc-aml">KYC / AML</Ref>, <Ref href="/legal/privacy">Privacy</Ref>, and{' '}
+                            <Ref href="/legal/terms">Terms</Ref>.
                         </p>
-                    </Card>
-                </Section>
+                        <p className="text-sm text-zinc-400 mt-2">Last updated: {updated}</p>
+                    </>
+                }
+            >
+                <Toc items={toc} />
 
-                <Section id="pro" heading="Pro (blue tick) — $6.66 / month">
+                {/* 1) OVERVIEW */}
+                <Section id="overview" heading="1) Overview">
                     <Split>
-                        <Card title="What you get">
+                        <Card title="What you can buy on 6ix">
                             <ul className="list-disc pl-5 space-y-2">
-                                <li><strong>Blue verification tick</strong> (identity & quality checks).</li>
-                                <li>Higher limits, better priority, enhanced analytics.</li>
-                                <li>Improved earnings share over Free (see <Ref href="/legal/creator-earnings">Creator Earnings</Ref>).</li>
+                                <li>Subscriptions (Free, Pro, Pro Max, Elite).</li>
+                                <li>Consumables (e.g., 6IXAI credits/minutes, boosts, placements).</li>
+                                <li>Add-ons and creator tools (where offered).</li>
                             </ul>
                         </Card>
-                        <Card title="Billing basics">
+                        <Card title="How we bill">
                             <ul className="list-disc pl-5 space-y-2">
-                                <li>$6.66 billed monthly unless canceled before renewal.</li>
-                                <li>Proration applies on upgrades (e.g., to Pro Max).</li>
-                                <li>Refunds follow <Ref href="/legal/refunds">Refunds & Cancellations</Ref>.</li>
-                            </ul>
-                        </Card>
-                    </Split>
-                </Section>
-
-                <Section id="promax" heading="Pro Max (white tick) — from $16.66 / month">
-                    <Split>
-                        <Card title="What you get">
-                            <ul className="list-disc pl-5 space-y-2">
-                                <li><strong>White verification tick</strong> with elevated trust.</li>
-                                <li>Top priority distribution, advanced toolset, higher limits.</li>
-                                <li>Preferred fees; 6IXAI is nearly fee-free for most use.</li>
-                            </ul>
-                        </Card>
-                        <Card title="Pricing notes">
-                            <ul className="list-disc pl-5 space-y-2">
-                                <li>Starts from <strong>$16.66 / month</strong>; tiers may vary by region/features.</li>
-                                <li>Proration on mid-cycle upgrades/downgrades (see <Ref href="#proration">Proration</Ref>).</li>
-                                <li>Cancel any time; access remains through the paid period.</li>
+                                <li>
+                                    We support multiple payment rails: <strong>coins balance</strong>, <strong>cards/banks</strong>,{' '}
+                                    <strong>wallets</strong>, <strong>gift cards</strong>, and some <strong>in-app purchases</strong>.
+                                </li>
+                                <li>
+                                    By default, <em>coins balance</em> is charged first for eligible items, then your default method.
+                                </li>
+                                <li>You can change charge priority in <Ref href="/billing">Settings → Billing</Ref>.</li>
                             </ul>
                         </Card>
                     </Split>
                 </Section>
 
-                <Section id="elite" heading="Elite — up to $666 / month (admin-approved)">
-                    <Split>
-                        <Card title="Eligibility & purpose">
+                {/* 2) PLANS & VERIFICATION */}
+                <Section id="plans" heading="2) Plans & verification">
+                    <Section id="free" heading="Free">
+                        <Card>
                             <p>
-                                Elite is an invitation/admin-approved plan for high-impact creators and partners. Because these are
-                                high-ranking positions, entry is curated and subject to additional checks.
+                                Free lets you try 6ix with essential features. Some actions may use coins or have light limits. Free
+                                users can still purchase consumables and gift cards. 6IXAI access is available with a small per-use fee,
+                                while premium/verified users get it almost fee-free (see <Ref href="#6ixai">6IXAI</Ref>).
                             </p>
                         </Card>
-                        <Card title="Billing terms">
-                            <ul className="list-disc pl-5 space-y-2">
-                                <li>Pricing up to <strong>$666 / month</strong> depending on scope.</li>
-                                <li>May include bespoke benefits and billing terms; bespoke terms control if different.</li>
-                                <li>Admin approval required for activation and for certain changes.</li>
-                            </ul>
+                    </Section>
+
+                    <Section id="pro" heading="Pro (blue tick) — $6.66 / month">
+                        <Split>
+                            <Card title="What you get">
+                                <ul className="list-disc pl-5 space-y-2">
+                                    <li><strong>Blue verification tick</strong> (identity & quality checks).</li>
+                                    <li>Higher limits, better priority, enhanced analytics.</li>
+                                    <li>Improved earnings share over Free (see <Ref href="/legal/creator-earnings">Creator Earnings</Ref>).</li>
+                                </ul>
+                            </Card>
+                            <Card title="Billing basics">
+                                <ul className="list-disc pl-5 space-y-2">
+                                    <li>$6.66 billed monthly unless canceled before renewal.</li>
+                                    <li>Proration applies on upgrades (e.g., to Pro Max).</li>
+                                    <li>Refunds follow <Ref href="/legal/refunds">Refunds & Cancellations</Ref>.</li>
+                                </ul>
+                            </Card>
+                        </Split>
+                    </Section>
+
+                    <Section id="promax" heading="Pro Max (white tick) — from $16.66 / month">
+                        <Split>
+                            <Card title="What you get">
+                                <ul className="list-disc pl-5 space-y-2">
+                                    <li><strong>White verification tick</strong> with elevated trust.</li>
+                                    <li>Top priority distribution, advanced toolset, higher limits.</li>
+                                    <li>Preferred fees; 6IXAI is nearly fee-free for most use.</li>
+                                </ul>
+                            </Card>
+                            <Card title="Pricing notes">
+                                <ul className="list-disc pl-5 space-y-2">
+                                    <li>Starts from <strong>$16.66 / month</strong>; tiers may vary by region/features.</li>
+                                    <li>Proration on mid-cycle upgrades/downgrades (see <Ref href="#proration">Proration</Ref>).</li>
+                                    <li>Cancel any time; access remains through the paid period.</li>
+                                </ul>
+                            </Card>
+                        </Split>
+                    </Section>
+
+                    <Section id="elite" heading="Elite — up to $666 / month (admin-approved)">
+                        <Split>
+                            <Card title="Eligibility & purpose">
+                                <p>
+                                    Elite is an invitation/admin-approved plan for high-impact creators and partners. Because these are
+                                    high-ranking positions, entry is curated and subject to additional checks.
+                                </p>
+                            </Card>
+                            <Card title="Billing terms">
+                                <ul className="list-disc pl-5 space-y-2">
+                                    <li>Pricing up to <strong>$666 / month</strong> depending on scope.</li>
+                                    <li>May include bespoke benefits and billing terms; bespoke terms control if different.</li>
+                                    <li>Admin approval required for activation and for certain changes.</li>
+                                </ul>
+                            </Card>
+                        </Split>
+                    </Section>
+
+                    <Section id="star" heading="⭐ Star tick (earned)">
+                        <Card>
+                            <p>
+                                The <strong>⭐ Star tick</strong> is <em>earned</em>, not purchased. It recognizes highly recommended,
+                                high-engagement creators with positive contributions and a clean record. Star-tick creators typically
+                                earn <strong>~3×</strong> the earnings rate compared with blue-tick (Pro) creators. Consistent positive
+                                impact, use of premium features, and community recommendations are considered (see{' '}
+                                <Ref href="/legal/guidelines">Guidelines</Ref> and <Ref href="/legal/creator-earnings">Creator Earnings</Ref>).
+                            </p>
+                        </Card>
+                    </Section>
+
+                    <Section id="6ixai" heading="6IXAI pricing for premium/verified">
+                        <Card>
+                            <p>
+                                We made <strong>6IXAI</strong> our own product and keep it <em>almost fee-free</em> for premium and
+                                verified users (Pro, Pro Max, Elite). Free users pay a small per-use fee or can use coins to access tools.
+                                Exact rates and limits may vary by region and capacity.
+                            </p>
+                        </Card>
+                    </Section>
+                </Section>
+
+                {/* 3) PAYMENT METHODS */}
+                <Section id="payment-methods" heading="3) Payment methods">
+                    <Section id="cards-banks" heading="Cards & bank payments">
+                        <Split>
+                            <Card title="Supported rails">
+                                <ul className="list-disc pl-5 space-y-2">
+                                    <li>Major cards, select bank transfers, and other regional rails via our processors.</li>
+                                    <li>Some methods require additional verification (3-D Secure, OTP).</li>
+                                </ul>
+                            </Card>
+                            <Card title="Storage & security">
+                                <p>
+                                    We never store full card numbers; tokens are provided by our processors. See{' '}
+                                    <Ref href="/legal/security">Security</Ref> and <Ref href="/legal/privacy">Privacy</Ref>.
+                                </p>
+                            </Card>
+                        </Split>
+                    </Section>
+
+                    <Section id="coins" heading="Coins balance">
+                        <Split>
+                            <Card title="What coins are">
+                                <p>
+                                    <strong>Coins</strong> are prepaid credits you can top up and use for eligible items (consumables,
+                                    micro-purchases, some plan fees). Coins are <em>not</em> bank money and may be non-refundable once
+                                    consumed (see <Ref href="/legal/refunds#digital">Refunds — Digital goods</Ref>).
+                                </p>
+                            </Card>
+                            <Card title="Top-ups & use">
+                                <ul className="list-disc pl-5 space-y-2">
+                                    <li>Top up via card/bank or redeem gift cards/promos.</li>
+                                    <li>By default we charge coins first on eligible items, then your default method.</li>
+                                    <li>You can opt to preserve coins (charge external method first) in Billing settings.</li>
+                                </ul>
+                            </Card>
+                        </Split>
+                    </Section>
+
+                    <Section id="wallets" heading="Wallets">
+                        <Split>
+                            <Card title="Overview">
+                                <p>
+                                    Some users may enable a <strong>wallet</strong> (custodial or partner wallet) for funding purchases.
+                                    Wallet use may require identity checks and may be limited by region.
+                                </p>
+                            </Card>
+                            <Card title="Limits & risks">
+                                <ul className="list-disc pl-5 space-y-2">
+                                    <li>Funding sources must be lawful and pass compliance screening.</li>
+                                    <li>We may disable wallet funding for suspected fraud or sanctions risk.</li>
+                                </ul>
+                            </Card>
+                        </Split>
+                    </Section>
+
+                    <Section id="gift-cards" heading="Gift cards & promo codes">
+                        <Split>
+                            <Card title="Redemption">
+                                <ul className="list-disc pl-5 space-y-2">
+                                    <li>Redeem in <Ref href="/billing">Settings → Billing</Ref> to add coins or unlock offers.</li>
+                                    <li>Some codes are single-use and tied to the account email; keep them secure.</li>
+                                </ul>
+                            </Card>
+                            <Card title="Terms">
+                                <ul className="list-disc pl-5 space-y-2">
+                                    <li>Gift cards may expire where allowed by law; promotional credits may have shorter windows.</li>
+                                    <li>We can void codes suspected of fraud or violation (see <Ref href="/legal/acceptable-use">AUP</Ref>).</li>
+                                </ul>
+                            </Card>
+                        </Split>
+                    </Section>
+
+                    <Section id="inapp" heading="In-app purchases">
+                        <Card>
+                            <p>
+                                Where purchases are made through platform app stores, the store’s billing terms may govern parts of the
+                                transaction (including refunds). For such purchases, consult the store policy in addition to this page.
+                            </p>
+                        </Card>
+                    </Section>
+
+                    <Section id="priority" heading="Charge priority & fallbacks">
+                        <Split>
+                            <Card title="Default order">
+                                <ol className="list-decimal pl-5 space-y-2">
+                                    <li><strong>Coins</strong> (if item is eligible),</li>
+                                    <li>then your <strong>default card/bank</strong> or <strong>wallet</strong>,</li>
+                                    <li>then any configured backup method.</li>
+                                </ol>
+                            </Card>
+                            <Card title="You control it">
+                                <p>
+                                    Change charge priority per item type in <Ref href="/billing">Settings → Billing</Ref>. If all methods
+                                    fail, we pause auto-renew and notify you (see <Ref href="#failed">Failed payments</Ref>).
+                                </p>
+                            </Card>
+                        </Split>
+                    </Section>
+                </Section>
+
+                {/* 4) BILLING CYCLE, INVOICES */}
+                <Section id="billing-cycle" heading="4) Billing cycle, invoices & receipts">
+                    <Section id="cycle" heading="Cycle & renewal">
+                        <Split>
+                            <Card title="Monthly billing">
+                                <ul className="list-disc pl-5 space-y-2">
+                                    <li>Plans renew monthly on the same calendar day, adjusted for short months.</li>
+                                    <li>Cancel auto-renew anytime; access remains until period end.</li>
+                                </ul>
+                            </Card>
+                            <Card title="Mid-cycle changes">
+                                <p>
+                                    Mid-cycle upgrades charge immediately with proration; downgrades take effect on the next renewal.
+                                </p>
+                            </Card>
+                        </Split>
+                    </Section>
+
+                    <Section id="proration" heading="Proration: upgrades & downgrades">
+                        <Split>
+                            <Card title="Upgrades">
+                                <p>
+                                    When upgrading (e.g., Pro → Pro Max), we credit unused time from your current plan toward the new plan
+                                    and charge the difference now.
+                                </p>
+                            </Card>
+                            <Card title="Downgrades">
+                                <p>
+                                    Downgrades schedule for the next cycle; features/limits adjust on renewal. If you need immediate
+                                    changes, contact <a className="link-muted" href="mailto:billing@6ixapp.com">billing@6ixapp.com</a>.
+                                </p>
+                            </Card>
+                        </Split>
+                    </Section>
+
+                    <Section id="invoices" heading="Invoices & receipts">
+                        <Split>
+                            <Card title="Where to find them">
+                                <ul className="list-disc pl-5 space-y-2">
+                                    <li>View/download invoices in <Ref href="/billing">Settings → Billing</Ref>.</li>
+                                    <li>Emails are sent to your account address after successful charges.</li>
+                                </ul>
+                            </Card>
+                            <Card title="What they show">
+                                <ul className="list-disc pl-5 space-y-2">
+                                    <li>Plan or item, period, taxes, and payment method (masked).</li>
+                                    <li>VAT/GST numbers if provided before the charge settled.</li>
+                                </ul>
+                            </Card>
+                        </Split>
+                    </Section>
+                </Section>
+
+                {/* 5) FAILED PAYMENTS & DUNNING */}
+                <Section id="failed" heading="5) Failed payments & dunning">
+                    <Section id="retries" heading="Retries & grace">
+                        <Split>
+                            <Card title="What we do when a charge fails">
+                                <ul className="list-disc pl-5 space-y-2">
+                                    <li>We retry a few times and email you to update your method.</li>
+                                    <li>You may have a short grace period before features pause.</li>
+                                </ul>
+                            </Card>
+                            <Card title="Coins as fallback">
+                                <p>
+                                    If enabled, we can temporarily draw a small amount from your coins to maintain access during a retry
+                                    window; you can disable this in Billing settings.
+                                </p>
+                            </Card>
+                        </Split>
+                    </Section>
+
+                    <Section id="access" heading="Access & feature limits">
+                        <Split>
+                            <Card title="Pauses/limits">
+                                <p>
+                                    If payment remains unresolved, premium features pause and distribution priority may drop until payment
+                                    is completed. We never delete your content for non-payment.
+                                </p>
+                            </Card>
+                            <Card title="Reactivation">
+                                <p>
+                                    As soon as payment succeeds, features restore automatically. If not, re-activate in{' '}
+                                    Settings → Billing
+                                </p>
+                            </Card>
+                        </Split>
+                    </Section>
+
+                    <Section id="update" heading="Updating payment info">
+                        <Card>
+                            <p>
+                                Update your default method and backups in <Ref href="/billing">Billing</Ref>. Some updates require
+                                authorization holds or re-verification by our processor.
+                            </p>
+                        </Card>
+                    </Section>
+                </Section>
+
+                {/* 6) TAXES, FEES & CURRENCY */}
+                <Section id="tax" heading="6) Taxes, fees & currency">
+                    <Section id="taxes" heading="Taxes/VAT/GST">
+                        <Split>
+                            <Card title="Collection">
+                                <p>
+                                    We collect and remit taxes where required. Tax amounts appear on checkout and invoices. Provide tax IDs
+                                    before payment to include them on the invoice.
+                                </p>
+                            </Card>
+                            <Card title="Refunds of tax">
+                                <p>
+                                    Taxes are refunded when the underlying transaction is refunded (see{' '}
+                                    <Ref href="/legal/refunds#tax">Refunds — Taxes</Ref>).
+                                </p>
+                            </Card>
+                        </Split>
+                    </Section>
+
+                    <Section id="fees" heading="Fees & exchange">
+                        <Split>
+                            <Card title="Processor/bank fees">
+                                <p>
+                                    Some banks/issuers add foreign transaction or exchange fees. These are outside our control.
+                                </p>
+                            </Card>
+                            <Card title="Coins & promos">
+                                <p>
+                                    Coin top-ups may include small processing fees visible at checkout. Promos can offset those where
+                                    applicable.
+                                </p>
+                            </Card>
+                        </Split>
+                    </Section>
+
+                    <Section id="currency" heading="Currency & displays">
+                        <Card>
+                            <p>
+                                Prices display in your local or USD depending on region. Final settlement is handled by the processor
+                                in a supported currency; minor rounding may occur in conversions.
+                            </p>
+                        </Card>
+                    </Section>
+                </Section>
+
+                {/* 7) COMPLIANCE & SAFEGUARDS */}
+                <Section id="compliance" heading="7) Compliance & safeguards">
+                    <Section id="kyc" heading="KYC / AML & sanctions">
+                        <Split>
+                            <Card title="Why we verify">
+                                <p>
+                                    To protect the community and comply with laws, some payments or earnings features require identity
+                                    checks. We do not support sanctioned uses or persons (see <Ref href="/legal/kyc-aml">KYC/AML</Ref>).
+                                </p>
+                            </Card>
+                            <Card title="Consequences">
+                                <p>
+                                    We may block or reverse transactions that violate policy or law and may report suspicious activity to
+                                    partners or authorities where required.
+                                </p>
+                            </Card>
+                        </Split>
+                    </Section>
+
+                    <Section id="privacy" heading="Privacy & security">
+                        <Split>
+                            <Card title="Data handling">
+                                <p>
+                                    Billing data is processed by trusted providers under strict agreements. See{' '}
+                                    <Ref href="/legal/privacy">Privacy</Ref> and <Ref href="/legal/security">Security</Ref>.
+                                </p>
+                            </Card>
+                            <Card title="Least access">
+                                <p>
+                                    Only authorized staff can access billing records for support, compliance, or fraud prevention.
+                                </p>
+                            </Card>
+                        </Split>
+                    </Section>
+
+                    <Section id="abuse" heading="Abuse prevention">
+                        <Card>
+                            <p>
+                                We rate-limit suspicious attempts, throttle refunds after heavy consumption, and may require additional
+                                verification. See <Ref href="/legal/disputes">Disputes & Chargebacks</Ref> and{' '}
+                                <Ref href="/legal/refunds">Refunds</Ref>.
+                            </p>
+                        </Card>
+                    </Section>
+                </Section>
+
+                {/* 8) MANAGE BILLING */}
+                <Section id="manage" heading="8) Manage your billing">
+                    <Section id="change-plan" heading="Change plan">
+                        <Card>
+                            <p>
+                                Switch between Free, Pro, Pro Max, or request Elite from Settings → Billing
+                                Upgrades apply immediately with proration; downgrades apply on the next cycle.
+                            </p>
+                        </Card>
+                    </Section>
+
+                    <Section id="cancel" heading="Cancel auto-renew">
+                        <Card>
+                            <p>
+                                Turn off auto-renew any time in <Ref href="/billing">Billing</Ref>. You keep access until the end of the
+                                current paid period.
+                            </p>
+                        </Card>
+                    </Section>
+
+                    <Section id="refunds" heading="Refunds & chargebacks">
+                        <Split>
+                            <Card title="Refunds">
+                                <p>
+                                    See <Ref href="/legal/refunds">Refunds & Cancellations</Ref> for eligibility, digital goods rules,
+                                    and timelines.
+                                </p>
+                            </Card>
+                            <Card title="Chargebacks">
+                                <p>
+                                    Please contact us first; chargebacks on valid/consumed items may result in account limits. See{' '}
+                                    <Ref href="/legal/disputes">Disputes & Chargebacks</Ref>.
+                                </p>
+                            </Card>
+                        </Split>
+                    </Section>
+
+                    <Section id="support" heading="Contact & support">
+                        <Split>
+                            <Card title="Billing support">
+                                <p>
+                                    Email <a className="link-muted" href="mailto:billing@6ixapp.com">billing@6ixapp.com</a> from your
+                                    registered email. Include invoice ID and a brief description.
+                                </p>
+                            </Card>
+                            <Card title="Security & fraud">
+                                <p>
+                                    If you suspect unauthorized use, contact{' '}
+                                    <a className="link-muted" href="mailto:security@6ixapp.com">security@6ixapp.com</a> right away.
+                                </p>
+                            </Card>
+                        </Split>
+                    </Section>
+                </Section>
+
+                {/* 9) FAQ */}
+                <Section id="faq" heading="9) FAQ">
+                    <Split>
+                        <Card title="Do coins expire?">
+                            <p>
+                                Promotional coins may expire; purchased coins generally do not, unless required by law or specified
+                                otherwise at purchase.
+                            </p>
+                        </Card>
+                        <Card title="Can I pay only with coins?">
+                            <p>
+                                Many items allow coins; some plan renewals may require a card/bank/wallet on file for compliance or
+                                regional rules. You can choose priority in Billing settings.
+                            </p>
+                        </Card>
+                        <Card title="Does Pro Max include a white tick?">
+                            <p>Yes. Pro Max comes with the <strong>white verification tick</strong> and higher limits.</p>
+                        </Card>
+                        <Card title="Who can join Elite?">
+                            <p>
+                                Elite is admin-approved. Apply from Billing; we review eligibility and program fit. Pricing can be
+                                bespoke up to $666/month.
+                            </p>
                         </Card>
                     </Split>
+                    <BackToTop />
                 </Section>
 
-                <Section id="star" heading="⭐ Star tick (earned)">
-                    <Card>
-                        <p>
-                            The <strong>⭐ Star tick</strong> is <em>earned</em>, not purchased. It recognizes highly recommended,
-                            high-engagement creators with positive contributions and a clean record. Star-tick creators typically
-                            earn <strong>~3×</strong> the earnings rate compared with blue-tick (Pro) creators. Consistent positive
-                            impact, use of premium features, and community recommendations are considered (see{' '}
-                            <Ref href="/legal/guidelines">Guidelines</Ref> and <Ref href="/legal/creator-earnings">Creator Earnings</Ref>).
-                        </p>
-                    </Card>
-                </Section>
+                {/* SEO: FAQ JSON-LD */}
 
-                <Section id="6ixai" heading="6IXAI pricing for premium/verified">
-                    <Card>
-                        <p>
-                            We made <strong>6IXAI</strong> our own product and keep it <em>almost fee-free</em> for premium and
-                            verified users (Pro, Pro Max, Elite). Free users pay a small per-use fee or can use coins to access tools.
-                            Exact rates and limits may vary by region and capacity.
-                        </p>
-                    </Card>
-                </Section>
-            </Section>
+                <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
 
-            {/* 3) PAYMENT METHODS */}
-            <Section id="payment-methods" heading="3) Payment methods">
-                <Section id="cards-banks" heading="Cards & bank payments">
-                    <Split>
-                        <Card title="Supported rails">
-                            <ul className="list-disc pl-5 space-y-2">
-                                <li>Major cards, select bank transfers, and other regional rails via our processors.</li>
-                                <li>Some methods require additional verification (3-D Secure, OTP).</li>
-                            </ul>
-                        </Card>
-                        <Card title="Storage & security">
-                            <p>
-                                We never store full card numbers; tokens are provided by our processors. See{' '}
-                                <Ref href="/legal/security">Security</Ref> and <Ref href="/legal/privacy">Privacy</Ref>.
-                            </p>
-                        </Card>
-                    </Split>
-                </Section>
+            </PageShell>
+            <style jsx global>{`
+:root{ color-scheme: light dark; }
 
-                <Section id="coins" heading="Coins balance">
-                    <Split>
-                        <Card title="What coins are">
-                            <p>
-                                <strong>Coins</strong> are prepaid credits you can top up and use for eligible items (consumables,
-                                micro-purchases, some plan fees). Coins are <em>not</em> bank money and may be non-refundable once
-                                consumed (see <Ref href="/legal/refunds#digital">Refunds — Digital goods</Ref>).
-                            </p>
-                        </Card>
-                        <Card title="Top-ups & use">
-                            <ul className="list-disc pl-5 space-y-2">
-                                <li>Top up via card/bank or redeem gift cards/promos.</li>
-                                <li>By default we charge coins first on eligible items, then your default method.</li>
-                                <li>You can opt to preserve coins (charge external method first) in Billing settings.</li>
-                            </ul>
-                        </Card>
-                    </Split>
-                </Section>
+/* ---- scope ---- */
+.policy-scope{ min-height:100dvh; background:#0b0c0f; color:#e7e7ea; }
+html.theme-light .policy-scope{ background:#fff; color:#111; }
 
-                <Section id="wallets" heading="Wallets">
-                    <Split>
-                        <Card title="Overview">
-                            <p>
-                                Some users may enable a <strong>wallet</strong> (custodial or partner wallet) for funding purchases.
-                                Wallet use may require identity checks and may be limited by region.
-                            </p>
-                        </Card>
-                        <Card title="Limits & risks">
-                            <ul className="list-disc pl-5 space-y-2">
-                                <li>Funding sources must be lawful and pass compliance screening.</li>
-                                <li>We may disable wallet funding for suspected fraud or sanctions risk.</li>
-                            </ul>
-                        </Card>
-                    </Split>
-                </Section>
+/* ---- links ---- */
+.policy-scope a{ text-underline-offset:3px; text-decoration-thickness:.06em; }
+.policy-scope a:not(.btn){ color:#dfe7ff; text-decoration-color:rgba(223,231,255,.4); }
+html.theme-light .policy-scope a:not(.btn){ color:#0b0c0f; text-decoration-color:rgba(0,0,0,.25); }
+.policy-scope a.link-muted{ opacity:.9; }
+html.theme-light .policy-scope a.link-muted{ opacity:.85; }
 
-                <Section id="gift-cards" heading="Gift cards & promo codes">
-                    <Split>
-                        <Card title="Redemption">
-                            <ul className="list-disc pl-5 space-y-2">
-                                <li>Redeem in <Ref href="/billing">Settings → Billing</Ref> to add coins or unlock offers.</li>
-                                <li>Some codes are single-use and tied to the account email; keep them secure.</li>
-                            </ul>
-                        </Card>
-                        <Card title="Terms">
-                            <ul className="list-disc pl-5 space-y-2">
-                                <li>Gift cards may expire where allowed by law; promotional credits may have shorter windows.</li>
-                                <li>We can void codes suspected of fraud or violation (see <Ref href="/legal/acceptable-use">AUP</Ref>).</li>
-                            </ul>
-                        </Card>
-                    </Split>
-                </Section>
+/* ---- small meta text (e.g., "Last updated") ---- */
+.policy-scope .text-muted,
+.policy-scope .text-zinc-400{ color:rgba(255,255,255,.65) !important; }
+html.theme-light .policy-scope .text-muted,
+html.theme-light .policy-scope .text-zinc-400{ color:rgba(0,0,0,.55) !important; }
 
-                <Section id="inapp" heading="In-app purchases">
-                    <Card>
-                        <p>
-                            Where purchases are made through platform app stores, the store’s billing terms may govern parts of the
-                            transaction (including refunds). For such purchases, consult the store policy in addition to this page.
-                        </p>
-                    </Card>
-                </Section>
+/* ---- cards (works with <Card />) ---- */
+.policy-card, .policy-scope .card, .policy-scope .Card{
+background:rgba(255,255,255,.06);
+border:1px solid rgba(255,255,255,.14);
+backdrop-filter:blur(16px);
+border-radius:16px;
+box-shadow:0 10px 40px rgba(0,0,0,.45);
+padding:14px 16px; /* tighter vertical rhythm */
+}
+html.theme-light .policy-card,
+html.theme-light .policy-scope .card,
+html.theme-light .policy-scope .Card{
+background:rgba(255,255,255,.92);
+border-color:rgba(0,0,0,.08);
+box-shadow:0 10px 28px rgba(0,0,0,.10), inset 0 1px 0 rgba(255,255,255,.85);
+}
 
-                <Section id="priority" heading="Charge priority & fallbacks">
-                    <Split>
-                        <Card title="Default order">
-                            <ol className="list-decimal pl-5 space-y-2">
-                                <li><strong>Coins</strong> (if item is eligible),</li>
-                                <li>then your <strong>default card/bank</strong> or <strong>wallet</strong>,</li>
-                                <li>then any configured backup method.</li>
-                            </ol>
-                        </Card>
-                        <Card title="You control it">
-                            <p>
-                                Change charge priority per item type in <Ref href="/billing">Settings → Billing</Ref>. If all methods
-                                fail, we pause auto-renew and notify you (see <Ref href="#failed">Failed payments</Ref>).
-                            </p>
-                        </Card>
-                    </Split>
-                </Section>
-            </Section>
+/* ---- sections / headings spacing (less tall) ---- */
+.policy-scope h2{ margin-top:14px; margin-bottom:10px; }
+.policy-scope h3{ margin-top:12px; margin-bottom:8px; }
+.policy-scope .list-disc > li,
+.policy-scope .list-decimal > li{ margin:6px 0; }
 
-            {/* 4) BILLING CYCLE, INVOICES */}
-            <Section id="billing-cycle" heading="4) Billing cycle, invoices & receipts">
-                <Section id="cycle" heading="Cycle & renewal">
-                    <Split>
-                        <Card title="Monthly billing">
-                            <ul className="list-disc pl-5 space-y-2">
-                                <li>Plans renew monthly on the same calendar day, adjusted for short months.</li>
-                                <li>Cancel auto-renew anytime; access remains until period end.</li>
-                            </ul>
-                        </Card>
-                        <Card title="Mid-cycle changes">
-                            <p>
-                                Mid-cycle upgrades charge immediately with proration; downgrades take effect on the next renewal.
-                            </p>
-                        </Card>
-                    </Split>
-                </Section>
+/* ---- Split columns ---- */
+.policy-scope .split{ display:grid; grid-template-columns:1fr; gap:12px; }
+@media (min-width:768px){ .policy-scope .split{ grid-template-columns:1fr 1fr; gap:14px; }}
 
-                <Section id="proration" heading="Proration: upgrades & downgrades">
-                    <Split>
-                        <Card title="Upgrades">
-                            <p>
-                                When upgrading (e.g., Pro → Pro Max), we credit unused time from your current plan toward the new plan
-                                and charge the difference now.
-                            </p>
-                        </Card>
-                        <Card title="Downgrades">
-                            <p>
-                                Downgrades schedule for the next cycle; features/limits adjust on renewal. If you need immediate
-                                changes, contact <a className="link-muted" href="mailto:billing@6ixapp.com">billing@6ixapp.com</a>.
-                            </p>
-                        </Card>
-                    </Split>
-                </Section>
+/* ---- TOC ---- */
+.policy-scope .toc{
+position:sticky; top:84px;
+background:transparent;
+border-left:1px solid rgba(255,255,255,.14);
+padding-left:12px;
+}
+html.theme-light .policy-scope .toc{ border-left-color:rgba(0,0,0,.1); }
 
-                <Section id="invoices" heading="Invoices & receipts">
-                    <Split>
-                        <Card title="Where to find them">
-                            <ul className="list-disc pl-5 space-y-2">
-                                <li>View/download invoices in <Ref href="/billing">Settings → Billing</Ref>.</li>
-                                <li>Emails are sent to your account address after successful charges.</li>
-                            </ul>
-                        </Card>
-                        <Card title="What they show">
-                            <ul className="list-disc pl-5 space-y-2">
-                                <li>Plan or item, period, taxes, and payment method (masked).</li>
-                                <li>VAT/GST numbers if provided before the charge settled.</li>
-                            </ul>
-                        </Card>
-                    </Split>
-                </Section>
-            </Section>
-
-            {/* 5) FAILED PAYMENTS & DUNNING */}
-            <Section id="failed" heading="5) Failed payments & dunning">
-                <Section id="retries" heading="Retries & grace">
-                    <Split>
-                        <Card title="What we do when a charge fails">
-                            <ul className="list-disc pl-5 space-y-2">
-                                <li>We retry a few times and email you to update your method.</li>
-                                <li>You may have a short grace period before features pause.</li>
-                            </ul>
-                        </Card>
-                        <Card title="Coins as fallback">
-                            <p>
-                                If enabled, we can temporarily draw a small amount from your coins to maintain access during a retry
-                                window; you can disable this in Billing settings.
-                            </p>
-                        </Card>
-                    </Split>
-                </Section>
-
-                <Section id="access" heading="Access & feature limits">
-                    <Split>
-                        <Card title="Pauses/limits">
-                            <p>
-                                If payment remains unresolved, premium features pause and distribution priority may drop until payment
-                                is completed. We never delete your content for non-payment.
-                            </p>
-                        </Card>
-                        <Card title="Reactivation">
-                            <p>
-                                As soon as payment succeeds, features restore automatically. If not, re-activate in{' '}
-                                Settings → Billing
-                            </p>
-                        </Card>
-                    </Split>
-                </Section>
-
-                <Section id="update" heading="Updating payment info">
-                    <Card>
-                        <p>
-                            Update your default method and backups in <Ref href="/billing">Billing</Ref>. Some updates require
-                            authorization holds or re-verification by our processor.
-                        </p>
-                    </Card>
-                </Section>
-            </Section>
-
-            {/* 6) TAXES, FEES & CURRENCY */}
-            <Section id="tax" heading="6) Taxes, fees & currency">
-                <Section id="taxes" heading="Taxes/VAT/GST">
-                    <Split>
-                        <Card title="Collection">
-                            <p>
-                                We collect and remit taxes where required. Tax amounts appear on checkout and invoices. Provide tax IDs
-                                before payment to include them on the invoice.
-                            </p>
-                        </Card>
-                        <Card title="Refunds of tax">
-                            <p>
-                                Taxes are refunded when the underlying transaction is refunded (see{' '}
-                                <Ref href="/legal/refunds#tax">Refunds — Taxes</Ref>).
-                            </p>
-                        </Card>
-                    </Split>
-                </Section>
-
-                <Section id="fees" heading="Fees & exchange">
-                    <Split>
-                        <Card title="Processor/bank fees">
-                            <p>
-                                Some banks/issuers add foreign transaction or exchange fees. These are outside our control.
-                            </p>
-                        </Card>
-                        <Card title="Coins & promos">
-                            <p>
-                                Coin top-ups may include small processing fees visible at checkout. Promos can offset those where
-                                applicable.
-                            </p>
-                        </Card>
-                    </Split>
-                </Section>
-
-                <Section id="currency" heading="Currency & displays">
-                    <Card>
-                        <p>
-                            Prices display in your local or USD depending on region. Final settlement is handled by the processor
-                            in a supported currency; minor rounding may occur in conversions.
-                        </p>
-                    </Card>
-                </Section>
-            </Section>
-
-            {/* 7) COMPLIANCE & SAFEGUARDS */}
-            <Section id="compliance" heading="7) Compliance & safeguards">
-                <Section id="kyc" heading="KYC / AML & sanctions">
-                    <Split>
-                        <Card title="Why we verify">
-                            <p>
-                                To protect the community and comply with laws, some payments or earnings features require identity
-                                checks. We do not support sanctioned uses or persons (see <Ref href="/legal/kyc-aml">KYC/AML</Ref>).
-                            </p>
-                        </Card>
-                        <Card title="Consequences">
-                            <p>
-                                We may block or reverse transactions that violate policy or law and may report suspicious activity to
-                                partners or authorities where required.
-                            </p>
-                        </Card>
-                    </Split>
-                </Section>
-
-                <Section id="privacy" heading="Privacy & security">
-                    <Split>
-                        <Card title="Data handling">
-                            <p>
-                                Billing data is processed by trusted providers under strict agreements. See{' '}
-                                <Ref href="/legal/privacy">Privacy</Ref> and <Ref href="/legal/security">Security</Ref>.
-                            </p>
-                        </Card>
-                        <Card title="Least access">
-                            <p>
-                                Only authorized staff can access billing records for support, compliance, or fraud prevention.
-                            </p>
-                        </Card>
-                    </Split>
-                </Section>
-
-                <Section id="abuse" heading="Abuse prevention">
-                    <Card>
-                        <p>
-                            We rate-limit suspicious attempts, throttle refunds after heavy consumption, and may require additional
-                            verification. See <Ref href="/legal/disputes">Disputes & Chargebacks</Ref> and{' '}
-                            <Ref href="/legal/refunds">Refunds</Ref>.
-                        </p>
-                    </Card>
-                </Section>
-            </Section>
-
-            {/* 8) MANAGE BILLING */}
-            <Section id="manage" heading="8) Manage your billing">
-                <Section id="change-plan" heading="Change plan">
-                    <Card>
-                        <p>
-                            Switch between Free, Pro, Pro Max, or request Elite from Settings → Billing
-                            Upgrades apply immediately with proration; downgrades apply on the next cycle.
-                        </p>
-                    </Card>
-                </Section>
-
-                <Section id="cancel" heading="Cancel auto-renew">
-                    <Card>
-                        <p>
-                            Turn off auto-renew any time in <Ref href="/billing">Billing</Ref>. You keep access until the end of the
-                            current paid period.
-                        </p>
-                    </Card>
-                </Section>
-
-                <Section id="refunds" heading="Refunds & chargebacks">
-                    <Split>
-                        <Card title="Refunds">
-                            <p>
-                                See <Ref href="/legal/refunds">Refunds & Cancellations</Ref> for eligibility, digital goods rules,
-                                and timelines.
-                            </p>
-                        </Card>
-                        <Card title="Chargebacks">
-                            <p>
-                                Please contact us first; chargebacks on valid/consumed items may result in account limits. See{' '}
-                                <Ref href="/legal/disputes">Disputes & Chargebacks</Ref>.
-                            </p>
-                        </Card>
-                    </Split>
-                </Section>
-
-                <Section id="support" heading="Contact & support">
-                    <Split>
-                        <Card title="Billing support">
-                            <p>
-                                Email <a className="link-muted" href="mailto:billing@6ixapp.com">billing@6ixapp.com</a> from your
-                                registered email. Include invoice ID and a brief description.
-                            </p>
-                        </Card>
-                        <Card title="Security & fraud">
-                            <p>
-                                If you suspect unauthorized use, contact{' '}
-                                <a className="link-muted" href="mailto:security@6ixapp.com">security@6ixapp.com</a> right away.
-                            </p>
-                        </Card>
-                    </Split>
-                </Section>
-            </Section>
-
-            {/* 9) FAQ */}
-            <Section id="faq" heading="9) FAQ">
-                <Split>
-                    <Card title="Do coins expire?">
-                        <p>
-                            Promotional coins may expire; purchased coins generally do not, unless required by law or specified
-                            otherwise at purchase.
-                        </p>
-                    </Card>
-                    <Card title="Can I pay only with coins?">
-                        <p>
-                            Many items allow coins; some plan renewals may require a card/bank/wallet on file for compliance or
-                            regional rules. You can choose priority in Billing settings.
-                        </p>
-                    </Card>
-                    <Card title="Does Pro Max include a white tick?">
-                        <p>Yes. Pro Max comes with the <strong>white verification tick</strong> and higher limits.</p>
-                    </Card>
-                    <Card title="Who can join Elite?">
-                        <p>
-                            Elite is admin-approved. Apply from Billing; we review eligibility and program fit. Pricing can be
-                            bespoke up to $666/month.
-                        </p>
-                    </Card>
-                </Split>
-                <BackToTop />
-            </Section>
-
-            {/* SEO: FAQ JSON-LD */}
-            <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
-        </PageShell>
+/* ---- Buttons used in policies (if any) ---- */
+.policy-scope .btn{
+display:inline-flex; align-items:center; justify-content:center; gap:.5rem;
+font-weight:600; border-radius:9999px; padding:.5rem .9rem;
+}
+.policy-scope .btn-primary{ background:#fff; color:#000; }
+.policy-scope .btn-outline{ background:rgba(255,255,255,.06); color:#fff; border:1px solid rgba(255,255,255,.14); }
+html.theme-light .policy-scope .btn-outline{ background:#111; color:#fff; border-color:rgba(0,0,0,.85); }
+.policy-scope .btn:disabled{ opacity:.6; cursor:not-allowed; }
+`}</style>
+        </div>
     );
 }
