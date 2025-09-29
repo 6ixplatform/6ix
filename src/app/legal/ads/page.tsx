@@ -12,330 +12,302 @@ const Updated = new Date().toISOString().slice(0, 10);
 
 export default function AdsPolicyPage() {
     return (
-        <div className="legal-scope">
-            <main className="min-h-dvh px-5 py-8 flex">
-                <article className="edge glass mx-auto w-full max-w-4xl p-6 sm:p-10">
-                    <a id="top" />
-                    <header className="mb-6">
-                        <h1 className="text-2xl sm:text-3xl font-semibold">6ix — Ads Policy</h1>
-                        <p className="text-zinc-400 mt-1 text-sm">Last updated: {Updated}</p>
-                        <p className="text-zinc-400 mt-3 text-sm">
-                            This policy governs advertising, sponsorships, affiliate links, endorsements, and branded content on{" "}
-                            <span translate="no">6ix</span>. It works with our{" "}
-                            <PolicyLink href="/legal/terms" className="link-muted underline">Terms of Use</PolicyLink>,{" "}
-                            <PolicyLink href="/legal/privacy" className="link-muted underline">Privacy Policy</PolicyLink>,{" "}
-                            <PolicyLink href="/legal/cookies" className="link-muted underline">Cookies Policy</PolicyLink>,{" "}
-                            <PolicyLink href="/legal/guidelines" className="link-muted underline">Community Guidelines</PolicyLink>,{" "}
-                            <PolicyLink href="/legal/safety" className="link-muted underline">Safety &amp; Minors</PolicyLink>, and{" "}
-                            <PolicyLink href="/legal/creator-earnings" className="link-muted underline">Creator Earnings</PolicyLink>.
-                        </p>
-                        <p className="text-xs text-zinc-500 mt-2">
-                            This document supports product transparency and compliance; it is not legal advice. Please adapt with your counsel for your operating regions.
-                        </p>
-                    </header>
+        <main className="legal-scope min-h-dvh px-5 py-8 flex">
+            <article className="edge glass mx-auto w-full max-w-4xl p-6 sm:p-10">
+                <a id="top" />
+                <header className="mb-6">
+                    <h1 className="text-2xl sm:text-3xl font-semibold">6ix — Ads Policy</h1>
+                    <p className="text-zinc-400 mt-1 text-sm">Last updated: {Updated}</p>
+                    <p className="text-zinc-400 mt-3 text-sm">
+                        This policy governs advertising, sponsorships, affiliate links, endorsements, and branded content on{" "}
+                        <span translate="no">6ix</span>. It works with our{" "}
+                        <PolicyLink href="/legal/terms" className="link-muted underline">Terms of Use</PolicyLink>,{" "}
+                        <PolicyLink href="/legal/privacy" className="link-muted underline">Privacy Policy</PolicyLink>,{" "}
+                        <PolicyLink href="/legal/cookies" className="link-muted underline">Cookies Policy</PolicyLink>,{" "}
+                        <PolicyLink href="/legal/guidelines" className="link-muted underline">Community Guidelines</PolicyLink>,{" "}
+                        <PolicyLink href="/legal/safety" className="link-muted underline">Safety &amp; Minors</PolicyLink>, and{" "}
+                        <PolicyLink href="/legal/creator-earnings" className="link-muted underline">Creator Earnings</PolicyLink>.
+                    </p>
+                    <p className="text-xs text-zinc-500 mt-2">
+                        This document supports product transparency and compliance; it is not legal advice. Please adapt with your counsel for your operating regions.
+                    </p>
+                </header>
 
-                    {/* TOC */}
-                    <nav aria-label="Table of contents" className="rounded-xl bg-black/20 border border-white/10 p-4 sm:p-5 mb-8">
-                        <h2 className="text-base font-semibold mb-3">Table of contents</h2>
-                        <ol className="list-decimal pl-5 space-y-2 text-zinc-200">
-                            <li><a className="underline" href="#what">What counts as advertising</a></li>
-                            <li><a className="underline" href="#creator-vs-6ix">Creator promotions vs. 6ix-sold ads</a></li>
-                            <li><a className="underline" href="#disclosure">Disclosures & creator obligations</a></li>
-                            <li><a className="underline" href="#placements">Placement types & surfaces</a></li>
-                            <li><a className="underline" href="#targeting">Targeting & minors protections</a></li>
-                            <li><a className="underline" href="#prohibited">Prohibited & restricted categories</a></li>
-                            <li><a className="underline" href="#creative">Creative standards & accessibility</a></li>
-                            <li><a className="underline" href="#measurement">Measurement, verification & third parties</a></li>
-                            <li><a className="underline" href="#data">Data use, privacy & consent</a></li>
-                            <li><a className="underline" href="#brand">Brand safety, suitability & enforcement</a></li>
-                            <li><a className="underline" href="#self-serve">Self-serve ads (future)</a></li>
-                            <li><a className="underline" href="#verticals">Vertical rules (health, finance, alcohol, gambling, crypto, environmental)</a></li>
-                            <li><a className="underline" href="#political">Political & issue advertising</a></li>
-                            <li><a className="underline" href="#jurisdictions">Jurisdictional compliance overview</a></li>
-                            <li><a className="underline" href="#appeals">Reviews, rejections & appeals</a></li>
-                            <li><a className="underline" href="#changes">Changes to this policy</a></li>
-                            <li><a className="underline" href="#contact">Contact</a></li>
-                            <li><a className="underline" href="#appendix-a">Appendix A — Disclosure examples (good/bad)</a></li>
-                            <li><a className="underline" href="#appendix-b">Appendix B — Creative specs & best practices</a></li>
-                            <li><a className="underline" href="#appendix-c">Appendix C — Enforcement ladder</a></li>
-                            <li><a className="underline" href="#appendix-d">Appendix D — Extended Operational Notes</a></li>
-                        </ol>
-                    </nav>
+                {/* TOC */}
+                <nav aria-label="Table of contents" className="rounded-xl bg-black/20 border border-white/10 p-4 sm:p-5 mb-8">
+                    <h2 className="text-base font-semibold mb-3">Table of contents</h2>
+                    <ol className="list-decimal pl-5 space-y-2 text-zinc-200">
+                        <li><a className="underline" href="#what">What counts as advertising</a></li>
+                        <li><a className="underline" href="#creator-vs-6ix">Creator promotions vs. 6ix-sold ads</a></li>
+                        <li><a className="underline" href="#disclosure">Disclosures & creator obligations</a></li>
+                        <li><a className="underline" href="#placements">Placement types & surfaces</a></li>
+                        <li><a className="underline" href="#targeting">Targeting & minors protections</a></li>
+                        <li><a className="underline" href="#prohibited">Prohibited & restricted categories</a></li>
+                        <li><a className="underline" href="#creative">Creative standards & accessibility</a></li>
+                        <li><a className="underline" href="#measurement">Measurement, verification & third parties</a></li>
+                        <li><a className="underline" href="#data">Data use, privacy & consent</a></li>
+                        <li><a className="underline" href="#brand">Brand safety, suitability & enforcement</a></li>
+                        <li><a className="underline" href="#self-serve">Self-serve ads (future)</a></li>
+                        <li><a className="underline" href="#verticals">Vertical rules (health, finance, alcohol, gambling, crypto, environmental)</a></li>
+                        <li><a className="underline" href="#political">Political & issue advertising</a></li>
+                        <li><a className="underline" href="#jurisdictions">Jurisdictional compliance overview</a></li>
+                        <li><a className="underline" href="#appeals">Reviews, rejections & appeals</a></li>
+                        <li><a className="underline" href="#changes">Changes to this policy</a></li>
+                        <li><a className="underline" href="#contact">Contact</a></li>
+                        <li><a className="underline" href="#appendix-a">Appendix A — Disclosure examples (good/bad)</a></li>
+                        <li><a className="underline" href="#appendix-b">Appendix B — Creative specs & best practices</a></li>
+                        <li><a className="underline" href="#appendix-c">Appendix C — Enforcement ladder</a></li>
+                        <li><a className="underline" href="#appendix-d">Appendix D — Extended Operational Notes</a></li>
+                    </ol>
+                </nav>
 
-                    <Section id="what" title="1) What counts as advertising">
-                        <ul className="list-disc pl-5 space-y-2">
-                            <li><strong>Paid ads:</strong> display units, pre/mid/post-roll, promoted posts, sponsored challenges, overlays.</li>
-                            <li><strong>Branded content:</strong> creator content in exchange for value (money, gifts, trips, gear, discounts).</li>
-                            <li><strong>Affiliate placements:</strong> links or codes where the creator earns a commission or referral fee.</li>
-                            <li><strong>Endorsements & testimonials:</strong> statements that imply a commercial relationship or benefit.</li>
-                            <li><strong>Native commerce:</strong> product catalogs, shopping tags, live shopping, sponsored playlists.</li>
-                            <li><strong>Influencer marketplaces:</strong> brokered collaborations arranged on or off 6ix that appear on 6ix.</li>
-                        </ul>
-                        <p className="text-zinc-400 text-sm mt-2">
-                            Even if 6ix does not sell or serve the ad, <em>creator-sold</em> integrations must follow this policy and applicable laws.
-                        </p>
-                    </Section>
+                <Section id="what" title="1) What counts as advertising">
+                    <ul className="list-disc pl-5 space-y-2">
+                        <li><strong>Paid ads:</strong> display units, pre/mid/post-roll, promoted posts, sponsored challenges, overlays.</li>
+                        <li><strong>Branded content:</strong> creator content in exchange for value (money, gifts, trips, gear, discounts).</li>
+                        <li><strong>Affiliate placements:</strong> links or codes where the creator earns a commission or referral fee.</li>
+                        <li><strong>Endorsements & testimonials:</strong> statements that imply a commercial relationship or benefit.</li>
+                        <li><strong>Native commerce:</strong> product catalogs, shopping tags, live shopping, sponsored playlists.</li>
+                        <li><strong>Influencer marketplaces:</strong> brokered collaborations arranged on or off 6ix that appear on 6ix.</li>
+                    </ul>
+                    <p className="text-zinc-400 text-sm mt-2">
+                        Even if 6ix does not sell or serve the ad, <em>creator-sold</em> integrations must follow this policy and applicable laws.
+                    </p>
+                </Section>
 
-                    <Section id="creator-vs-6ix" title="2) Creator promotions vs. 6ix-sold ads">
-                        <p>
-                            6ix hosts two broad flows. <strong>6ix-sold inventory</strong> is booked through our ad systems (when available) and
-                            is reviewed for policy compliance. <strong>Creator-sold promotions</strong> are integrations negotiated by a creator with a brand:
-                            these must still use required disclosures and stay within category rules, and they remain subject to the{" "}
-                            <PolicyLink href="/legal/guidelines#creators" className="underline">Community Guidelines — Creators</PolicyLink> and{" "}
-                            <PolicyLink href="/legal/creator-earnings" className="underline">Creator Earnings</PolicyLink>.
-                        </p>
-                        <ul className="list-disc pl-5 space-y-2 mt-2">
-                            <li>6ix may request contracts or substantiation for claims shown in creator content.</li>
-                            <li>If a creator refuses to disclose material connections, we may remove the content and/or restrict monetization.</li>
-                        </ul>
-                    </Section>
+                <Section id="creator-vs-6ix" title="2) Creator promotions vs. 6ix-sold ads">
+                    <p>
+                        6ix hosts two broad flows. <strong>6ix-sold inventory</strong> is booked through our ad systems (when available) and
+                        is reviewed for policy compliance. <strong>Creator-sold promotions</strong> are integrations negotiated by a creator with a brand:
+                        these must still use required disclosures and stay within category rules, and they remain subject to the{" "}
+                        <PolicyLink href="/legal/guidelines#creators" className="underline">Community Guidelines — Creators</PolicyLink> and{" "}
+                        <PolicyLink href="/legal/creator-earnings" className="underline">Creator Earnings</PolicyLink>.
+                    </p>
+                    <ul className="list-disc pl-5 space-y-2 mt-2">
+                        <li>6ix may request contracts or substantiation for claims shown in creator content.</li>
+                        <li>If a creator refuses to disclose material connections, we may remove the content and/or restrict monetization.</li>
+                    </ul>
+                </Section>
 
-                    <Section id="disclosure" title="3) Disclosures & creator obligations">
-                        <ul className="list-disc pl-5 space-y-2">
-                            <li>Use clear labels (e.g., <em>Paid partnership, Sponsored, Includes paid promotion, Contains affiliate links</em>).</li>
-                            <li>Disclosures must be <strong>unambiguous, prominent, and persistent</strong> during the promotion (overlay + audio mention for video/live).</li>
-                            <li>Claims must be truthful and substantiated; qualify benefits/risks in-frame or adjacent, not hidden.</li>
-                            <li>Follow sector rules (health/finance) and local guidance (e.g., testimonials, endorsements, price claims).</li>
-                            <li>Use the in-product branded-content toggle where available; add affiliate badges if you share codes/links.</li>
-                            <li>Disclose <strong>free product or travel</strong> if it affects impartiality; do not present ads as independent reviews.</li>
-                            <li>When using AI-generated media in ads, label it clearly if it may mislead audiences.</li>
-                        </ul>
-                        <p className="mt-2">
-                            See also <PolicyLink href="/legal/guidelines#creators" className="underline">Creators, earnings & disclosures</PolicyLink>.
-                        </p>
-                    </Section>
+                <Section id="disclosure" title="3) Disclosures & creator obligations">
+                    <ul className="list-disc pl-5 space-y-2">
+                        <li>Use clear labels (e.g., <em>Paid partnership, Sponsored, Includes paid promotion, Contains affiliate links</em>).</li>
+                        <li>Disclosures must be <strong>unambiguous, prominent, and persistent</strong> during the promotion (overlay + audio mention for video/live).</li>
+                        <li>Claims must be truthful and substantiated; qualify benefits/risks in-frame or adjacent, not hidden.</li>
+                        <li>Follow sector rules (health/finance) and local guidance (e.g., testimonials, endorsements, price claims).</li>
+                        <li>Use the in-product branded-content toggle where available; add affiliate badges if you share codes/links.</li>
+                        <li>Disclose <strong>free product or travel</strong> if it affects impartiality; do not present ads as independent reviews.</li>
+                        <li>When using AI-generated media in ads, label it clearly if it may mislead audiences.</li>
+                    </ul>
+                    <p className="mt-2">
+                        See also <PolicyLink href="/legal/guidelines#creators" className="underline">Creators, earnings & disclosures</PolicyLink>.
+                    </p>
+                </Section>
 
-                    <Section id="placements" title="4) Placement types & surfaces">
-                        <ul className="list-disc pl-5 space-y-2">
-                            <li><strong>Feeds & stories:</strong> ads must be visually distinct from organic content with a persistent “Ad” or “Sponsored”.</li>
-                            <li><strong>Live:</strong> use pinned labels; disclose paid shout-outs, sponsorship readouts, and affiliate CTAs in real time.</li>
-                            <li><strong>VOD:</strong> pre/mid/post-roll must honor volume/accessibility rules and frequency caps.</li>
-                            <li><strong>Rooms/voice:</strong> sponsor tags and audio disclosures at start and at intervals for long sessions.</li>
-                            <li><strong>Creator storefronts:</strong> product details must match landing-page facts and return policies.</li>
-                        </ul>
-                    </Section>
+                <Section id="placements" title="4) Placement types & surfaces">
+                    <ul className="list-disc pl-5 space-y-2">
+                        <li><strong>Feeds & stories:</strong> ads must be visually distinct from organic content with a persistent “Ad” or “Sponsored”.</li>
+                        <li><strong>Live:</strong> use pinned labels; disclose paid shout-outs, sponsorship readouts, and affiliate CTAs in real time.</li>
+                        <li><strong>VOD:</strong> pre/mid/post-roll must honor volume/accessibility rules and frequency caps.</li>
+                        <li><strong>Rooms/voice:</strong> sponsor tags and audio disclosures at start and at intervals for long sessions.</li>
+                        <li><strong>Creator storefronts:</strong> product details must match landing-page facts and return policies.</li>
+                    </ul>
+                </Section>
 
-                    <Section id="targeting" title="5) Targeting & minors protections">
-                        <ul className="list-disc pl-5 space-y-2">
-                            <li><strong>No personalized advertising to users under the applicable age of digital consent.</strong></li>
-                            <li>Age-sensitive categories (alcohol, gambling, dating, body modification, adult products) are prohibited for minors and restricted for others.</li>
-                            <li>Sensitive attribute targeting (health, religion, sexual orientation, political views) is disallowed unless expressly permitted by law and our policies.</li>
-                            <li>We honor valid{" "}
-                                <PolicyLink href="/legal/cookies#gpc" className="underline">Global Privacy Control</PolicyLink> signals and regional consent rules.</li>
-                            <li>Advertisers must use accurate geo and age filters; mis-targeting leads to rejection or enforcement.</li>
-                        </ul>
-                        <p className="mt-2">See <PolicyLink href="/legal/safety" className="underline">Safety &amp; Minors</PolicyLink> and <PolicyLink href="/legal/privacy" className="underline">Privacy Policy</PolicyLink>.</p>
-                    </Section>
+                <Section id="targeting" title="5) Targeting & minors protections">
+                    <ul className="list-disc pl-5 space-y-2">
+                        <li><strong>No personalized advertising to users under the applicable age of digital consent.</strong></li>
+                        <li>Age-sensitive categories (alcohol, gambling, dating, body modification, adult products) are prohibited for minors and restricted for others.</li>
+                        <li>Sensitive attribute targeting (health, religion, sexual orientation, political views) is disallowed unless expressly permitted by law and our policies.</li>
+                        <li>We honor valid{" "}
+                            <PolicyLink href="/legal/cookies#gpc" className="underline">Global Privacy Control</PolicyLink> signals and regional consent rules.</li>
+                        <li>Advertisers must use accurate geo and age filters; mis-targeting leads to rejection or enforcement.</li>
+                    </ul>
+                    <p className="mt-2">See <PolicyLink href="/legal/safety" className="underline">Safety &amp; Minors</PolicyLink> and <PolicyLink href="/legal/privacy" className="underline">Privacy Policy</PolicyLink>.</p>
+                </Section>
 
-                    <Section id="prohibited" title="6) Prohibited & restricted categories">
-                        <ul className="list-disc pl-5 space-y-2">
-                            <li><strong>Prohibited:</strong> illegal products or services; weapons/explosives; hard drugs; hate/extremism; adult sexual content; surveillance spyware/stalkerware; deceptive “get rich quick” or multi-level recruitment; counterfeit goods; sale or brokerage of personal data; deepfakes that mislead or impersonate without disclosure.</li>
-                            <li><strong>Restricted (regional/age-gated/extra review):</strong> alcohol, gambling/lotteries, dating, CBD/cannabis, political/issue ads, health claims, financial services/credit, crypto assets, supplements/weight-loss, medical devices, cosmetic procedures.</li>
-                            <li>All ads must comply with the{" "}
-                                <PolicyLink href="/legal/guidelines" className="underline">Community Guidelines</PolicyLink> and local law.</li>
-                        </ul>
-                    </Section>
+                <Section id="prohibited" title="6) Prohibited & restricted categories">
+                    <ul className="list-disc pl-5 space-y-2">
+                        <li><strong>Prohibited:</strong> illegal products or services; weapons/explosives; hard drugs; hate/extremism; adult sexual content; surveillance spyware/stalkerware; deceptive “get rich quick” or multi-level recruitment; counterfeit goods; sale or brokerage of personal data; deepfakes that mislead or impersonate without disclosure.</li>
+                        <li><strong>Restricted (regional/age-gated/extra review):</strong> alcohol, gambling/lotteries, dating, CBD/cannabis, political/issue ads, health claims, financial services/credit, crypto assets, supplements/weight-loss, medical devices, cosmetic procedures.</li>
+                        <li>All ads must comply with the{" "}
+                            <PolicyLink href="/legal/guidelines" className="underline">Community Guidelines</PolicyLink> and local law.</li>
+                    </ul>
+                </Section>
 
-                    <Section id="creative" title="7) Creative standards & accessibility">
-                        <ul className="list-disc pl-5 space-y-2">
-                            <li>No misleading UI (fake system warnings, deceptive buttons) or dark patterns (forced continuity).</li>
-                            <li>Landing pages must match claims, load quickly, and be safe (no malware, bait-and-switch, or redirect chains).</li>
-                            <li>Audio must start at a reasonable level; flashing content must pass accessibility safety checks.</li>
-                            <li>Before/after imagery must use comparable conditions; disclose if results vary.</li>
-                            <li>Provide captions for video ads and readable contrast for text overlays.</li>
-                            <li>Use licensed music, fonts, and images; brand usage must respect rights and guidelines.</li>
-                        </ul>
-                    </Section>
+                <Section id="creative" title="7) Creative standards & accessibility">
+                    <ul className="list-disc pl-5 space-y-2">
+                        <li>No misleading UI (fake system warnings, deceptive buttons) or dark patterns (forced continuity).</li>
+                        <li>Landing pages must match claims, load quickly, and be safe (no malware, bait-and-switch, or redirect chains).</li>
+                        <li>Audio must start at a reasonable level; flashing content must pass accessibility safety checks.</li>
+                        <li>Before/after imagery must use comparable conditions; disclose if results vary.</li>
+                        <li>Provide captions for video ads and readable contrast for text overlays.</li>
+                        <li>Use licensed music, fonts, and images; brand usage must respect rights and guidelines.</li>
+                    </ul>
+                </Section>
 
-                    <Section id="measurement" title="8) Measurement, verification & third parties">
-                        <ul className="list-disc pl-5 space-y-2">
-                            <li>Use only approved measurement pixels/SDKs; no piggybacking or undisclosed data collection.</li>
-                            <li>Server-to-server integrations must be documented; send only permitted events with appropriate minimization.</li>
-                            <li>Reporting must not reveal personal data contrary to our{" "}
-                                <PolicyLink href="/legal/privacy" className="underline">Privacy Policy</PolicyLink>.</li>
-                            <li>Delete log data per retention requirements; respect audit requests for consent records where applicable.</li>
-                        </ul>
-                    </Section>
+                <Section id="measurement" title="8) Measurement, verification & third parties">
+                    <ul className="list-disc pl-5 space-y-2">
+                        <li>Use only approved measurement pixels/SDKs; no piggybacking or undisclosed data collection.</li>
+                        <li>Server-to-server integrations must be documented; send only permitted events with appropriate minimization.</li>
+                        <li>Reporting must not reveal personal data contrary to our{" "}
+                            <PolicyLink href="/legal/privacy" className="underline">Privacy Policy</PolicyLink>.</li>
+                        <li>Delete log data per retention requirements; respect audit requests for consent records where applicable.</li>
+                    </ul>
+                </Section>
 
-                    <Section id="data" title="9) Data use, privacy & consent">
-                        <ul className="list-disc pl-5 space-y-2">
-                            <li>Advertising data usage must comply with{" "}
-                                <PolicyLink href="/legal/privacy" className="underline">Privacy Policy</PolicyLink> and{" "}
-                                <PolicyLink href="/legal/cookies" className="underline">Cookies Policy</PolicyLink>.</li>
-                            <li>Customer list uploads must be lawful, notice-based, and properly secured; hash personal identifiers where required.</li>
-                            <li>Do not combine 6ix data with third-party sources to build profiles beyond permitted purposes.</li>
-                            <li>Honor user choices (consent/opt-out, GPC) across measurement and targeting.</li>
-                        </ul>
-                    </Section>
+                <Section id="data" title="9) Data use, privacy & consent">
+                    <ul className="list-disc pl-5 space-y-2">
+                        <li>Advertising data usage must comply with{" "}
+                            <PolicyLink href="/legal/privacy" className="underline">Privacy Policy</PolicyLink> and{" "}
+                            <PolicyLink href="/legal/cookies" className="underline">Cookies Policy</PolicyLink>.</li>
+                        <li>Customer list uploads must be lawful, notice-based, and properly secured; hash personal identifiers where required.</li>
+                        <li>Do not combine 6ix data with third-party sources to build profiles beyond permitted purposes.</li>
+                        <li>Honor user choices (consent/opt-out, GPC) across measurement and targeting.</li>
+                    </ul>
+                </Section>
 
-                    <Section id="brand" title="10) Brand safety, suitability & enforcement">
-                        <ul className="list-disc pl-5 space-y-2">
-                            <li>We may limit adjacency (e.g., exclude sensitive categories) and apply suitability tiers (e.g., General, Moderate, Mature).</li>
-                            <li>Violations may lead to ad rejection, spend pauses, labeling changes, feature limits, or account actions.</li>
-                            <li>Creators who repeatedly violate may lose monetization (see{" "}
-                                <PolicyLink href="/legal/creator-earnings" className="underline">Creator Earnings</PolicyLink>).</li>
-                            <li>We may publish high-level transparency about ad safety enforcement and appeals volumes.</li>
-                        </ul>
-                    </Section>
+                <Section id="brand" title="10) Brand safety, suitability & enforcement">
+                    <ul className="list-disc pl-5 space-y-2">
+                        <li>We may limit adjacency (e.g., exclude sensitive categories) and apply suitability tiers (e.g., General, Moderate, Mature).</li>
+                        <li>Violations may lead to ad rejection, spend pauses, labeling changes, feature limits, or account actions.</li>
+                        <li>Creators who repeatedly violate may lose monetization (see{" "}
+                            <PolicyLink href="/legal/creator-earnings" className="underline">Creator Earnings</PolicyLink>).</li>
+                        <li>We may publish high-level transparency about ad safety enforcement and appeals volumes.</li>
+                    </ul>
+                </Section>
 
-                    <Section id="self-serve" title="11) Self-serve ads (future)">
-                        <p>
-                            If we launch self-serve ads, advertisers must complete verification, accept these rules, and pass creative/landing-page review.
-                            We may adjust budgets, pacing, and placements to protect user experience and comply with law.
-                        </p>
-                    </Section>
+                <Section id="self-serve" title="11) Self-serve ads (future)">
+                    <p>
+                        If we launch self-serve ads, advertisers must complete verification, accept these rules, and pass creative/landing-page review.
+                        We may adjust budgets, pacing, and placements to protect user experience and comply with law.
+                    </p>
+                </Section>
 
-                    <Section id="verticals" title="12) Vertical rules (health, finance, alcohol, gambling, crypto, environmental)">
-                        <h3 className="font-semibold mt-2">Health & medical</h3>
-                        <ul className="list-disc pl-5 space-y-2">
-                            <li>Require competent substantiation; clinical claims must cite acceptable evidence where required.</li>
-                            <li>No promotion of prescription drugs without legal authorization; no unsafe or miracle cures.</li>
-                            <li>Weight-loss claims must avoid unsafe promises or unrealistic timelines.</li>
-                        </ul>
+                <Section id="verticals" title="12) Vertical rules (health, finance, alcohol, gambling, crypto, environmental)">
+                    <h3 className="font-semibold mt-2">Health & medical</h3>
+                    <ul className="list-disc pl-5 space-y-2">
+                        <li>Require competent substantiation; clinical claims must cite acceptable evidence where required.</li>
+                        <li>No promotion of prescription drugs without legal authorization; no unsafe or miracle cures.</li>
+                        <li>Weight-loss claims must avoid unsafe promises or unrealistic timelines.</li>
+                    </ul>
 
-                        <h3 className="font-semibold mt-4">Financial services</h3>
-                        <ul className="list-disc pl-5 space-y-2">
-                            <li>Include clear risk disclosures; no guaranteed returns or get-rich schemes.</li>
-                            <li>Licensing may be required (lenders, credit repair, securities); predatory products are disallowed.</li>
-                        </ul>
+                    <h3 className="font-semibold mt-4">Financial services</h3>
+                    <ul className="list-disc pl-5 space-y-2">
+                        <li>Include clear risk disclosures; no guaranteed returns or get-rich schemes.</li>
+                        <li>Licensing may be required (lenders, credit repair, securities); predatory products are disallowed.</li>
+                    </ul>
 
-                        <h3 className="font-semibold mt-4">Alcohol</h3>
-                        <ul className="list-disc pl-5 space-y-2">
-                            <li>Strict age-gating and geographic restrictions; no targeting minors; responsible drinking messages where required.</li>
-                            <li>No implied health benefits; no drinking games or dangerous consumption challenges.</li>
-                        </ul>
+                    <h3 className="font-semibold mt-4">Alcohol</h3>
+                    <ul className="list-disc pl-5 space-y-2">
+                        <li>Strict age-gating and geographic restrictions; no targeting minors; responsible drinking messages where required.</li>
+                        <li>No implied health benefits; no drinking games or dangerous consumption challenges.</li>
+                    </ul>
 
-                        <h3 className="font-semibold mt-4">Gambling & lotteries</h3>
-                        <ul className="list-disc pl-5 space-y-2">
-                            <li>Where legal, require license proof, strict age/geo controls, and responsible-play links.</li>
-                            <li>No claims that gambling is a path to financial stability.</li>
-                        </ul>
+                    <h3 className="font-semibold mt-4">Gambling & lotteries</h3>
+                    <ul className="list-disc pl-5 space-y-2">
+                        <li>Where legal, require license proof, strict age/geo controls, and responsible-play links.</li>
+                        <li>No claims that gambling is a path to financial stability.</li>
+                    </ul>
 
-                        <h3 className="font-semibold mt-4">Crypto assets</h3>
-                        <ul className="list-disc pl-5 space-y-2">
-                            <li>Subject to regional rules; require risk disclosures and, where applicable, licensing/registrations.</li>
-                            <li>No guaranteed returns; no ICO/airdrop schemes aimed at minors or unsophisticated investors.</li>
-                        </ul>
+                    <h3 className="font-semibold mt-4">Crypto assets</h3>
+                    <ul className="list-disc pl-5 space-y-2">
+                        <li>Subject to regional rules; require risk disclosures and, where applicable, licensing/registrations.</li>
+                        <li>No guaranteed returns; no ICO/airdrop schemes aimed at minors or unsophisticated investors.</li>
+                    </ul>
 
-                        <h3 className="font-semibold mt-4">Environmental claims</h3>
-                        <ul className="list-disc pl-5 space-y-2">
-                            <li>Substantiate sustainability/eco claims; avoid vague “green” language without specifics.</li>
-                            <li>Provide lifecycle context if claiming carbon neutrality or offsets.</li>
-                        </ul>
-                    </Section>
+                    <h3 className="font-semibold mt-4">Environmental claims</h3>
+                    <ul className="list-disc pl-5 space-y-2">
+                        <li>Substantiate sustainability/eco claims; avoid vague “green” language without specifics.</li>
+                        <li>Provide lifecycle context if claiming carbon neutrality or offsets.</li>
+                    </ul>
+                </Section>
 
-                    <Section id="political" title="13) Political & issue advertising">
-                        <p>
-                            Political and issue ads may be restricted or unavailable. Where permitted, verification, spend transparency,
-                            disclaimers, and targeting limits will apply. Misleading civic information or suppression tactics are prohibited.
-                        </p>
-                    </Section>
+                <Section id="political" title="13) Political & issue advertising">
+                    <p>
+                        Political and issue ads may be restricted or unavailable. Where permitted, verification, spend transparency,
+                        disclaimers, and targeting limits will apply. Misleading civic information or suppression tactics are prohibited.
+                    </p>
+                </Section>
 
-                    <Section id="jurisdictions" title="14) Jurisdictional compliance overview">
-                        <ul className="list-disc pl-5 space-y-2">
-                            <li>Advertisers and creators must follow local laws and regulatory guidance in targeted regions.</li>
-                            <li>Common frameworks include truth-in-advertising standards, youth advertising codes, data-protection laws, and sector-specific rules.</li>
-                            <li>Where local law conflicts with this policy, the stricter requirement applies.</li>
-                        </ul>
-                    </Section>
+                <Section id="jurisdictions" title="14) Jurisdictional compliance overview">
+                    <ul className="list-disc pl-5 space-y-2">
+                        <li>Advertisers and creators must follow local laws and regulatory guidance in targeted regions.</li>
+                        <li>Common frameworks include truth-in-advertising standards, youth advertising codes, data-protection laws, and sector-specific rules.</li>
+                        <li>Where local law conflicts with this policy, the stricter requirement applies.</li>
+                    </ul>
+                </Section>
 
-                    <Section id="appeals" title="15) Reviews, rejections & appeals">
-                        <ul className="list-disc pl-5 space-y-2">
-                            <li>We may reject or pause ads that break rules, mismatch landing pages, or risk user safety.</li>
-                            <li>Appeals may be available; include updated creative, targeting details, and evidence of compliance.</li>
-                            <li>Repeated or severe violations can lead to account-level restrictions or termination.</li>
-                        </ul>
-                    </Section>
+                <Section id="appeals" title="15) Reviews, rejections & appeals">
+                    <ul className="list-disc pl-5 space-y-2">
+                        <li>We may reject or pause ads that break rules, mismatch landing pages, or risk user safety.</li>
+                        <li>Appeals may be available; include updated creative, targeting details, and evidence of compliance.</li>
+                        <li>Repeated or severe violations can lead to account-level restrictions or termination.</li>
+                    </ul>
+                </Section>
 
-                    <Section id="changes" title="16) Changes to this policy">
-                        <p>
-                            We may update this policy to reflect product or legal changes. If changes are material, we’ll provide notice
-                            (e.g., in-app or email). Continued use after the effective date means you accept the update.
-                        </p>
-                    </Section>
+                <Section id="changes" title="16) Changes to this policy">
+                    <p>
+                        We may update this policy to reflect product or legal changes. If changes are material, we’ll provide notice
+                        (e.g., in-app or email). Continued use after the effective date means you accept the update.
+                    </p>
+                </Section>
 
-                    <Section id="contact" title="17) Contact">
-                        <p>
-                            Ads & brand safety: <a className="underline" href="mailto:ads@6ixapp.com">ads@6ixapp.com</a><br />
-                            Legal: <a className="underline" href="mailto:legal@6ixapp.com">legal@6ixapp.com</a><br />
-                            Privacy: <a className="underline" href="mailto:privacy@6ixapp.com">privacy@6ixapp.com</a>
-                        </p>
-                    </Section>
+                <Section id="contact" title="17) Contact">
+                    <p>
+                        Ads & brand safety: <a className="underline" href="mailto:ads@6ixapp.com">ads@6ixapp.com</a><br />
+                        Legal: <a className="underline" href="mailto:legal@6ixapp.com">legal@6ixapp.com</a><br />
+                        Privacy: <a className="underline" href="mailto:privacy@6ixapp.com">privacy@6ixapp.com</a>
+                    </p>
+                </Section>
 
-                    <Section id="appendix-a" title="Appendix A — Disclosure examples (good/bad)">
-                        <h3 className="font-semibold mt-2">Good</h3>
-                        <ul className="list-disc pl-5 space-y-2">
-                            <li>“<strong>Sponsored</strong> — I partnered with Brand X. Use code 6IX10. Details in the caption.” (label pinned + audio mention)</li>
-                            <li>“<strong>Contains affiliate links</strong> — I may earn a commission if you buy through my link.”</li>
-                            <li>“<strong>Paid partnership</strong> — Brand Y sent me this device for free; opinions are my own.”</li>
-                        </ul>
-                        <h3 className="font-semibold mt-4">Bad</h3>
-                        <ul className="list-disc pl-5 space-y-2">
-                            <li>“Thanks Brand Z!” with no disclosure while showing gifted product + purchase link.</li>
-                            <li>Label hidden behind a fold or disappearing after three seconds while promotion continues.</li>
-                            <li>“Guaranteed results” claims for health/finance without evidence or risk statements.</li>
-                        </ul>
-                    </Section>
+                <Section id="appendix-a" title="Appendix A — Disclosure examples (good/bad)">
+                    <h3 className="font-semibold mt-2">Good</h3>
+                    <ul className="list-disc pl-5 space-y-2">
+                        <li>“<strong>Sponsored</strong> — I partnered with Brand X. Use code 6IX10. Details in the caption.” (label pinned + audio mention)</li>
+                        <li>“<strong>Contains affiliate links</strong> — I may earn a commission if you buy through my link.”</li>
+                        <li>“<strong>Paid partnership</strong> — Brand Y sent me this device for free; opinions are my own.”</li>
+                    </ul>
+                    <h3 className="font-semibold mt-4">Bad</h3>
+                    <ul className="list-disc pl-5 space-y-2">
+                        <li>“Thanks Brand Z!” with no disclosure while showing gifted product + purchase link.</li>
+                        <li>Label hidden behind a fold or disappearing after three seconds while promotion continues.</li>
+                        <li>“Guaranteed results” claims for health/finance without evidence or risk statements.</li>
+                    </ul>
+                </Section>
 
-                    <Section id="appendix-b" title="Appendix B — Creative specs & best practices">
-                        <ul className="list-disc pl-5 space-y-2">
-                            <li>Keep text legible (contrast & safe margins); include captions for sound-off viewing.</li>
-                            <li>Respect max flashing thresholds; avoid excessive cuts for accessibility.</li>
-                            <li>Use high-quality assets; avoid upscale artifacts and distorted logos.</li>
-                            <li>Make CTAs descriptive (e.g., “Learn more about features”) not deceptive (“Click to claim prize”).</li>
-                        </ul>
-                    </Section>
+                <Section id="appendix-b" title="Appendix B — Creative specs & best practices">
+                    <ul className="list-disc pl-5 space-y-2">
+                        <li>Keep text legible (contrast & safe margins); include captions for sound-off viewing.</li>
+                        <li>Respect max flashing thresholds; avoid excessive cuts for accessibility.</li>
+                        <li>Use high-quality assets; avoid upscale artifacts and distorted logos.</li>
+                        <li>Make CTAs descriptive (e.g., “Learn more about features”) not deceptive (“Click to claim prize”).</li>
+                    </ul>
+                </Section>
 
-                    <Section id="appendix-c" title="Appendix C — Enforcement ladder">
-                        <ol className="list-decimal pl-5 space-y-2">
-                            <li>Warning & guidance (minor issue; fix and resubmit).</li>
-                            <li>Temporary rejection or limited delivery.</li>
-                            <li>Feature or budget restrictions; removal of non-compliant creatives.</li>
-                            <li>Account suspension or termination for severe/repeat violations.</li>
-                        </ol>
-                        <p className="text-zinc-400 text-sm mt-2">
-                            See <PolicyLink href="/legal/guidelines#enforcement" className="underline">Guidelines — Enforcement</PolicyLink>.
-                        </p>
-                    </Section>
+                <Section id="appendix-c" title="Appendix C — Enforcement ladder">
+                    <ol className="list-decimal pl-5 space-y-2">
+                        <li>Warning & guidance (minor issue; fix and resubmit).</li>
+                        <li>Temporary rejection or limited delivery.</li>
+                        <li>Feature or budget restrictions; removal of non-compliant creatives.</li>
+                        <li>Account suspension or termination for severe/repeat violations.</li>
+                    </ol>
+                    <p className="text-zinc-400 text-sm mt-2">
+                        See <PolicyLink href="/legal/guidelines#enforcement" className="underline">Guidelines — Enforcement</PolicyLink>.
+                    </p>
+                </Section>
 
-                    {/* Extended notes add hundreds of short, meaningful lines for depth without filler */}
-                    <Section id="appendix-d" title="Appendix D — Extended Operational Notes">
-                        <ExtendedAdNotes lines={520} />
-                    </Section>
+                {/* Extended notes add hundreds of short, meaningful lines for depth without filler */}
+                <Section id="appendix-d" title="Appendix D — Extended Operational Notes">
+                    <ExtendedAdNotes lines={520} />
+                </Section>
 
-                    <div className="mt-6">
-                        <a href="#top" className="text-sm text-zinc-400 underline">Back to top ↑</a>
-                    </div>
-                </article>
-            </main>
-            <style jsx global>{`
-:root { color-scheme: light dark; }
-
-/* HEADINGS */
-.legal-scope h1,
-.legal-scope h2,
-.legal-scope h3,
-.legal-scope h4,
-.legal-scope h5 { color:#f5f6f7 !important; }
-html.theme-light .legal-scope h1,
-html.theme-light .legal-scope h2,
-html.theme-light .legal-scope h3,
-html.theme-light .legal-scope h4,
-html.theme-light .legal-scope h5 { color:#0b0c0f !important; }
-
-/* SUBHEAD / META (make deeper on light) */
-.legal-scope .text-zinc-400,
-.legal-scope .text-zinc-500,
-.legal-scope .subhead,
-.legal-scope .lede { color:rgba(255,255,255,.70) !important; }
-html.theme-light .legal-scope .text-zinc-400,
-html.theme-light .legal-scope .text-zinc-500,
-html.theme-light .legal-scope .subhead,
-html.theme-light .legal-scope .lede { color:rgba(0,0,0,.62) !important; }
-`}</style>
-        </div>
+                <div className="mt-6">
+                    <a href="#top" className="text-sm text-zinc-400 underline">Back to top ↑</a>
+                </div>
+            </article>
+        </main>
     );
-
 }
 
 /** Section helper */

@@ -13,568 +13,540 @@ const Updated = new Date().toISOString().slice(0, 10);
 
 export default function SafetyMinorsPage() {
     return (
-        <div className="legal-scope">
-            <main className="min-h-dvh px-5 py-8 flex">
-                <article className="edge glass mx-auto w-full max-w-6xl p-6 sm:p-10">
-                    <a id="top" />
-                    {/* Header */}
-                    <header className="mb-8">
-                        <div className="flex items-start justify-between gap-4 flex-wrap">
-                            <div>
-                                <h1 className="text-2xl sm:text-3xl font-semibold">6ix — Safety &amp; Minors</h1>
-                                <p className="text-zinc-400 mt-1 text-sm">Last updated: {Updated}</p>
-                            </div>
-                            <BadgeRow
-                                tags={[
-                                    "Youth Safety",
-                                    "Grooming Prevention",
-                                    "Live Moderation",
-                                    "Privacy by Default",
-                                    "Age Gating",
-                                    "Zero Tolerance",
-                                ]}
-                            />
+        <main className="legal-scope min-h-dvh px-5 py-8 flex">
+            <article className="edge glass mx-auto w-full max-w-6xl p-6 sm:p-10">
+                <a id="top" />
+                {/* Header */}
+                <header className="mb-8">
+                    <div className="flex items-start justify-between gap-4 flex-wrap">
+                        <div>
+                            <h1 className="text-2xl sm:text-3xl font-semibold">6ix — Safety &amp; Minors</h1>
+                            <p className="text-zinc-400 mt-1 text-sm">Last updated: {Updated}</p>
                         </div>
-
-                        <p className="text-zinc-300 mt-4 leading-relaxed">
-                            6ix is designed with protections for young people across accounts, discovery, DMs, groups, live chat,
-                            voice/video rooms, and VOD. This policy works with our{" "}
-                            <PolicyLink href="/legal/guidelines" className="underline">Community Guidelines</PolicyLink>,{" "}
-                            <PolicyLink href="/legal/terms" className="underline">Terms of Use</PolicyLink>,{" "}
-                            <PolicyLink href="/legal/privacy" className="underline">Privacy Policy</PolicyLink>,{" "}
-                            <PolicyLink href="/legal/cookies" className="underline">Cookies Policy</PolicyLink>, and{" "}
-                            <PolicyLink href="/legal/copyright" className="underline">Copyright/DMCA</PolicyLink>.
-                        </p>
-                        <p className="text-xs text-zinc-500 mt-2">
-                            Product transparency, not legal advice. Adapt with your counsel for your operating regions.
-                        </p>
-                    </header>
-
-                    {/* TOC */}
-                    <nav
-                        aria-label="Table of contents"
-                        className="rounded-xl bg-black/20 border border-white/10 p-4 sm:p-5 mb-10"
-                    >
-                        <h2 className="text-base font-semibold mb-3">Table of contents</h2>
-                        <ol className="list-decimal pl-5 space-y-2 text-zinc-200">
-                            <li><a className="underline" href="#scope">Scope & Eligibility</a></li>
-                            <li><a className="underline" href="#age">Age Requirements & Parental Consent</a></li>
-                            <li><a className="underline" href="#defaults">Minor-Friendly Defaults & Design</a></li>
-                            <li><a className="underline" href="#profiles">Profiles, Avatars & Display Info</a></li>
-                            <li><a className="underline" href="#prohibited">Prohibited Content & Conduct (Zero Tolerance)</a></li>
-                            <li><a className="underline" href="#grooming">Anti-Grooming & Predation Prevention</a></li>
-                            <li><a className="underline" href="#dm-chat">DMs, Chats & Group Admin Expectations</a></li>
-                            <li><a className="underline" href="#live">Live Streams, Calls, Rooms & VOD</a></li>
-                            <li><a className="underline" href="#discovery">Discovery, Recommendations & Age-Gating</a></li>
-                            <li><a className="underline" href="#privacy">Privacy, Location & Identifiers</a></li>
-                            <li><a className="underline" href="#ads">Ads, Monetization & Purchases for Minors</a></li>
-                            <li><a className="underline" href="#controls">Controls, Reporting & Enforcement</a></li>
-                            <li><a className="underline" href="#education">Schools, Teachers & Educational Use</a></li>
-                            <li><a className="underline" href="#industry">Industry Partnerships & Legal Obligations</a></li>
-                            <li><a className="underline" href="#regional">Regional Notes (COPPA, AADC, GDPR, NDPR, DPDP, LGPD, etc.)</a></li>
-                            <li><a className="underline" href="#resources">Safety Resources & Crisis Support</a></li>
-                            <li><a className="underline" href="#glossary">Glossary & Examples</a></li>
-                            <li><a className="underline" href="#parent-guide">Appendix A — Parent/Guardian Guide</a></li>
-                            <li><a className="underline" href="#creator-checklist">Appendix B — Creator/Moderator Checklist</a></li>
-                            <li><a className="underline" href="#workflow">Appendix C — Report Review Workflow</a></li>
-                            <li><a className="underline" href="#playbooks">Appendix D — Extended Safety Playbooks</a></li>
-                            <li><a className="underline" href="#changes">Changes</a></li>
-                            <li><a className="underline" href="#contact">Contact</a></li>
-                        </ol>
-                    </nav>
-
-                    {/* 1) Scope & Eligibility */}
-                    <Section id="scope" title="1) Scope & Eligibility">
-                        <Grid>
-                            <Card title="Where This Applies">
-                                All 6ix surfaces: profiles, posts, comments, DMs, groups, live chat, voice/video rooms, replays/VOD, clips.
-                            </Card>
-                            <Card title="Who Can Use 6ix">
-                                People who meet our minimum age and follow these rules. Those suspended for child-safety violations, or
-                                prohibited by law (e.g., registered sex offenders in relevant jurisdictions), may not use 6ix.
-                            </Card>
-                            <Card title="Policy Relationship">
-                                Supplements the{" "}
-                                <PolicyLink href="/legal/terms" className="underline">Terms of Use</PolicyLink> and{" "}
-                                <PolicyLink href="/legal/guidelines" className="underline">Community Guidelines</PolicyLink>.
-                            </Card>
-                        </Grid>
-                    </Section>
-
-                    {/* 2) Age Requirements */}
-                    <Section id="age" title="2) Age Requirements & Parental Consent">
-                        <FlowGrid
-                            steps={[
-                                {
-                                    title: "Minimum Age",
-                                    points: [
-                                        "Generally 13+ (or higher where required; up to 16 in some regions).",
-                                        "We apply regional rules and age-of-digital-consent standards.",
-                                    ],
-                                },
-                                {
-                                    title: "Under the Age of Majority",
-                                    points: [
-                                        "Use may require parent/guardian consent and supervision per local law.",
-                                        "Certain features may be limited until verification signals are established.",
-                                    ],
-                                },
-                                {
-                                    title: "Signals & Escalation",
-                                    points: [
-                                        "We may use risk-based checks or verification signals where mandated.",
-                                        "If we suspect someone is under minimum age, features may be restricted pending review.",
-                                    ],
-                                },
+                        <BadgeRow
+                            tags={[
+                                "Youth Safety",
+                                "Grooming Prevention",
+                                "Live Moderation",
+                                "Privacy by Default",
+                                "Age Gating",
+                                "Zero Tolerance",
                             ]}
                         />
-                        <div className="mt-4">
-                            <PolicyLink href="/legal/privacy#children" className="underline">Children’s Privacy</PolicyLink>
-                        </div>
-                    </Section>
+                    </div>
 
-                    {/* 3) Minor-Friendly Defaults */}
-                    <Section id="defaults" title="3) Minor-Friendly Defaults & Design">
-                        <Grid>
-                            <Card title="Private by Default">
-                                Minor accounts default to private where feasible; discovery is limited in search and recommendations.
-                            </Card>
-                            <Card title="Messaging Limits">
-                                DMs from approved contacts/followers only (configurable); link and media restrictions in stranger DMs.
-                            </Card>
-                            <Card title="Sensitive Features Off">
-                                Precise location, public group invites, and other high-risk toggles default off for minors.
-                            </Card>
-                            <Card title="Clear UX">
-                                Age-appropriate language, prominent report/help buttons, and setup tours that explain safety choices.
-                            </Card>
-                            <Card title="Reduced Profiling">
-                                Minimized data use for ads/personalization consistent with local youth privacy rules.
-                            </Card>
-                        </Grid>
-                    </Section>
+                    <p className="text-zinc-300 mt-4 leading-relaxed">
+                        6ix is designed with protections for young people across accounts, discovery, DMs, groups, live chat,
+                        voice/video rooms, and VOD. This policy works with our{" "}
+                        <PolicyLink href="/legal/guidelines" className="underline">Community Guidelines</PolicyLink>,{" "}
+                        <PolicyLink href="/legal/terms" className="underline">Terms of Use</PolicyLink>,{" "}
+                        <PolicyLink href="/legal/privacy" className="underline">Privacy Policy</PolicyLink>,{" "}
+                        <PolicyLink href="/legal/cookies" className="underline">Cookies Policy</PolicyLink>, and{" "}
+                        <PolicyLink href="/legal/copyright" className="underline">Copyright/DMCA</PolicyLink>.
+                    </p>
+                    <p className="text-xs text-zinc-500 mt-2">
+                        Product transparency, not legal advice. Adapt with your counsel for your operating regions.
+                    </p>
+                </header>
 
-                    {/* 4) Profiles, Avatars */}
-                    <Section id="profiles" title="4) Profiles, Avatars & Display Info">
-                        <Grid>
-                            <Card title="Limit Identifiers">
-                                Avoid school names, real-time routines, uniform shots, or other patterns that reveal location.
-                            </Card>
-                            <Card title="No Private Data Requests">
-                                Never request private photos, contact details, or live location from minors.
-                            </Card>
-                            <Card title="Visibility Controls">
-                                We may restrict verification display and blur faces of bystander minors in sensitive contexts.
-                            </Card>
-                        </Grid>
-                    </Section>
+                {/* TOC */}
+                <nav
+                    aria-label="Table of contents"
+                    className="rounded-xl bg-black/20 border border-white/10 p-4 sm:p-5 mb-10"
+                >
+                    <h2 className="text-base font-semibold mb-3">Table of contents</h2>
+                    <ol className="list-decimal pl-5 space-y-2 text-zinc-200">
+                        <li><a className="underline" href="#scope">Scope & Eligibility</a></li>
+                        <li><a className="underline" href="#age">Age Requirements & Parental Consent</a></li>
+                        <li><a className="underline" href="#defaults">Minor-Friendly Defaults & Design</a></li>
+                        <li><a className="underline" href="#profiles">Profiles, Avatars & Display Info</a></li>
+                        <li><a className="underline" href="#prohibited">Prohibited Content & Conduct (Zero Tolerance)</a></li>
+                        <li><a className="underline" href="#grooming">Anti-Grooming & Predation Prevention</a></li>
+                        <li><a className="underline" href="#dm-chat">DMs, Chats & Group Admin Expectations</a></li>
+                        <li><a className="underline" href="#live">Live Streams, Calls, Rooms & VOD</a></li>
+                        <li><a className="underline" href="#discovery">Discovery, Recommendations & Age-Gating</a></li>
+                        <li><a className="underline" href="#privacy">Privacy, Location & Identifiers</a></li>
+                        <li><a className="underline" href="#ads">Ads, Monetization & Purchases for Minors</a></li>
+                        <li><a className="underline" href="#controls">Controls, Reporting & Enforcement</a></li>
+                        <li><a className="underline" href="#education">Schools, Teachers & Educational Use</a></li>
+                        <li><a className="underline" href="#industry">Industry Partnerships & Legal Obligations</a></li>
+                        <li><a className="underline" href="#regional">Regional Notes (COPPA, AADC, GDPR, NDPR, DPDP, LGPD, etc.)</a></li>
+                        <li><a className="underline" href="#resources">Safety Resources & Crisis Support</a></li>
+                        <li><a className="underline" href="#glossary">Glossary & Examples</a></li>
+                        <li><a className="underline" href="#parent-guide">Appendix A — Parent/Guardian Guide</a></li>
+                        <li><a className="underline" href="#creator-checklist">Appendix B — Creator/Moderator Checklist</a></li>
+                        <li><a className="underline" href="#workflow">Appendix C — Report Review Workflow</a></li>
+                        <li><a className="underline" href="#playbooks">Appendix D — Extended Safety Playbooks</a></li>
+                        <li><a className="underline" href="#changes">Changes</a></li>
+                        <li><a className="underline" href="#contact">Contact</a></li>
+                    </ol>
+                </nav>
 
-                    {/* 5) Prohibited (Zero Tolerance) */}
-                    <Section id="prohibited" title="5) Prohibited Content & Conduct (Zero Tolerance)">
-                        <Grid>
-                            <DangerCard title="Child Sexual Exploitation (CSE)">
-                                Sexualizing minors, solicitations, sextortion, or any CSE content is banned and escalated.
-                            </DangerCard>
-                            <DangerCard title="Violence & Degradation">
-                                Harm, humiliation, or dangerous acts involving minors are prohibited.
-                            </DangerCard>
-                            <DangerCard title="Doxxing & Exposure">
-                                Posting minors’ private info (school, address, IDs) without consent is not allowed.
-                            </DangerCard>
-                        </Grid>
-                        <p className="text-zinc-400 text-sm">
-                            Violations result in immediate removal, reporting where required by law, and account actions up to termination.
-                        </p>
-                    </Section>
+                {/* 1) Scope & Eligibility */}
+                <Section id="scope" title="1) Scope & Eligibility">
+                    <Grid>
+                        <Card title="Where This Applies">
+                            All 6ix surfaces: profiles, posts, comments, DMs, groups, live chat, voice/video rooms, replays/VOD, clips.
+                        </Card>
+                        <Card title="Who Can Use 6ix">
+                            People who meet our minimum age and follow these rules. Those suspended for child-safety violations, or
+                            prohibited by law (e.g., registered sex offenders in relevant jurisdictions), may not use 6ix.
+                        </Card>
+                        <Card title="Policy Relationship">
+                            Supplements the{" "}
+                            <PolicyLink href="/legal/terms" className="underline">Terms of Use</PolicyLink> and{" "}
+                            <PolicyLink href="/legal/guidelines" className="underline">Community Guidelines</PolicyLink>.
+                        </Card>
+                    </Grid>
+                </Section>
 
-                    {/* 6) Anti-Grooming */}
-                    <Section id="grooming" title="6) Anti-Grooming & Predation Prevention">
-                        <Grid>
-                            <Card title="Prohibited Contact Patterns">
-                                Flattery, gifts, or coercion aimed at obtaining sexual material; age-disparate romantic contact.
-                            </Card>
-                            <Card title="Product Defenses">
-                                Rate-limits, keyword filters, link limits, pattern detection; friction on off-platform moves.
-                            </Card>
-                            <Card title="Escalation Signals">
-                                Repeated attempts to reach minors, secrecy coaching, pressure tactics → stricter moderation and review.
-                            </Card>
-                        </Grid>
-                        <div className="mt-2">
-                            <PolicyLink href="/legal/guidelines#respect" className="underline">Guidelines — Respect</PolicyLink>
-                        </div>
-                    </Section>
+                {/* 2) Age Requirements */}
+                <Section id="age" title="2) Age Requirements & Parental Consent">
+                    <FlowGrid
+                        steps={[
+                            {
+                                title: "Minimum Age",
+                                points: [
+                                    "Generally 13+ (or higher where required; up to 16 in some regions).",
+                                    "We apply regional rules and age-of-digital-consent standards.",
+                                ],
+                            },
+                            {
+                                title: "Under the Age of Majority",
+                                points: [
+                                    "Use may require parent/guardian consent and supervision per local law.",
+                                    "Certain features may be limited until verification signals are established.",
+                                ],
+                            },
+                            {
+                                title: "Signals & Escalation",
+                                points: [
+                                    "We may use risk-based checks or verification signals where mandated.",
+                                    "If we suspect someone is under minimum age, features may be restricted pending review.",
+                                ],
+                            },
+                        ]}
+                    />
+                    <div className="mt-4">
+                        <PolicyLink href="/legal/privacy#children" className="underline">Children’s Privacy</PolicyLink>
+                    </div>
+                </Section>
 
-                    {/* 7) DMs, Chats & Admins */}
-                    <Section id="dm-chat" title="7) DMs, Chats & Group Admin Expectations">
-                        <Grid>
-                            <Card title="Admin Responsibilities">
-                                Enforce rules, remove illegal/abusive content promptly, and respond to reports.
-                            </Card>
-                            <Card title="Protective Controls">
-                                Member approval, word filters, slow-mode, link throttles; extra friction for first-time chatters.
-                            </Card>
-                            <Card title="Consequences">
-                                Admins who knowingly allow violations may face account actions or loss of tools.
-                            </Card>
-                        </Grid>
-                    </Section>
+                {/* 3) Minor-Friendly Defaults */}
+                <Section id="defaults" title="3) Minor-Friendly Defaults & Design">
+                    <Grid>
+                        <Card title="Private by Default">
+                            Minor accounts default to private where feasible; discovery is limited in search and recommendations.
+                        </Card>
+                        <Card title="Messaging Limits">
+                            DMs from approved contacts/followers only (configurable); link and media restrictions in stranger DMs.
+                        </Card>
+                        <Card title="Sensitive Features Off">
+                            Precise location, public group invites, and other high-risk toggles default off for minors.
+                        </Card>
+                        <Card title="Clear UX">
+                            Age-appropriate language, prominent report/help buttons, and setup tours that explain safety choices.
+                        </Card>
+                        <Card title="Reduced Profiling">
+                            Minimized data use for ads/personalization consistent with local youth privacy rules.
+                        </Card>
+                    </Grid>
+                </Section>
 
-                    {/* 8) Live Streams, Calls, Rooms & VOD */}
-                    <Section id="live" title="8) Live Streams, Calls, Rooms & VOD">
-                        <ScenarioGrid
-                            items={[
-                                {
-                                    title: "Before You Go Live",
-                                    do: [
-                                        "Select the right audience and age-gating.",
-                                        "Enable slow-mode, keyword filters, and moderators.",
-                                    ],
-                                    avoid: [
-                                        "Revealing real-time location or school identifiers.",
-                                        "Opening DMs to all during high-risk topics.",
-                                    ],
-                                },
-                                {
-                                    title: "During the Session",
-                                    do: [
-                                        "Pin room rules; remove violators quickly.",
-                                        "Use follower-only chat for sensitive streams.",
-                                    ],
-                                    avoid: [
-                                        "Letting strangers join screen-share without approval.",
-                                        "Ignoring repeated boundary-pushing by adults.",
-                                    ],
-                                },
-                                {
-                                    title: "Replays & VOD",
-                                    do: [
-                                        "Disclose recording; review chat overlays before publishing.",
-                                        "Trim or blur sensitive segments where feasible.",
-                                    ],
-                                    avoid: [
-                                        "Auto-publishing VOD with unreviewed chat logs.",
-                                        "Leaving doxxing traces in pinned comments.",
-                                    ],
-                                },
+                {/* 4) Profiles, Avatars */}
+                <Section id="profiles" title="4) Profiles, Avatars & Display Info">
+                    <Grid>
+                        <Card title="Limit Identifiers">
+                            Avoid school names, real-time routines, uniform shots, or other patterns that reveal location.
+                        </Card>
+                        <Card title="No Private Data Requests">
+                            Never request private photos, contact details, or live location from minors.
+                        </Card>
+                        <Card title="Visibility Controls">
+                            We may restrict verification display and blur faces of bystander minors in sensitive contexts.
+                        </Card>
+                    </Grid>
+                </Section>
+
+                {/* 5) Prohibited (Zero Tolerance) */}
+                <Section id="prohibited" title="5) Prohibited Content & Conduct (Zero Tolerance)">
+                    <Grid>
+                        <DangerCard title="Child Sexual Exploitation (CSE)">
+                            Sexualizing minors, solicitations, sextortion, or any CSE content is banned and escalated.
+                        </DangerCard>
+                        <DangerCard title="Violence & Degradation">
+                            Harm, humiliation, or dangerous acts involving minors are prohibited.
+                        </DangerCard>
+                        <DangerCard title="Doxxing & Exposure">
+                            Posting minors’ private info (school, address, IDs) without consent is not allowed.
+                        </DangerCard>
+                    </Grid>
+                    <p className="text-zinc-400 text-sm">
+                        Violations result in immediate removal, reporting where required by law, and account actions up to termination.
+                    </p>
+                </Section>
+
+                {/* 6) Anti-Grooming */}
+                <Section id="grooming" title="6) Anti-Grooming & Predation Prevention">
+                    <Grid>
+                        <Card title="Prohibited Contact Patterns">
+                            Flattery, gifts, or coercion aimed at obtaining sexual material; age-disparate romantic contact.
+                        </Card>
+                        <Card title="Product Defenses">
+                            Rate-limits, keyword filters, link limits, pattern detection; friction on off-platform moves.
+                        </Card>
+                        <Card title="Escalation Signals">
+                            Repeated attempts to reach minors, secrecy coaching, pressure tactics → stricter moderation and review.
+                        </Card>
+                    </Grid>
+                    <div className="mt-2">
+                        <PolicyLink href="/legal/guidelines#respect" className="underline">Guidelines — Respect</PolicyLink>
+                    </div>
+                </Section>
+
+                {/* 7) DMs, Chats & Admins */}
+                <Section id="dm-chat" title="7) DMs, Chats & Group Admin Expectations">
+                    <Grid>
+                        <Card title="Admin Responsibilities">
+                            Enforce rules, remove illegal/abusive content promptly, and respond to reports.
+                        </Card>
+                        <Card title="Protective Controls">
+                            Member approval, word filters, slow-mode, link throttles; extra friction for first-time chatters.
+                        </Card>
+                        <Card title="Consequences">
+                            Admins who knowingly allow violations may face account actions or loss of tools.
+                        </Card>
+                    </Grid>
+                </Section>
+
+                {/* 8) Live Streams, Calls, Rooms & VOD */}
+                <Section id="live" title="8) Live Streams, Calls, Rooms & VOD">
+                    <ScenarioGrid
+                        items={[
+                            {
+                                title: "Before You Go Live",
+                                do: [
+                                    "Select the right audience and age-gating.",
+                                    "Enable slow-mode, keyword filters, and moderators.",
+                                ],
+                                avoid: [
+                                    "Revealing real-time location or school identifiers.",
+                                    "Opening DMs to all during high-risk topics.",
+                                ],
+                            },
+                            {
+                                title: "During the Session",
+                                do: [
+                                    "Pin room rules; remove violators quickly.",
+                                    "Use follower-only chat for sensitive streams.",
+                                ],
+                                avoid: [
+                                    "Letting strangers join screen-share without approval.",
+                                    "Ignoring repeated boundary-pushing by adults.",
+                                ],
+                            },
+                            {
+                                title: "Replays & VOD",
+                                do: [
+                                    "Disclose recording; review chat overlays before publishing.",
+                                    "Trim or blur sensitive segments where feasible.",
+                                ],
+                                avoid: [
+                                    "Auto-publishing VOD with unreviewed chat logs.",
+                                    "Leaving doxxing traces in pinned comments.",
+                                ],
+                            },
+                        ]}
+                    />
+                </Section>
+
+                {/* 9) Discovery & Age-Gating */}
+                <Section id="discovery" title="9) Discovery, Recommendations & Age-Gating">
+                    <Grid>
+                        <Card title="Limited Trending">
+                            We limit surfacing of minor accounts in trending/suggested modules.
+                        </Card>
+                        <Card title="Mature Content Controls">
+                            Adult-intended content is age-gated and not shown to minors.
+                        </Card>
+                        <Card title="Downranking Borderline">
+                            We reduce reach of borderline content and prefer trusted sources for minors.
+                        </Card>
+                    </Grid>
+                </Section>
+
+                {/* 10) Privacy & Identifiers */}
+                <Section id="privacy" title="10) Privacy, Location & Identifiers">
+                    <Grid>
+                        <Card title="Minimize Exposure">
+                            Avoid posting routines, routes, uniforms, or badges identifying schools/events.
+                        </Card>
+                        <Card title="Sensitive Media Handling">
+                            We may blur faces of non-consenting minors in risky contexts and remove EXIF/geotags on upload.
+                        </Card>
+                        <Card title="Data Use Limits">
+                            Reduced personalization and data collection consistent with{" "}
+                            <PolicyLink href="/legal/privacy" className="underline">Privacy</PolicyLink> and{" "}
+                            <PolicyLink href="/legal/cookies" className="underline">Cookies</PolicyLink>.
+                        </Card>
+                    </Grid>
+                </Section>
+
+                {/* 11) Ads & Purchases */}
+                <Section id="ads" title="11) Ads, Monetization & Purchases for Minors">
+                    <Grid>
+                        <Card title="Targeting Limits">
+                            We do not show personalized ads to users under the applicable age of digital consent.
+                        </Card>
+                        <Card title="Sensitivity Controls">
+                            Age-restricted categories (alcohol, gambling, dating, etc.) are blocked for minors.
+                        </Card>
+                        <Card title="Creator Responsibilities">
+                            Follow{" "}
+                            <PolicyLink href="/legal/creator-earnings" className="underline">Creator Earnings</PolicyLink> and{" "}
+                            <PolicyLink href="/legal/ads" className="underline">Ads Policy</PolicyLink>; use clear disclosures.
+                        </Card>
+                    </Grid>
+                </Section>
+
+                {/* 12) Controls, Reporting, Enforcement */}
+                <Section id="controls" title="12) Controls, Reporting & Enforcement">
+                    <FlowGrid
+                        steps={[
+                            {
+                                title: "Controls",
+                                points: [
+                                    "Block, mute, restrict DMs, limit comments, approve members.",
+                                    "Audience selection, follower-only chat, link/keyword filters.",
+                                ],
+                            },
+                            {
+                                title: "Reporting",
+                                points: [
+                                    "Use in-app report tools from any post, profile, or chat.",
+                                    "Or email safety@6ixapp.com with links/screenshots.",
+                                ],
+                            },
+                            {
+                                title: "Enforcement & Appeals",
+                                points: [
+                                    "Content removal, feature limits, suspensions, termination.",
+                                    "Zero tolerance for CSE; appeals available where supported.",
+                                ],
+                            },
+                        ]}
+                    />
+                    <div className="mt-2">
+                        <PolicyLink href="/legal/guidelines#enforcement" className="underline">Guidelines — Enforcement & Appeals</PolicyLink>
+                    </div>
+                </Section>
+
+                {/* 13) Schools & Teachers */}
+                <Section id="education" title="13) Schools, Teachers & Educational Use">
+                    <Grid>
+                        <Card title="Safer Class Setup">
+                            Use private groups, restricted DMs, teacher-approved commenters, and curated Q&A.
+                        </Card>
+                        <Card title="Consent & Recording">
+                            Obtain necessary permissions for recordings or student work displays where applicable.
+                        </Card>
+                        <Card title="Classroom Rules">
+                            Publish respectful conduct rules and clear reporting steps for students.
+                        </Card>
+                    </Grid>
+                </Section>
+
+                {/* 14) Industry & Legal */}
+                <Section id="industry" title="14) Industry Partnerships & Legal Obligations">
+                    <Grid>
+                        <Card title="Reporting Duties">
+                            We preserve/report CSE material to appropriate authorities/hotlines where required by law.
+                        </Card>
+                        <Card title="Lawful Requests">
+                            We cooperate with valid legal process consistent with{" "}
+                            <PolicyLink href="/legal/privacy#law-enforcement" className="underline">Privacy</PolicyLink> and{" "}
+                            <PolicyLink href="/legal/terms#security" className="underline">Terms</PolicyLink>.
+                        </Card>
+                        <Card title="Investment in Safety">
+                            Tooling, reviewer training, and ongoing red-team testing to detect/respond to risks.
+                        </Card>
+                    </Grid>
+                </Section>
+
+                {/* 15) Regional Notes */}
+                <Section id="regional" title="15) Regional Notes (COPPA, AADC, GDPR, NDPR, DPDP, LGPD, etc.)">
+                    <Grid>
+                        <Card title="United States (COPPA & State Laws)">
+                            Parental notice/consent may apply for children’s data; youth safety laws vary by state.
+                        </Card>
+                        <Card title="UK Age-Appropriate Design Code (AADC)">
+                            Privacy-by-default, data minimization, profiling limits, and best-interest standards.
+                        </Card>
+                        <Card title="EU/EEA (GDPR)">
+                            Age of consent varies by member state; see{" "}
+                            <PolicyLink href="/legal/privacy#your-rights" className="underline">Your Rights</PolicyLink>.
+                        </Card>
+                        <Card title="Nigeria (NDPR)">
+                            Consent, transparency, and data minimization principles for minors’ data.
+                        </Card>
+                        <Card title="India (DPDP)">
+                            Verifiable parental consent where required; child-centric defaults.
+                        </Card>
+                        <Card title="Brazil (LGPD), Canada (PIPEDA), Australia">
+                            Local privacy regimes and youth protections apply; regional terms may differ.
+                        </Card>
+                    </Grid>
+                </Section>
+
+                {/* 16) Resources & Crisis Support */}
+                <Section id="resources" title="16) Safety Resources & Crisis Support">
+                    <Grid>
+                        <InfoCard
+                            title="Immediate Risk"
+                            lines={[
+                                "If someone is in immediate danger, contact local emergency services first.",
+                                "Use in-app report tools to alert 6ix moderators.",
                             ]}
                         />
-                    </Section>
-
-                    {/* 9) Discovery & Age-Gating */}
-                    <Section id="discovery" title="9) Discovery, Recommendations & Age-Gating">
-                        <Grid>
-                            <Card title="Limited Trending">
-                                We limit surfacing of minor accounts in trending/suggested modules.
-                            </Card>
-                            <Card title="Mature Content Controls">
-                                Adult-intended content is age-gated and not shown to minors.
-                            </Card>
-                            <Card title="Downranking Borderline">
-                                We reduce reach of borderline content and prefer trusted sources for minors.
-                            </Card>
-                        </Grid>
-                    </Section>
-
-                    {/* 10) Privacy & Identifiers */}
-                    <Section id="privacy" title="10) Privacy, Location & Identifiers">
-                        <Grid>
-                            <Card title="Minimize Exposure">
-                                Avoid posting routines, routes, uniforms, or badges identifying schools/events.
-                            </Card>
-                            <Card title="Sensitive Media Handling">
-                                We may blur faces of non-consenting minors in risky contexts and remove EXIF/geotags on upload.
-                            </Card>
-                            <Card title="Data Use Limits">
-                                Reduced personalization and data collection consistent with{" "}
-                                <PolicyLink href="/legal/privacy" className="underline">Privacy</PolicyLink> and{" "}
-                                <PolicyLink href="/legal/cookies" className="underline">Cookies</PolicyLink>.
-                            </Card>
-                        </Grid>
-                    </Section>
-
-                    {/* 11) Ads & Purchases */}
-                    <Section id="ads" title="11) Ads, Monetization & Purchases for Minors">
-                        <Grid>
-                            <Card title="Targeting Limits">
-                                We do not show personalized ads to users under the applicable age of digital consent.
-                            </Card>
-                            <Card title="Sensitivity Controls">
-                                Age-restricted categories (alcohol, gambling, dating, etc.) are blocked for minors.
-                            </Card>
-                            <Card title="Creator Responsibilities">
-                                Follow{" "}
-                                <PolicyLink href="/legal/creator-earnings" className="underline">Creator Earnings</PolicyLink> and{" "}
-                                <PolicyLink href="/legal/ads" className="underline">Ads Policy</PolicyLink>; use clear disclosures.
-                            </Card>
-                        </Grid>
-                    </Section>
-
-                    {/* 12) Controls, Reporting, Enforcement */}
-                    <Section id="controls" title="12) Controls, Reporting & Enforcement">
-                        <FlowGrid
-                            steps={[
-                                {
-                                    title: "Controls",
-                                    points: [
-                                        "Block, mute, restrict DMs, limit comments, approve members.",
-                                        "Audience selection, follower-only chat, link/keyword filters.",
-                                    ],
-                                },
-                                {
-                                    title: "Reporting",
-                                    points: [
-                                        "Use in-app report tools from any post, profile, or chat.",
-                                        "Or email safety@6ixapp.com with links/screenshots.",
-                                    ],
-                                },
-                                {
-                                    title: "Enforcement & Appeals",
-                                    points: [
-                                        "Content removal, feature limits, suspensions, termination.",
-                                        "Zero tolerance for CSE; appeals available where supported.",
-                                    ],
-                                },
+                        <InfoCard
+                            title="6ix Safety Team"
+                            lines={["Email: safety@6ixapp.com", "Attach links, timestamps, and screenshots for faster review."]}
+                        />
+                        <InfoCard
+                            title="More Help"
+                            lines={[
+                                "See also parent and creator checklists below.",
+                                "Region-specific hotlines may be listed in your Help Center.",
                             ]}
                         />
-                        <div className="mt-2">
-                            <PolicyLink href="/legal/guidelines#enforcement" className="underline">Guidelines — Enforcement & Appeals</PolicyLink>
-                        </div>
-                    </Section>
+                    </Grid>
+                </Section>
 
-                    {/* 13) Schools & Teachers */}
-                    <Section id="education" title="13) Schools, Teachers & Educational Use">
-                        <Grid>
-                            <Card title="Safer Class Setup">
-                                Use private groups, restricted DMs, teacher-approved commenters, and curated Q&A.
-                            </Card>
-                            <Card title="Consent & Recording">
-                                Obtain necessary permissions for recordings or student work displays where applicable.
-                            </Card>
-                            <Card title="Classroom Rules">
-                                Publish respectful conduct rules and clear reporting steps for students.
-                            </Card>
-                        </Grid>
-                    </Section>
+                {/* 17) Glossary */}
+                <Section id="glossary" title="17) Glossary & Examples">
+                    <Grid>
+                        <Card title="Grooming">
+                            A manipulation pattern used to exploit minors. Example: “gift for a secret photo.”
+                        </Card>
+                        <Card title="Doxxing">
+                            Publishing private info to intimidate or shame. Example: posting school and schedule.
+                        </Card>
+                        <Card title="Age-Gating">
+                            Restricting content based on age signals/settings; mature items hidden from minors.
+                        </Card>
+                        <Card title="VOD">
+                            Video-on-Demand, including replays of live sessions.
+                        </Card>
+                    </Grid>
+                </Section>
 
-                    {/* 14) Industry & Legal */}
-                    <Section id="industry" title="14) Industry Partnerships & Legal Obligations">
-                        <Grid>
-                            <Card title="Reporting Duties">
-                                We preserve/report CSE material to appropriate authorities/hotlines where required by law.
-                            </Card>
-                            <Card title="Lawful Requests">
-                                We cooperate with valid legal process consistent with{" "}
-                                <PolicyLink href="/legal/privacy#law-enforcement" className="underline">Privacy</PolicyLink> and{" "}
-                                <PolicyLink href="/legal/terms#security" className="underline">Terms</PolicyLink>.
-                            </Card>
-                            <Card title="Investment in Safety">
-                                Tooling, reviewer training, and ongoing red-team testing to detect/respond to risks.
-                            </Card>
-                        </Grid>
-                    </Section>
+                {/* 18) Parent/Guardian Guide */}
+                <Section id="parent-guide" title="Appendix A — Parent/Guardian Guide">
+                    <FlowGrid
+                        steps={[
+                            {
+                                title: "Set It Up Together",
+                                points: [
+                                    "Make profiles private; choose who can message.",
+                                    "Review comment controls and report tools.",
+                                ],
+                            },
+                            {
+                                title: "Talk Through Risks",
+                                points: [
+                                    "Explain why live locations, uniforms, or routes shouldn’t be shared.",
+                                    "Agree on what to do if contacted by strangers.",
+                                ],
+                            },
+                            {
+                                title: "Keep It Healthy",
+                                points: [
+                                    "Set quiet hours; reduce notification pressure.",
+                                    "Use content filters; curate trusted circles.",
+                                ],
+                            },
+                        ]}
+                    />
+                </Section>
 
-                    {/* 15) Regional Notes */}
-                    <Section id="regional" title="15) Regional Notes (COPPA, AADC, GDPR, NDPR, DPDP, LGPD, etc.)">
-                        <Grid>
-                            <Card title="United States (COPPA & State Laws)">
-                                Parental notice/consent may apply for children’s data; youth safety laws vary by state.
-                            </Card>
-                            <Card title="UK Age-Appropriate Design Code (AADC)">
-                                Privacy-by-default, data minimization, profiling limits, and best-interest standards.
-                            </Card>
-                            <Card title="EU/EEA (GDPR)">
-                                Age of consent varies by member state; see{" "}
-                                <PolicyLink href="/legal/privacy#your-rights" className="underline">Your Rights</PolicyLink>.
-                            </Card>
-                            <Card title="Nigeria (NDPR)">
-                                Consent, transparency, and data minimization principles for minors’ data.
-                            </Card>
-                            <Card title="India (DPDP)">
-                                Verifiable parental consent where required; child-centric defaults.
-                            </Card>
-                            <Card title="Brazil (LGPD), Canada (PIPEDA), Australia">
-                                Local privacy regimes and youth protections apply; regional terms may differ.
-                            </Card>
-                        </Grid>
-                    </Section>
+                {/* 19) Creator/Moderator Checklist */}
+                <Section id="creator-checklist" title="Appendix B — Creator/Moderator Checklist">
+                    <Grid>
+                        <Card title="Before Live">
+                            Enable slow-mode, keyword filters, and at least one moderator; set audience/age gating; prep rules.
+                        </Card>
+                        <Card title="During Live">
+                            Kick/ban quickly; pin rules; follower-only chat for spikes; restrict links and media from strangers.
+                        </Card>
+                        <Card title="After Live">
+                            Review chat logs; trim/blur sensitive segments before VOD; document repeat issues; respond to reports.
+                        </Card>
+                    </Grid>
+                </Section>
 
-                    {/* 16) Resources & Crisis Support */}
-                    <Section id="resources" title="16) Safety Resources & Crisis Support">
-                        <Grid>
-                            <InfoCard
-                                title="Immediate Risk"
-                                lines={[
-                                    "If someone is in immediate danger, contact local emergency services first.",
-                                    "Use in-app report tools to alert 6ix moderators.",
-                                ]}
-                            />
-                            <InfoCard
-                                title="6ix Safety Team"
-                                lines={["Email: safety@6ixapp.com", "Attach links, timestamps, and screenshots for faster review."]}
-                            />
-                            <InfoCard
-                                title="More Help"
-                                lines={[
-                                    "See also parent and creator checklists below.",
-                                    "Region-specific hotlines may be listed in your Help Center.",
-                                ]}
-                            />
-                        </Grid>
-                    </Section>
+                {/* 20) Report Review Workflow */}
+                <Section id="workflow" title="Appendix C — Report Review Workflow">
+                    <FlowGrid
+                        steps={[
+                            {
+                                title: "1) Triage",
+                                points: ["Sort by severity/risk; child-safety reports prioritize.", "Auto-block obvious CSAM where lawful."],
+                            },
+                            {
+                                title: "2) Context",
+                                points: ["Check history, links, repeat behavior; consider age signals.", "Seek human review for borderline cases."],
+                            },
+                            {
+                                title: "3) Enforcement",
+                                points: ["Remove content; limit features; suspend or terminate.", "Forward to authorities where required by law."],
+                            },
+                        ]}
+                    />
+                </Section>
 
-                    {/* 17) Glossary */}
-                    <Section id="glossary" title="17) Glossary & Examples">
-                        <Grid>
-                            <Card title="Grooming">
-                                A manipulation pattern used to exploit minors. Example: “gift for a secret photo.”
-                            </Card>
-                            <Card title="Doxxing">
-                                Publishing private info to intimidate or shame. Example: posting school and schedule.
-                            </Card>
-                            <Card title="Age-Gating">
-                                Restricting content based on age signals/settings; mature items hidden from minors.
-                            </Card>
-                            <Card title="VOD">
-                                Video-on-Demand, including replays of live sessions.
-                            </Card>
-                        </Grid>
-                    </Section>
+                {/* 21) Extended Safety Playbooks (big card library, no “notes”) */}
+                <Section id="playbooks" title="Appendix D — Extended Safety Playbooks (Cards)">
+                    <ExtendedYouthSafetyPlaybooks />
+                </Section>
 
-                    {/* 18) Parent/Guardian Guide */}
-                    <Section id="parent-guide" title="Appendix A — Parent/Guardian Guide">
-                        <FlowGrid
-                            steps={[
-                                {
-                                    title: "Set It Up Together",
-                                    points: [
-                                        "Make profiles private; choose who can message.",
-                                        "Review comment controls and report tools.",
-                                    ],
-                                },
-                                {
-                                    title: "Talk Through Risks",
-                                    points: [
-                                        "Explain why live locations, uniforms, or routes shouldn’t be shared.",
-                                        "Agree on what to do if contacted by strangers.",
-                                    ],
-                                },
-                                {
-                                    title: "Keep It Healthy",
-                                    points: [
-                                        "Set quiet hours; reduce notification pressure.",
-                                        "Use content filters; curate trusted circles.",
-                                    ],
-                                },
-                            ]}
+                {/* 22) Changes */}
+                <Section id="changes" title="22) Changes">
+                    <p>
+                        We may update this policy as laws evolve or features change. If changes are material, we’ll provide notice.
+                        Continued use after the effective date means you accept the update.
+                    </p>
+                </Section>
+
+                {/* 23) Contact */}
+                <Section id="contact" title="23) Contact">
+                    <Grid>
+                        <InfoCard
+                            title="Safety & Abuse"
+                            lines={["safety@6ixapp.com", "Attach links and timestamps for faster triage."]}
                         />
-                    </Section>
-
-                    {/* 19) Creator/Moderator Checklist */}
-                    <Section id="creator-checklist" title="Appendix B — Creator/Moderator Checklist">
-                        <Grid>
-                            <Card title="Before Live">
-                                Enable slow-mode, keyword filters, and at least one moderator; set audience/age gating; prep rules.
-                            </Card>
-                            <Card title="During Live">
-                                Kick/ban quickly; pin rules; follower-only chat for spikes; restrict links and media from strangers.
-                            </Card>
-                            <Card title="After Live">
-                                Review chat logs; trim/blur sensitive segments before VOD; document repeat issues; respond to reports.
-                            </Card>
-                        </Grid>
-                    </Section>
-
-                    {/* 20) Report Review Workflow */}
-                    <Section id="workflow" title="Appendix C — Report Review Workflow">
-                        <FlowGrid
-                            steps={[
-                                {
-                                    title: "1) Triage",
-                                    points: ["Sort by severity/risk; child-safety reports prioritize.", "Auto-block obvious CSAM where lawful."],
-                                },
-                                {
-                                    title: "2) Context",
-                                    points: ["Check history, links, repeat behavior; consider age signals.", "Seek human review for borderline cases."],
-                                },
-                                {
-                                    title: "3) Enforcement",
-                                    points: ["Remove content; limit features; suspend or terminate.", "Forward to authorities where required by law."],
-                                },
-                            ]}
-                        />
-                    </Section>
-
-                    {/* 21) Extended Safety Playbooks (big card library, no “notes”) */}
-                    <Section id="playbooks" title="Appendix D — Extended Safety Playbooks (Cards)">
-                        <ExtendedYouthSafetyPlaybooks />
-                    </Section>
-
-                    {/* 22) Changes */}
-                    <Section id="changes" title="22) Changes">
-                        <p>
-                            We may update this policy as laws evolve or features change. If changes are material, we’ll provide notice.
-                            Continued use after the effective date means you accept the update.
-                        </p>
-                    </Section>
-
-                    {/* 23) Contact */}
-                    <Section id="contact" title="23) Contact">
-                        <Grid>
-                            <InfoCard
-                                title="Safety & Abuse"
-                                lines={["safety@6ixapp.com", "Attach links and timestamps for faster triage."]}
-                            />
-                            <InfoCard title="Legal" lines={["legal@6ixapp.com"]} />
-                            <InfoCard title="Privacy" lines={["privacy@6ixapp.com"]} />
-                        </Grid>
-                        <div className="mt-4 flex flex-wrap gap-2">
-                            <PolicyLink href="/legal/guidelines" className="underline">Community Guidelines</PolicyLink>
-                            <PolicyLink href="/legal/terms" className="underline">Terms of Use</PolicyLink>
-                            <PolicyLink href="/legal/privacy" className="underline">Privacy Policy</PolicyLink>
-                            <PolicyLink href="/legal/cookies" className="underline">Cookies Policy</PolicyLink>
-                            <PolicyLink href="/legal/ads" className="underline">Ads Policy</PolicyLink>
-                            <PolicyLink href="/legal/copyright" className="underline">Copyright/DMCA</PolicyLink>
-                            <PolicyLink href="/legal/creator-earnings" className="underline">Creator Earnings</PolicyLink>
-                            <PolicyLink href="/legal/law-enforcement" className="underline">Law Enforcement Guidelines</PolicyLink>
-                            <PolicyLink href="/legal/transparency" className="underline">Transparency Report</PolicyLink>
-                            <PolicyLink href="/legal/contact" className="underline">Contact</PolicyLink>
-                            <PolicyLink href="/legal/about" className="underline">About</PolicyLink>
-                        </div>
-                        <div className="mt-8">
-                            <a href="#top" className="text-sm text-zinc-400 underline">Back to top ↑</a>
-                        </div>
-                    </Section>
-                </article>
-            </main>
-            <style jsx global>{`
-:root { color-scheme: light dark; }
-
-/* HEADINGS */
-.legal-scope h1,
-.legal-scope h2,
-.legal-scope h3,
-.legal-scope h4,
-.legal-scope h5 { color:#f5f6f7 !important; }
-html.theme-light .legal-scope h1,
-html.theme-light .legal-scope h2,
-html.theme-light .legal-scope h3,
-html.theme-light .legal-scope h4,
-html.theme-light .legal-scope h5 { color:#0b0c0f !important; }
-
-/* SUBHEAD / META (make deeper on light) */
-.legal-scope .text-zinc-400,
-.legal-scope .text-zinc-500,
-.legal-scope .subhead,
-.legal-scope .lede { color:rgba(255,255,255,.70) !important; }
-html.theme-light .legal-scope .text-zinc-400,
-html.theme-light .legal-scope .text-zinc-500,
-html.theme-light .legal-scope .subhead,
-html.theme-light .legal-scope .lede { color:rgba(0,0,0,.62) !important; }
-`}</style>
-        </div>
+                        <InfoCard title="Legal" lines={["legal@6ixapp.com"]} />
+                        <InfoCard title="Privacy" lines={["privacy@6ixapp.com"]} />
+                    </Grid>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                        <PolicyLink href="/legal/guidelines" className="underline">Community Guidelines</PolicyLink>
+                        <PolicyLink href="/legal/terms" className="underline">Terms of Use</PolicyLink>
+                        <PolicyLink href="/legal/privacy" className="underline">Privacy Policy</PolicyLink>
+                        <PolicyLink href="/legal/cookies" className="underline">Cookies Policy</PolicyLink>
+                        <PolicyLink href="/legal/ads" className="underline">Ads Policy</PolicyLink>
+                        <PolicyLink href="/legal/copyright" className="underline">Copyright/DMCA</PolicyLink>
+                        <PolicyLink href="/legal/creator-earnings" className="underline">Creator Earnings</PolicyLink>
+                        <PolicyLink href="/legal/law-enforcement" className="underline">Law Enforcement Guidelines</PolicyLink>
+                        <PolicyLink href="/legal/transparency" className="underline">Transparency Report</PolicyLink>
+                        <PolicyLink href="/legal/contact" className="underline">Contact</PolicyLink>
+                        <PolicyLink href="/legal/about" className="underline">About</PolicyLink>
+                    </div>
+                    <div className="mt-8">
+                        <a href="#top" className="text-sm text-zinc-400 underline">Back to top ↑</a>
+                    </div>
+                </Section>
+            </article>
+        </main>
     );
-
 }
 
 /* ============================== UI Primitives ============================== */

@@ -22,7 +22,7 @@ export function PageShell({
     children: React.ReactNode;
 }) {
     return (
-        <main className="min-h-dvh px-4 sm:px-6 md:px-8 py-6 md:py-10 bg-[#0a0b0d] text-zinc-100">
+        <main className="legal-scope min-h-dvh px-4 sm:px-6 md:px-8 py-6 md:py-10 bg-[#0a0b0d]">
             <a id="top" />
             <article
                 className="relative mx-auto w-full max-w-7xl rounded-3xl border border-white/10 bg-white/5 shadow-[0_40px_120px_-25px_rgba(0,0,0,.55)] overflow-hidden"

@@ -1510,3 +1510,164 @@ html {
   border-radius: 16px;
   transition: transform .18s, box-shadow .25s, background .4s, border-color .4s;
 }
+
+/* ─── Policies: light/dark compatible wrapper ───────────────────────────── */
+.legal-scope {
+  color-scheme: light dark;
+}
+
+.legal-scope {
+  --bg: #0b0d10;
+  /* dark */
+  --fg: #e5e7eb;
+  --muted: #9ca3af;
+  --heading: #ffffff;
+  --subhead: #cbd5e1;
+  --card-bg: rgba(255, 255, 255, .06);
+  --card-border: rgba(255, 255, 255, .12);
+}
+
+html.theme-light .legal-scope {
+  --bg: #ffffff;
+  /* light */
+  --fg: #0b0f13;
+  --muted: #52525b;
+  --heading: #0b0f13;
+  --subhead: #334155;
+  --card-bg: rgba(255, 255, 255, .92);
+  --card-border: rgba(0, 0, 0, .10);
+}
+
+.legal-scope {
+  background: var(--bg);
+  color: var(--fg);
+}
+
+.legal-scope h1, .legal-scope h2, .legal-scope h3, .legal-scope h4 {
+  color: var(--heading);
+}
+
+.legal-scope .subhead, .legal-scope .lead, .legal-scope .text-muted {
+  color: var(--subhead);
+}
+
+/* “glass” cards used by PageShell/Card */
+.legal-scope .glass, .legal-scope .policy-card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 16px;
+  backdrop-filter: blur(24px);
+}
+
+/* links stay readable on both themes */
+.legal-scope a {
+  color: inherit;
+  text-decoration-color: color-mix(in srgb, currentColor 40%, transparent);
+}
+
+.legal-scope a:hover {
+  text-decoration-color: currentColor;
+}
+
+/* ── Policy theme (scoped) ───────────────────────────────────────── */
+.legal-scope {
+  /* defaults = dark */
+  --tx: #e6e6e7;
+  /* body text */
+  --tx-muted: #a1a1aa;
+  /* subtext */
+  --tx-heading: #ffffff;
+  /* h1–h6 */
+  --bg-card: rgba(255, 255, 255, .06);
+  --bd-card: rgba(255, 255, 255, .12);
+  color: var(--tx);
+}
+
+html.theme-light .legal-scope {
+  --tx: #0b0b0c;
+  --tx-muted: #4b5563;
+  /* slate-600 */
+  --tx-heading: #0b0b0c;
+  --bg-card: rgba(255, 255, 255, .92);
+  --bd-card: rgba(0, 0, 0, .08);
+}
+
+/* Headings & text */
+.legal-scope h1, .legal-scope h2, .legal-scope h3,
+.legal-scope h4, .legal-scope h5, .legal-scope h6 {
+  color: var(--tx-heading);
+}
+
+.legal-scope .lead, .legal-scope .muted, .legal-scope .text-muted {
+  color: var(--tx-muted);
+}
+
+/* If old markup uses Tailwind tints, normalize them here */
+.legal-scope :is(.text-zinc-300, .text-zinc-400, .text-zinc-500) {
+  color: var(--tx-muted) !important;
+}
+
+/* Cards / glass surfaces from PolicyLayout */
+.legal-scope .card,
+.legal-scope .glass {
+  background: var(--bg-card);
+  border: 1px solid var(--bd-card);
+  backdrop-filter: blur(12px);
+  border-radius: 16px;
+}
+
+/* Nice basics */
+.legal-scope a {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.legal-scope ul {
+  list-style: disc;
+  padding-left: 1.25rem;
+}
+
+.legal-scope ol {
+  list-style: decimal;
+  padding-left: 1.25rem;
+}
+
+/* ── Policy theme (scoped) ───────────────────────────── */
+.legal-scope {
+  /* defaults = dark */
+  --tx: #e6e6e7;
+  --tx-muted: #a1a1aa;
+  --tx-heading: #ffffff;
+  --bg-card: rgba(255, 255, 255, .06);
+  --bd-card: rgba(255, 255, 255, .12);
+  color: var(--tx);
+}
+
+html.theme-light .legal-scope {
+  --tx: #0b0b0c;
+  --tx-muted: #4b5563;
+  --tx-heading: #0b0b0c;
+  --bg-card: rgba(255, 255, 255, .92);
+  --bd-card: rgba(0, 0, 0, .08);
+}
+
+.legal-scope h1, .legal-scope h2, .legal-scope h3,
+.legal-scope h4, .legal-scope h5, .legal-scope h6 {
+  color: var(--tx-heading);
+}
+
+.legal-scope .lead, .legal-scope .muted, .legal-scope .text-muted {
+  color: var(--tx-muted);
+}
+
+/* normalize old Tailwind tints to theme vars */
+.legal-scope :is(.text-zinc-300, .text-zinc-400, .text-zinc-500) {
+  color: var(--tx-muted) !important;
+}
+
+.legal-scope .card, .legal-scope .glass {
+  background: var(--bg-card);
+  border: 1px solid var(--bd-card);
+  backdrop-filter: blur(12px);
+  border-radius: 16px;
+}

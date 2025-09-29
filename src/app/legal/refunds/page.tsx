@@ -121,465 +121,396 @@ export default function RefundsPolicyPage() {
     };
 
     return (
-        <div className="policy-scope">
-            <PageShell
-                title="6ix — Refunds & Cancellations"
-                lead={
-                    <>
+        <PageShell
+            title="6ix — Refunds & Cancellations"
+            lead={
+                <>
+                    <p>
+                        This page explains how refunds and cancellations work for plans and purchases on{' '}
+                        <span translate="no">6ix</span>. It operates alongside{' '}
+                        <Ref href="/legal/billing">Billing & Subscriptions</Ref>,{' '}
+                        <Ref href="/legal/disputes">Disputes & Chargebacks</Ref>,{' '}
+                        <Ref href="/legal/acceptable-use">Acceptable Use</Ref>,{' '}
+                        <Ref href="/legal/kyc-aml">KYC/AML</Ref>, and our <Ref href="/legal/privacy">Privacy Policy</Ref>.
+                    </p>
+                    <p className="text-sm text-zinc-400 mt-2">Last updated: {updated}</p>
+                </>
+            }
+        >
+            <Toc items={toc} />
+
+            {/* 1) OVERVIEW */}
+            <Section id="overview" heading="1) Overview">
+                <Split>
+                    <Card title="Our approach">
+                        <ul className="list-disc pl-5 space-y-2">
+                            <li>Be fair to creators and protect the community from fraud.</li>
+                            <li>Explain clearly when refunds apply and how to request them.</li>
+                            <li>Comply with applicable consumer laws and processor rules.</li>
+                        </ul>
+                    </Card>
+                    <Card title="Key definitions">
+                        <ul className="list-disc pl-5 space-y-2">
+                            <li>
+                                <strong>Subscription</strong>: Recurring plan (Free, Pro, Pro Max, Elite). See{' '}
+                                <Ref href="/legal/billing">Billing</Ref>.
+                            </li>
+                            <li>
+                                <strong>Digital goods</strong>: Non-tangible content/services (e.g., 6IXAI usage, boosts).
+                            </li>
+                            <li>
+                                <strong>Verification</strong>: Blue tick (Pro), white tick (Pro Max), earned{' '}
+                                <strong>⭐ Star tick</strong>. See <Ref href="/legal/billing#star">Billing — Star tick</Ref>.
+                            </li>
+                        </ul>
+                    </Card>
+                </Split>
+            </Section>
+
+            {/* 2) ELIGIBILITY */}
+            <Section id="eligibility" heading="2) Refund eligibility">
+                <Section id="windows" heading="Standard windows">
+                    <Split>
+                        <Card title="Subscriptions">
+                            <ul className="list-disc pl-5 space-y-2">
+                                <li>
+                                    <strong>Monthly plans</strong>: Refunds normally not provided after renewal, except where required
+                                    by law or in cases of confirmed error/defect.
+                                </li>
+                                <li>
+                                    <strong>Immediate upgrades</strong> (e.g., Pro → Pro Max): charged at the time of upgrade; proration
+                                    applies (see <Ref href="/legal/billing#proration">Billing — Proration</Ref>).
+                                </li>
+                            </ul>
+                        </Card>
+                        <Card title="One-time digital goods">
+                            <ul className="list-disc pl-5 space-y-2">
+                                <li>
+                                    Refunds are limited once the good is <em>consumed</em> (e.g., 6IXAI credits used, boost delivered).
+                                </li>
+                                <li>Where consumption did not occur due to a verified defect, we will re-credit or refund.</li>
+                            </ul>
+                        </Card>
+                    </Split>
+                </Section>
+
+                <Section id="digital" heading="Digital goods & usage">
+                    <Split>
+                        <Card title="Usage threshold">
+                            <p>
+                                If a purchase includes consumable capacity (credits, minutes, boosts), we may deny refunds when a
+                                material portion is used (e.g., &gt;10–20%), unless the usage was affected by a confirmed platform
+                                outage or defect.
+                            </p>
+                        </Card>
+                        <Card title="Outages & defects">
+                            <p>
+                                Verified incidents are resolved via re-delivery, re-credit, or partial refunds at our discretion.
+                                See <Ref href="/legal/security">Security</Ref> and <Ref href="/legal/terms">Terms</Ref>.
+                            </p>
+                        </Card>
+                    </Split>
+                </Section>
+
+                <Section id="abuse" heading="Abuse & exceptions">
+                    <Split>
+                        <Card title="Abuse signals">
+                            <ul className="list-disc pl-5 space-y-2">
+                                <li>Repeated refunds with high consumption.</li>
+                                <li>Chargeback misuse (see <Ref href="#chargebacks">Chargebacks</Ref>).</li>
+                                <li>Violations of <Ref href="/legal/acceptable-use">Acceptable Use</Ref> or suspected fraud.</li>
+                            </ul>
+                        </Card>
+                        <Card title="What happens">
+                            <p>
+                                We may decline refunds, reverse benefits, suspend features, and require additional verification
+                                (see <Ref href="/legal/kyc-aml">KYC/AML</Ref>). Serious abuse can lead to account action.
+                            </p>
+                        </Card>
+                    </Split>
+                </Section>
+            </Section>
+
+            {/* 3) CANCELLATIONS */}
+            <Section id="cancellations" heading="3) Cancellations (subscriptions)">
+                <Section id="auto-renew" heading="Auto-renew & billing cycles">
+                    <Split>
+                        <Card title="How renewals work">
+                            <p>
+                                Plans renew at the end of each paid period unless canceled beforehand. After cancellation, access
+                                continues until the current period ends. See <Ref href="/legal/billing#billing-cycle">Billing cycle</Ref>.
+                            </p>
+                        </Card>
+                        <Card title="Failed renewals">
+                            <p>
+                                If renewal payment fails, we retry and notify you. Some benefits pause until payment is updated.
+                            </p>
+                        </Card>
+                    </Split>
+                </Section>
+
+                <Section id="proration" heading="Proration & plan changes">
+                    <Split>
+                        <Card title="Upgrades">
+                            <p>
+                                Upgrades take effect immediately with proration of remaining time/credit (e.g., Pro → Pro Max).
+                            </p>
+                        </Card>
+                        <Card title="Downgrades">
+                            <p>
+                                Downgrades take effect on the next renewal. Features/limits adjust on the new cycle.
+                            </p>
+                        </Card>
+                    </Split>
+                </Section>
+
+                <Section id="reactivate" heading="Reactivation">
+                    <Card>
                         <p>
-                            This page explains how refunds and cancellations work for plans and purchases on{' '}
-                            <span translate="no">6ix</span>. It operates alongside{' '}
-                            <Ref href="/legal/billing">Billing & Subscriptions</Ref>,{' '}
-                            <Ref href="/legal/disputes">Disputes & Chargebacks</Ref>,{' '}
-                            <Ref href="/legal/acceptable-use">Acceptable Use</Ref>,{' '}
-                            <Ref href="/legal/kyc-aml">KYC/AML</Ref>, and our <Ref href="/legal/privacy">Privacy Policy</Ref>.
+                            You can reactivate any time in <Ref href="/billing">Settings → Billing</Ref>. New pricing may apply if rates changed.
                         </p>
-                        <p className="text-sm text-zinc-400 mt-2">Last updated: {updated}</p>
-                    </>
-                }
-            >
-                <Toc items={toc} />
+                    </Card>
+                </Section>
+            </Section>
 
-                {/* 1) OVERVIEW */}
-                <Section id="overview" heading="1) Overview">
+            {/* 4) EXAMPLES BY PLAN */}
+            <Section id="plans" heading="4) Examples by plan (illustrative)">
+                <Section id="free" heading="Free">
+                    <Card>
+                        <p>
+                            Free has no paid renewal; refunds don’t apply. Some optional digital goods may be refundable if unused
+                            and within window (see <Ref href="#digital">Digital goods</Ref>).
+                        </p>
+                    </Card>
+                </Section>
+
+                <Section id="pro" heading="Pro — blue tick ($6.66 / month)">
                     <Split>
-                        <Card title="Our approach">
+                        <Card title="Scenario A">
+                            <p>
+                                You renew Pro and realize the same day you didn’t intend to. If no notable usage occurred, contact
+                                us quickly; we may grant a discretionary refund where permitted by law.
+                            </p>
+                        </Card>
+                        <Card title="Scenario B">
+                            <p>
+                                You used 6IXAI heavily after renewal and then request a refund a week later. This is typically
+                                ineligible absent a verified defect/outage.
+                            </p>
+                        </Card>
+                    </Split>
+                </Section>
+
+                <Section id="promax" heading="Pro Max — white tick (from $16.66 / month)">
+                    <Split>
+                        <Card title="Scenario C">
+                            <p>
+                                You upgrade from Pro mid-cycle; we apply proration. Refunds aren’t issued for valid immediate upgrades
+                                unless there’s a confirmed error.
+                            </p>
+                        </Card>
+                        <Card title="Scenario D">
+                            <p>
+                                You cancel Pro Max later in the cycle. Access continues until period end; no mid-cycle refund.
+                            </p>
+                        </Card>
+                    </Split>
+                </Section>
+
+                <Section id="elite" heading="Elite — up to $666 / month (admin-approved)">
+                    <Split>
+                        <Card title="Note on Elite">
+                            <p>
+                                Elite is invitation/admin-approved only (see <Ref href="/legal/billing#elite">Billing — Elite</Ref>). Terms may
+                                include bespoke refund provisions; we follow the written Elite agreement first.
+                            </p>
+                        </Card>
+                        <Card title="If Elite is downgraded">
+                            <p>
+                                Downgrades take effect on the next renewal unless your Elite agreement specifies otherwise.
+                            </p>
+                        </Card>
+                    </Split>
+                </Section>
+            </Section>
+
+            {/* 5) REQUEST PROCESS */}
+            <Section id="process" heading="5) How to request a refund">
+                <Split>
+                    <Card title="Start here">
+                        <ol className="list-decimal pl-5 space-y-2">
+                            <li>Open <Ref href="/billing">Settings → Billing</Ref> and review the charge/invoice.</li>
+                            <li>If it looks wrong, email <a className="link-muted" href="mailto:billing@6ixapp.com">billing@6ixapp.com</a> from your account email.</li>
+                            <li>Describe the issue, date/time (UTC), and whether the item was used/consumed.</li>
+                        </ol>
+                    </Card>
+                    <Card title="If it’s urgent or a defect">
+                        <p>
+                            Include screenshots, error IDs, or links to affected content. We’ll investigate logs and restore value
+                            via re-credit, re-delivery, or refund where appropriate.
+                        </p>
+                    </Card>
+                </Split>
+
+                <Section id="proof" heading="Proof/evidence we may request">
+                    <Split>
+                        <Card title="To verify account ownership">
                             <ul className="list-disc pl-5 space-y-2">
-                                <li>Be fair to creators and protect the community from fraud.</li>
-                                <li>Explain clearly when refunds apply and how to request them.</li>
-                                <li>Comply with applicable consumer laws and processor rules.</li>
+                                <li>Reply from the registered email.</li>
+                                <li>Recent invoice ID and the last 4 digits of the payment method (never share full card numbers).</li>
                             </ul>
                         </Card>
-                        <Card title="Key definitions">
+                        <Card title="To verify defects/outages">
                             <ul className="list-disc pl-5 space-y-2">
-                                <li>
-                                    <strong>Subscription</strong>: Recurring plan (Free, Pro, Pro Max, Elite). See{' '}
-                                    <Ref href="/legal/billing">Billing</Ref>.
-                                </li>
-                                <li>
-                                    <strong>Digital goods</strong>: Non-tangible content/services (e.g., 6IXAI usage, boosts).
-                                </li>
-                                <li>
-                                    <strong>Verification</strong>: Blue tick (Pro), white tick (Pro Max), earned{' '}
-                                    <strong>⭐ Star tick</strong>. See <Ref href="/legal/billing#star">Billing — Star tick</Ref>.
-                                </li>
-                            </ul>
-                        </Card>
-                    </Split>
-                </Section>
-
-                {/* 2) ELIGIBILITY */}
-                <Section id="eligibility" heading="2) Refund eligibility">
-                    <Section id="windows" heading="Standard windows">
-                        <Split>
-                            <Card title="Subscriptions">
-                                <ul className="list-disc pl-5 space-y-2">
-                                    <li>
-                                        <strong>Monthly plans</strong>: Refunds normally not provided after renewal, except where required
-                                        by law or in cases of confirmed error/defect.
-                                    </li>
-                                    <li>
-                                        <strong>Immediate upgrades</strong> (e.g., Pro → Pro Max): charged at the time of upgrade; proration
-                                        applies (see <Ref href="/legal/billing#proration">Billing — Proration</Ref>).
-                                    </li>
-                                </ul>
-                            </Card>
-                            <Card title="One-time digital goods">
-                                <ul className="list-disc pl-5 space-y-2">
-                                    <li>
-                                        Refunds are limited once the good is <em>consumed</em> (e.g., 6IXAI credits used, boost delivered).
-                                    </li>
-                                    <li>Where consumption did not occur due to a verified defect, we will re-credit or refund.</li>
-                                </ul>
-                            </Card>
-                        </Split>
-                    </Section>
-
-                    <Section id="digital" heading="Digital goods & usage">
-                        <Split>
-                            <Card title="Usage threshold">
-                                <p>
-                                    If a purchase includes consumable capacity (credits, minutes, boosts), we may deny refunds when a
-                                    material portion is used (e.g., &gt;10–20%), unless the usage was affected by a confirmed platform
-                                    outage or defect.
-                                </p>
-                            </Card>
-                            <Card title="Outages & defects">
-                                <p>
-                                    Verified incidents are resolved via re-delivery, re-credit, or partial refunds at our discretion.
-                                    See <Ref href="/legal/security">Security</Ref> and <Ref href="/legal/terms">Terms</Ref>.
-                                </p>
-                            </Card>
-                        </Split>
-                    </Section>
-
-                    <Section id="abuse" heading="Abuse & exceptions">
-                        <Split>
-                            <Card title="Abuse signals">
-                                <ul className="list-disc pl-5 space-y-2">
-                                    <li>Repeated refunds with high consumption.</li>
-                                    <li>Chargeback misuse (see <Ref href="#chargebacks">Chargebacks</Ref>).</li>
-                                    <li>Violations of <Ref href="/legal/acceptable-use">Acceptable Use</Ref> or suspected fraud.</li>
-                                </ul>
-                            </Card>
-                            <Card title="What happens">
-                                <p>
-                                    We may decline refunds, reverse benefits, suspend features, and require additional verification
-                                    (see <Ref href="/legal/kyc-aml">KYC/AML</Ref>). Serious abuse can lead to account action.
-                                </p>
-                            </Card>
-                        </Split>
-                    </Section>
-                </Section>
-
-                {/* 3) CANCELLATIONS */}
-                <Section id="cancellations" heading="3) Cancellations (subscriptions)">
-                    <Section id="auto-renew" heading="Auto-renew & billing cycles">
-                        <Split>
-                            <Card title="How renewals work">
-                                <p>
-                                    Plans renew at the end of each paid period unless canceled beforehand. After cancellation, access
-                                    continues until the current period ends. See <Ref href="/legal/billing#billing-cycle">Billing cycle</Ref>.
-                                </p>
-                            </Card>
-                            <Card title="Failed renewals">
-                                <p>
-                                    If renewal payment fails, we retry and notify you. Some benefits pause until payment is updated.
-                                </p>
-                            </Card>
-                        </Split>
-                    </Section>
-
-                    <Section id="proration" heading="Proration & plan changes">
-                        <Split>
-                            <Card title="Upgrades">
-                                <p>
-                                    Upgrades take effect immediately with proration of remaining time/credit (e.g., Pro → Pro Max).
-                                </p>
-                            </Card>
-                            <Card title="Downgrades">
-                                <p>
-                                    Downgrades take effect on the next renewal. Features/limits adjust on the new cycle.
-                                </p>
-                            </Card>
-                        </Split>
-                    </Section>
-
-                    <Section id="reactivate" heading="Reactivation">
-                        <Card>
-                            <p>
-                                You can reactivate any time in <Ref href="/billing">Settings → Billing</Ref>. New pricing may apply if rates changed.
-                            </p>
-                        </Card>
-                    </Section>
-                </Section>
-
-                {/* 4) EXAMPLES BY PLAN */}
-                <Section id="plans" heading="4) Examples by plan (illustrative)">
-                    <Section id="free" heading="Free">
-                        <Card>
-                            <p>
-                                Free has no paid renewal; refunds don’t apply. Some optional digital goods may be refundable if unused
-                                and within window (see <Ref href="#digital">Digital goods</Ref>).
-                            </p>
-                        </Card>
-                    </Section>
-
-                    <Section id="pro" heading="Pro — blue tick ($6.66 / month)">
-                        <Split>
-                            <Card title="Scenario A">
-                                <p>
-                                    You renew Pro and realize the same day you didn’t intend to. If no notable usage occurred, contact
-                                    us quickly; we may grant a discretionary refund where permitted by law.
-                                </p>
-                            </Card>
-                            <Card title="Scenario B">
-                                <p>
-                                    You used 6IXAI heavily after renewal and then request a refund a week later. This is typically
-                                    ineligible absent a verified defect/outage.
-                                </p>
-                            </Card>
-                        </Split>
-                    </Section>
-
-                    <Section id="promax" heading="Pro Max — white tick (from $16.66 / month)">
-                        <Split>
-                            <Card title="Scenario C">
-                                <p>
-                                    You upgrade from Pro mid-cycle; we apply proration. Refunds aren’t issued for valid immediate upgrades
-                                    unless there’s a confirmed error.
-                                </p>
-                            </Card>
-                            <Card title="Scenario D">
-                                <p>
-                                    You cancel Pro Max later in the cycle. Access continues until period end; no mid-cycle refund.
-                                </p>
-                            </Card>
-                        </Split>
-                    </Section>
-
-                    <Section id="elite" heading="Elite — up to $666 / month (admin-approved)">
-                        <Split>
-                            <Card title="Note on Elite">
-                                <p>
-                                    Elite is invitation/admin-approved only (see <Ref href="/legal/billing#elite">Billing — Elite</Ref>). Terms may
-                                    include bespoke refund provisions; we follow the written Elite agreement first.
-                                </p>
-                            </Card>
-                            <Card title="If Elite is downgraded">
-                                <p>
-                                    Downgrades take effect on the next renewal unless your Elite agreement specifies otherwise.
-                                </p>
-                            </Card>
-                        </Split>
-                    </Section>
-                </Section>
-
-                {/* 5) REQUEST PROCESS */}
-                <Section id="process" heading="5) How to request a refund">
-                    <Split>
-                        <Card title="Start here">
-                            <ol className="list-decimal pl-5 space-y-2">
-                                <li>Open <Ref href="/billing">Settings → Billing</Ref> and review the charge/invoice.</li>
-                                <li>If it looks wrong, email <a className="link-muted" href="mailto:billing@6ixapp.com">billing@6ixapp.com</a> from your account email.</li>
-                                <li>Describe the issue, date/time (UTC), and whether the item was used/consumed.</li>
-                            </ol>
-                        </Card>
-                        <Card title="If it’s urgent or a defect">
-                            <p>
-                                Include screenshots, error IDs, or links to affected content. We’ll investigate logs and restore value
-                                via re-credit, re-delivery, or refund where appropriate.
-                            </p>
-                        </Card>
-                    </Split>
-
-                    <Section id="proof" heading="Proof/evidence we may request">
-                        <Split>
-                            <Card title="To verify account ownership">
-                                <ul className="list-disc pl-5 space-y-2">
-                                    <li>Reply from the registered email.</li>
-                                    <li>Recent invoice ID and the last 4 digits of the payment method (never share full card numbers).</li>
-                                </ul>
-                            </Card>
-                            <Card title="To verify defects/outages">
-                                <ul className="list-disc pl-5 space-y-2">
-                                    <li>Screenshots, error messages, or video captures.</li>
-                                    <li>Approximate timestamps (UTC) and actions taken.</li>
-                                </ul>
-                            </Card>
-                        </Split>
-                    </Section>
-
-                    <Section id="timelines" heading="Timelines & outcomes">
-                        <Split>
-                            <Card title="Initial review">
-                                <p>
-                                    We aim to review refund requests promptly (business days). If approved, refunds are issued to the
-                                    original payment method; bank posting times vary.
-                                </p>
-                            </Card>
-                            <Card title="Alternative remedies">
-                                <p>
-                                    In many digital-goods cases, re-credit or re-delivery is faster and avoids service interruption.
-                                </p>
-                            </Card>
-                        </Split>
-                    </Section>
-
-                    <Section id="appeals" heading="Appeals">
-                        <Card>
-                            <p>
-                                If you disagree with a decision, reply to the same email chain with additional context. We may escalate
-                                internally for a second review.
-                            </p>
-                        </Card>
-                    </Section>
-                </Section>
-
-                {/* 6) PAYMENTS & DISPUTES */}
-                <Section id="payments" heading="6) Payments, chargebacks & disputes">
-                    <Section id="chargebacks" heading="Chargebacks">
-                        <Split>
-                            <Card title="Please contact us first">
-                                <p>
-                                    Most issues are resolved faster directly with us. Filing a chargeback on a valid charge after
-                                    consumption may be treated as abuse.
-                                </p>
-                            </Card>
-                            <Card title="What happens during a chargeback">
-                                <p>
-                                    The processor withdraws funds and requests evidence. We provide logs, usage data, invoices, and terms.
-                                    If we win, the charge is reinstated; if not, access or benefits may be revoked.
-                                </p>
-                            </Card>
-                        </Split>
-                    </Section>
-
-                    <Section id="processor" heading="Processor review & reversals">
-                        <Card>
-                            <p>
-                                Our payment partners may require additional information, impose waiting periods, or reverse charges
-                                per their rules. See <Ref href="/legal/disputes">Disputes & Chargebacks</Ref> for details.
-                            </p>
-                        </Card>
-                    </Section>
-
-                    <Section id="sanctions" heading="Sanctions, prohibited activity & fraud">
-                        <Card>
-                            <p>
-                                We do not process refunds for transactions tied to prohibited or sanctioned activity. Review{' '}
-                                <Ref href="/legal/acceptable-use">Acceptable Use</Ref> and <Ref href="/legal/kyc-aml">KYC/AML</Ref>.
-                                We may report suspected fraud to partners or authorities where required by law.
-                            </p>
-                        </Card>
-                    </Section>
-                </Section>
-
-                {/* 7) REGIONAL */}
-                <Section id="regional" heading="7) Regional rights & consumer laws">
-                    <Section id="cooling" heading="Cooling-off periods">
-                        <Card>
-                            <p>
-                                If your jurisdiction provides a statutory “cooling-off” right, we honor it consistent with law.
-                                Note that many digital services exempt used/consumed goods from withdrawal once performance begins.
-                            </p>
-                        </Card>
-                    </Section>
-
-                    <Section id="tax" heading="Taxes & VAT">
-                        <Card>
-                            <p>
-                                Taxes are shown where applicable and refunded only if the underlying transaction is refunded.
-                                Provide VAT/GST IDs in <Ref href="/billing">Billing settings</Ref> to appear on invoices.
-                            </p>
-                        </Card>
-                    </Section>
-
-                    <Section id="jurisdiction" heading="Jurisdiction & conflicts">
-                        <Card>
-                            <p>
-                                This policy is interpreted together with our <Ref href="/legal/terms">Terms</Ref>. Where local law
-                                conflicts, the law of your region may control to the minimum required extent.
-                            </p>
-                        </Card>
-                    </Section>
-                </Section>
-
-                {/* 8) FAQ */}
-                <Section id="faq" heading="8) FAQ">
-                    <Split>
-                        <Card title="Can I get a refund after I used most of my credits?">
-                            <p>Generally no, unless there was a verified defect/outage affecting your usage.</p>
-                        </Card>
-                        <Card title="If I cancel Pro Max, do I lose access immediately?">
-                            <p>No. You keep access until the end of the current paid period.</p>
-                        </Card>
-                        <Card title="What’s the fastest way to fix a mistaken charge?">
-                            <p>Contact <a className="link-muted" href="mailto:billing@6ixapp.com">billing@6ixapp.com</a> promptly.</p>
-                        </Card>
-                        <Card title="Do you refund taxes?">
-                            <p>Taxes are refunded when the underlying charge is refunded.</p>
-                        </Card>
-                    </Split>
-                </Section>
-
-                {/* 9) CONTACT */}
-                <Section id="contact" heading="9) Contact">
-                    <Split>
-                        <Card title="Billing">
-                            <p>
-                                Email <a className="link-muted" href="mailto:billing@6ixapp.com">billing@6ixapp.com</a> from your
-                                registered email. Include invoice ID and a short description.
-                            </p>
-                        </Card>
-                        <Card title="Related policies">
-                            <ul className="list-disc pl-5 space-y-2">
-                                <li><Ref href="/legal/billing">Billing & Subscriptions</Ref></li>
-                                <li><Ref href="/legal/disputes">Disputes & Chargebacks</Ref></li>
-                                <li><Ref href="/legal/acceptable-use">Acceptable Use</Ref></li>
-                                <li><Ref href="/legal/kyc-aml">KYC / AML</Ref></li>
-                                <li><Ref href="/legal/security">Security</Ref></li>
-                                <li><Ref href="/legal/privacy">Privacy</Ref></li>
-                                <li><Ref href="/legal/terms">Terms</Ref></li>
+                                <li>Screenshots, error messages, or video captures.</li>
+                                <li>Approximate timestamps (UTC) and actions taken.</li>
                             </ul>
                         </Card>
                     </Split>
-                    <BackToTop />
                 </Section>
 
-                {/* JSON-LD for SEO */}
-                <script
-                    type="application/ld+json"
-                    dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-                />
-            </PageShell>
-            <style jsx global>{`
-:root{ color-scheme: light dark; }
+                <Section id="timelines" heading="Timelines & outcomes">
+                    <Split>
+                        <Card title="Initial review">
+                            <p>
+                                We aim to review refund requests promptly (business days). If approved, refunds are issued to the
+                                original payment method; bank posting times vary.
+                            </p>
+                        </Card>
+                        <Card title="Alternative remedies">
+                            <p>
+                                In many digital-goods cases, re-credit or re-delivery is faster and avoids service interruption.
+                            </p>
+                        </Card>
+                    </Split>
+                </Section>
 
-/* ---- scope ---- */
-.policy-scope{ min-height:100dvh; background:#0b0c0f; color:#e7e7ea; }
-html.theme-light .policy-scope{ background:#fff; color:#111; }
+                <Section id="appeals" heading="Appeals">
+                    <Card>
+                        <p>
+                            If you disagree with a decision, reply to the same email chain with additional context. We may escalate
+                            internally for a second review.
+                        </p>
+                    </Card>
+                </Section>
+            </Section>
 
-/* ---- links ---- */
-.policy-scope a{ text-underline-offset:3px; text-decoration-thickness:.06em; }
-.policy-scope a:not(.btn){ color:#dfe7ff; text-decoration-color:rgba(223,231,255,.4); }
-html.theme-light .policy-scope a:not(.btn){ color:#0b0c0f; text-decoration-color:rgba(0,0,0,.25); }
-.policy-scope a.link-muted{ opacity:.9; }
-html.theme-light .policy-scope a.link-muted{ opacity:.85; }
+            {/* 6) PAYMENTS & DISPUTES */}
+            <Section id="payments" heading="6) Payments, chargebacks & disputes">
+                <Section id="chargebacks" heading="Chargebacks">
+                    <Split>
+                        <Card title="Please contact us first">
+                            <p>
+                                Most issues are resolved faster directly with us. Filing a chargeback on a valid charge after
+                                consumption may be treated as abuse.
+                            </p>
+                        </Card>
+                        <Card title="What happens during a chargeback">
+                            <p>
+                                The processor withdraws funds and requests evidence. We provide logs, usage data, invoices, and terms.
+                                If we win, the charge is reinstated; if not, access or benefits may be revoked.
+                            </p>
+                        </Card>
+                    </Split>
+                </Section>
 
-/* ---- small meta text (e.g., "Last updated") ---- */
-.policy-scope .text-muted,
-.policy-scope .text-zinc-400{ color:rgba(255,255,255,.65) !important; }
-html.theme-light .policy-scope .text-muted,
-html.theme-light .policy-scope .text-zinc-400{ color:rgba(0,0,0,.55) !important; }
+                <Section id="processor" heading="Processor review & reversals">
+                    <Card>
+                        <p>
+                            Our payment partners may require additional information, impose waiting periods, or reverse charges
+                            per their rules. See <Ref href="/legal/disputes">Disputes & Chargebacks</Ref> for details.
+                        </p>
+                    </Card>
+                </Section>
 
-/* ---- cards (works with <Card />) ---- */
-.policy-card, .policy-scope .card, .policy-scope .Card{
-background:rgba(255,255,255,.06);
-border:1px solid rgba(255,255,255,.14);
-backdrop-filter:blur(16px);
-border-radius:16px;
-box-shadow:0 10px 40px rgba(0,0,0,.45);
-padding:14px 16px; /* tighter vertical rhythm */
-}
-html.theme-light .policy-card,
-html.theme-light .policy-scope .card,
-html.theme-light .policy-scope .Card{
-background:rgba(255,255,255,.92);
-border-color:rgba(0,0,0,.08);
-box-shadow:0 10px 28px rgba(0,0,0,.10), inset 0 1px 0 rgba(255,255,255,.85);
-}
+                <Section id="sanctions" heading="Sanctions, prohibited activity & fraud">
+                    <Card>
+                        <p>
+                            We do not process refunds for transactions tied to prohibited or sanctioned activity. Review{' '}
+                            <Ref href="/legal/acceptable-use">Acceptable Use</Ref> and <Ref href="/legal/kyc-aml">KYC/AML</Ref>.
+                            We may report suspected fraud to partners or authorities where required by law.
+                        </p>
+                    </Card>
+                </Section>
+            </Section>
 
-/* ---- sections / headings spacing (less tall) ---- */
-.policy-scope h2{ margin-top:14px; margin-bottom:10px; }
-.policy-scope h3{ margin-top:12px; margin-bottom:8px; }
-.policy-scope .list-disc > li,
-.policy-scope .list-decimal > li{ margin:6px 0; }
+            {/* 7) REGIONAL */}
+            <Section id="regional" heading="7) Regional rights & consumer laws">
+                <Section id="cooling" heading="Cooling-off periods">
+                    <Card>
+                        <p>
+                            If your jurisdiction provides a statutory “cooling-off” right, we honor it consistent with law.
+                            Note that many digital services exempt used/consumed goods from withdrawal once performance begins.
+                        </p>
+                    </Card>
+                </Section>
 
-/* ---- Split columns ---- */
-.policy-scope .split{ display:grid; grid-template-columns:1fr; gap:12px; }
-@media (min-width:768px){ .policy-scope .split{ grid-template-columns:1fr 1fr; gap:14px; }}
+                <Section id="tax" heading="Taxes & VAT">
+                    <Card>
+                        <p>
+                            Taxes are shown where applicable and refunded only if the underlying transaction is refunded.
+                            Provide VAT/GST IDs in <Ref href="/billing">Billing settings</Ref> to appear on invoices.
+                        </p>
+                    </Card>
+                </Section>
 
-/* ---- TOC ---- */
-.policy-scope .toc{
-position:sticky; top:84px;
-background:transparent;
-border-left:1px solid rgba(255,255,255,.14);
-padding-left:12px;
-}
-html.theme-light .policy-scope .toc{ border-left-color:rgba(0,0,0,.1); }
+                <Section id="jurisdiction" heading="Jurisdiction & conflicts">
+                    <Card>
+                        <p>
+                            This policy is interpreted together with our <Ref href="/legal/terms">Terms</Ref>. Where local law
+                            conflicts, the law of your region may control to the minimum required extent.
+                        </p>
+                    </Card>
+                </Section>
+            </Section>
 
-/* ---- Buttons used in policies (if any) ---- */
-.policy-scope .btn{
-display:inline-flex; align-items:center; justify-content:center; gap:.5rem;
-font-weight:600; border-radius:9999px; padding:.5rem .9rem;
-}
-.policy-scope .btn-primary{ background:#fff; color:#000; }
-.policy-scope .btn-outline{ background:rgba(255,255,255,.06); color:#fff; border:1px solid rgba(255,255,255,.14); }
-html.theme-light .policy-scope .btn-outline{ background:#111; color:#fff; border-color:rgba(0,0,0,.85); }
-.policy-scope .btn:disabled{ opacity:.6; cursor:not-allowed; }
-`}</style>
-        </div>
+            {/* 8) FAQ */}
+            <Section id="faq" heading="8) FAQ">
+                <Split>
+                    <Card title="Can I get a refund after I used most of my credits?">
+                        <p>Generally no, unless there was a verified defect/outage affecting your usage.</p>
+                    </Card>
+                    <Card title="If I cancel Pro Max, do I lose access immediately?">
+                        <p>No. You keep access until the end of the current paid period.</p>
+                    </Card>
+                    <Card title="What’s the fastest way to fix a mistaken charge?">
+                        <p>Contact <a className="link-muted" href="mailto:billing@6ixapp.com">billing@6ixapp.com</a> promptly.</p>
+                    </Card>
+                    <Card title="Do you refund taxes?">
+                        <p>Taxes are refunded when the underlying charge is refunded.</p>
+                    </Card>
+                </Split>
+            </Section>
+
+            {/* 9) CONTACT */}
+            <Section id="contact" heading="9) Contact">
+                <Split>
+                    <Card title="Billing">
+                        <p>
+                            Email <a className="link-muted" href="mailto:billing@6ixapp.com">billing@6ixapp.com</a> from your
+                            registered email. Include invoice ID and a short description.
+                        </p>
+                    </Card>
+                    <Card title="Related policies">
+                        <ul className="list-disc pl-5 space-y-2">
+                            <li><Ref href="/legal/billing">Billing & Subscriptions</Ref></li>
+                            <li><Ref href="/legal/disputes">Disputes & Chargebacks</Ref></li>
+                            <li><Ref href="/legal/acceptable-use">Acceptable Use</Ref></li>
+                            <li><Ref href="/legal/kyc-aml">KYC / AML</Ref></li>
+                            <li><Ref href="/legal/security">Security</Ref></li>
+                            <li><Ref href="/legal/privacy">Privacy</Ref></li>
+                            <li><Ref href="/legal/terms">Terms</Ref></li>
+                        </ul>
+                    </Card>
+                </Split>
+                <BackToTop />
+            </Section>
+
+            {/* JSON-LD for SEO */}
+            <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+            />
+        </PageShell>
     );
-
 }
