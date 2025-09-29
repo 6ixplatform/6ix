@@ -1,3 +1,4 @@
+// src/app/legal/_components/PolicyLayout.tsx
 'use client';
 
 import * as React from 'react';
@@ -24,17 +25,15 @@ export function PageShell({
         <main className="min-h-dvh px-4 sm:px-6 md:px-8 py-6 md:py-10 bg-[#0a0b0d] text-zinc-100">
             <a id="top" />
             <article
-                className="relative mx-auto w-full max-w-7xl rounded-3xl border border-white/10 bg-white/5 shadow-[0_40px_120px_-25px_rgba(0,0,0,.55)]
-overflow-hidden"
+                className="relative mx-auto w-full max-w-7xl rounded-3xl border border-white/10 bg-white/5 shadow-[0_40px_120px_-25px_rgba(0,0,0,.55)] overflow-hidden"
             >
                 {/* faint animated gradient edge */}
                 <div
                     aria-hidden
-                    className="pointer-events-none absolute inset-0 -z-10 [mask-image:radial-gradient(1200px_600px_at_center,black,transparent)]
-animate-[sheen_9s_linear_infinite]"
+                    className="pointer-events-none absolute inset-0 -z-10 [mask-image:radial-gradient(1200px_600px_at_center,black,transparent)] animate-[sheen_9s_linear_infinite]"
                     style={{
                         background:
-                            'conic-gradient(from 180deg at 50% 50%, rgba(80,175,255,.10), rgba(255,255,255,.04), rgba(180,80,255,.10), rgba(255,255,255,.04))',
+                            'conic-gradient(from 180deg at 50% 50%, rgba(80,175,255,0.10), rgba(255,255,255,0.04), rgba(180,80,255,0.10), rgba(255,255,255,0.04))',
                     }}
                 />
                 <header className="px-5 sm:px-8 lg:px-12 pt-8 pb-4">
@@ -42,7 +41,6 @@ animate-[sheen_9s_linear_infinite]"
                     {lead ? <div className="mt-3 text-zinc-300 leading-relaxed">{lead}</div> : null}
                 </header>
 
-                {/* content area */}
                 <div className="relative">
                     <div className="px-5 sm:px-8 lg:px-12 pb-10">{children}</div>
                 </div>
@@ -57,44 +55,46 @@ animate-[sheen_9s_linear_infinite]"
 :root { color-scheme: dark; }
 html { scroll-behavior: smooth; }
 @keyframes sheen {
-0% { transform: translate3d(-10%,0,0) }
-50% { transform: translate3d(10%,0,0) }
-100% { transform: translate3d(-10%,0,0) }
+0% { transform: translate3d(-10%,0,0); }
+50% { transform: translate3d(10%,0,0); }
+100% { transform: translate3d(-10%,0,0); }
 }
-.glass { background: rgba(255,255,255,.06); backdrop-filter: blur(12px); }
+.glass { background: rgba(255,255,255,0.06); backdrop-filter: blur(12px); }
 .card-3d {
-background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.04));
-border: 1px solid rgba(255,255,255,.12);
+background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.04));
+border: 1px solid rgba(255,255,255,0.12);
 box-shadow:
-0 10px 40px rgba(0,0,0,.35),
-inset 0 1px 0 rgba(255,255,255,.06);
+0 10px 40px rgba(0,0,0,0.35),
+inset 0 1px 0 rgba(255,255,255,0.06);
 border-radius: 16px;
 transition: transform .18s ease, box-shadow .25s ease, background .4s ease;
 }
 .card-3d:hover {
 transform: translateY(-1px);
-box-shadow: 0 18px 64px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.08);
+box-shadow: 0 18px 64px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.08);
 }
 .card-liquid { position: relative; overflow: hidden; }
 .card-liquid::before {
 content: '';
 position: absolute; inset: -1px;
-background: radial-gradient(600px 200px at var(--mx,50%) -20%, rgba(0,240,255,.12), transparent 60%),
-radial-gradient(700px 220px at calc(100% - var(--mx,50%)) 110%, rgba(180,80,255,.12), transparent 60%);
+background:
+radial-gradient(600px 200px at var(--mx,50%) -20%, rgba(0,240,255,0.12), transparent 60%),
+radial-gradient(700px 220px at calc(100% - var(--mx,50%)) 110%, rgba(180,80,255,0.12), transparent 60%);
 transition: opacity .25s ease;
-opacity: .6; pointer-events: none;
+opacity: .6;
+pointer-events: none;
 }
 .card-liquid:hover::before { opacity: .9; }
 .btn-muted {
 display: inline-flex; align-items: center; gap: .5rem;
 border-radius: 999px; padding: .56rem .9rem;
-color: #e9e9f0; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.15);
+color: #e9e9f0; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15);
 transition: transform .12s ease, background .25s ease, border-color .25s ease;
 }
-.btn-muted:hover { transform: translateY(-1px); background: rgba(255,255,255,.1); border-color: rgba(255,255,255,.25); }
-.link-muted { color: #cfd3db; text-decoration: underline; text-decoration-color: rgba(255,255,255,.2); }
-.link-muted:hover { color: #fff; text-decoration-color: rgba(255,255,255,.5); }
-.toc-active { color: #fff !important }
+.btn-muted:hover { transform: translateY(-1px); background: rgba(255,255,255,0.10); border-color: rgba(255,255,255,0.25); }
+.link-muted { color: #cfd3db; text-decoration: underline; text-decoration-color: rgba(255,255,255,0.2); }
+.link-muted:hover { color: #ffffff; text-decoration-color: rgba(255,255,255,0.5); }
+.toc-active { color: #ffffff !important; }
 `}</style>
         </main>
     );
@@ -123,7 +123,9 @@ export function Toc({
                 const visible = entries
                     .filter((e) => e.isIntersecting)
                     .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
-                if (visible?.target?.id) setActive(visible.target.id);
+                if (visible?.target && (visible.target as HTMLElement).id) {
+                    setActive((visible.target as HTMLElement).id);
+                }
             },
             { rootMargin: '-40% 0px -55% 0px', threshold: [0, 0.33, 1] }
         );
@@ -136,7 +138,7 @@ export function Toc({
         <aside
             className={cx(
                 'sticky top-4 z-10 mb-6 rounded-2xl border border-white/10 bg-white/5 px-5 py-4',
-                'shadow-[inset_0_1px_0_rgba(255,255,255,.06)]',
+                'shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]',
                 className
             )}
             aria-label="Table of contents"
@@ -195,30 +197,26 @@ export function Section({
 }
 
 /* ────────────────────────────────────────────────────────────────────────────
-Card: now accepts normal <div> props (id, aria-*, style, etc.)
+Card: fancy “liquid 3D” policy card
 ──────────────────────────────────────────────────────────────────────────── */
-export function Card(
-    {
-        title,
-        children,
-        className,
-        onMouseMove,
-        ...rest
-    }: React.PropsWithChildren<{
-        title?: string;
-        className?: string;
-    }> & React.HTMLAttributes<HTMLDivElement>
-) {
-    const handleMove = (e: React.MouseEvent<HTMLDivElement>) => {
-        (e.currentTarget as HTMLElement).style.setProperty('--mx', `${e.nativeEvent.offsetX}px`);
-        onMouseMove?.(e);
-    };
-
+export function Card({
+    id,
+    title,
+    children,
+    className,
+}: {
+    id?: string;
+    title?: string;
+    children: React.ReactNode;
+    className?: string;
+}) {
     return (
         <div
-            {...rest}
+            id={id}
             className={cx('card-3d card-liquid p-4 sm:p-5', className)}
-            onMouseMove={handleMove}
+            onMouseMove={(e) => {
+                (e.currentTarget as HTMLElement).style.setProperty('--mx', `${e.nativeEvent.offsetX}px`);
+            }}
         >
             {title ? <h3 className="font-semibold mb-2">{title}</h3> : null}
             <div className="text-zinc-200 leading-relaxed">{children}</div>
