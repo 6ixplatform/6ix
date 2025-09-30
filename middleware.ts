@@ -10,13 +10,22 @@ const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || '').replace(/\/+$/, '');
 const CANONICAL_HOST = SITE_URL ? new URL(SITE_URL).host : '';
 
 const APP_HOME = '/ai'; // main app page after onboarding
-const RESUME_DEFAULT = '/profile'; // onboarding entry page
-const UNAUTH_REDIRECT = '/'; // where unauth’d users land (set to '/auth/signin' if you prefer)
+const RESUME_DEFAULT = '/profile'; // onboarding entry page (profile setup)
+const UNAUTH_REDIRECT = '/'; // where unauth’d users land
 
 // Public (no auth required) pages
 const PUBLIC_ALLOW = [
-    '/', '/auth', '/auth/signup', '/auth/signin', '/auth/verify',
-    '/legal', '/legal/terms', '/legal/privacy', '/faq', '/health'
+    '/',
+    '/get-started',
+    '/auth',
+    '/auth/signup',
+    '/auth/signin',
+    '/auth/verify',
+    '/legal',
+    '/legal/terms',
+    '/legal/privacy',
+    '/faq',
+    '/health',
 ];
 
 // OTP endpoints (rate-limited separately)
@@ -36,22 +45,23 @@ Helpers
 function isLocalHost(host: string) {
     return host === 'localhost' || host === '127.0.0.1' || /^\d+\.\d+\.\d+\.\d+$/.test(host);
 }
-
 const isSkippablePath = (p: string) =>
     p.startsWith('/_next') ||
     p.startsWith('/assets') ||
     p.startsWith('/images') ||
     p.startsWith('/fonts') ||
     p === '/favicon.ico' ||
-    /\.[A-Za-z0-9]+$/.test(p); // static files
+    /\.[A-Za-z0-9]+$/.test(p);
 
-const isPublicPath = (p: string) =>
-    PUBLIC_ALLOW.some(base => p === base || p.startsWith(base + '/'));
+const isPublicPath = (p: string) => PUBLIC_ALLOW.some(base => p === base || p.startsWith(base + '/'));
 
 // Treat these as onboarding/setup screens
 const isSetupPath = (p: string) =>
     p === '/profile' || p.startsWith('/profile/') ||
     p === '/onboarding' || p.startsWith('/onboarding/');
+
+// Public/onboarding **entry** pages we never want onboarded users to see
+const isOnboardingPublic = (p: string) => p === '/' || p === '/get-started' || p.startsWith('/auth');
 
 /* ────────────────────────────────────────────────────────────────────────────
 Security headers
@@ -74,13 +84,10 @@ function addSecurityHeaders(res: NextResponse) {
     res.headers.set('X-Frame-Options', 'DENY');
     res.headers.set('X-Content-Type-Options', 'nosniff');
     res.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-    res.headers.set(
-        'Permissions-Policy',
-        [
-            'camera=()', 'microphone=()', 'geolocation=()', 'payment=()', 'usb=()',
-            'magnetometer=()', 'accelerometer=()', 'gyroscope=()', 'fullscreen=(self)'
-        ].join(', ')
-    );
+    res.headers.set('Permissions-Policy', [
+        'camera=()', 'microphone=()', 'geolocation=()', 'payment=()', 'usb=()',
+        'magnetometer=()', 'accelerometer=()', 'gyroscope=()', 'fullscreen=(self)',
+    ].join(', '));
     res.headers.set('Cross-Origin-Opener-Policy', 'same-origin');
     res.headers.set('Cross-Origin-Resource-Policy', 'same-origin');
     res.headers.set('X-XSS-Protection', '0');
@@ -89,7 +96,7 @@ function addSecurityHeaders(res: NextResponse) {
 }
 
 /* ────────────────────────────────────────────────────────────────────────────
-(Optional) Upstash REST rate-limit helper
+(Optional) Upstash REST rate limit
 ──────────────────────────────────────────────────────────────────────────── */
 async function rateLimit(req: NextRequest, key: string, limit = 5, windowSec = 60) {
     const url = process.env.UPSTASH_REDIS_REST_URL;
@@ -165,11 +172,9 @@ export async function middleware(req: NextRequest) {
             .split(',')
             .map(s => s.trim())
             .filter(Boolean);
-
         const sameHost = (() => {
             try { return origin && new URL(origin).host === nextUrl.host; } catch { return false; }
         })();
-
         if (!sameHost && SITE_URL && origin !== SITE_URL && !allowedOrigins.includes(origin)) {
             return addSecurityHeaders(NextResponse.json({ error: 'Forbidden' }, { status: 403 }));
         }
@@ -182,7 +187,6 @@ export async function middleware(req: NextRequest) {
 
     /* ── Unauthenticated users ─────────────────────────────────────────────── */
     if (!session) {
-        // APIs: allow OTP only; block others with 401 JSON
         if (path.startsWith('/api/')) {
             const allowed = OTP_ENDPOINTS.includes(path);
             if (!allowed) {
@@ -192,11 +196,10 @@ export async function middleware(req: NextRequest) {
             }
             return addSecurityHeaders(res);
         }
-
-        // Pages: allow only public; any other path → land them on the main page
+        // Pages: allow only public; any other path → send to UNAUTH_REDIRECT
         if (!isPublicPath(path)) {
             const to = new URL(UNAUTH_REDIRECT, req.url);
-            to.searchParams.set('next', path); // so landing/signin can return them after auth
+            to.searchParams.set('next', path);
             return addSecurityHeaders(NextResponse.redirect(to, { headers: res.headers }));
         }
         return addSecurityHeaders(res);
@@ -212,9 +215,8 @@ export async function middleware(req: NextRequest) {
 
     const onboarded = Boolean(profile?.onboarding_completed);
 
-    // If not onboarded yet:
+    // Not onboarded → force into onboarding
     if (!onboarded) {
-        // allow specific APIs needed during onboarding
         if (path.startsWith('/api/')) {
             const allowed = API_ALLOW_DURING_ONBOARD.some(b => path === b || path.startsWith(b + '/'));
             if (allowed) return addSecurityHeaders(res);
@@ -222,24 +224,22 @@ export async function middleware(req: NextRequest) {
                 NextResponse.json({ error: 'onboarding_required' }, { status: 428, headers: res.headers })
             );
         }
-        // For pages, force into onboarding (RESUME_DEFAULT)
         if (!isSetupPath(path)) {
             const to = new URL(RESUME_DEFAULT, req.url);
             return addSecurityHeaders(NextResponse.redirect(to, { headers: res.headers }));
         }
-        // Already on setup paths — allow
         return addSecurityHeaders(res);
     }
 
     // Already onboarded:
-    // 1) Keep users OUT of onboarding pages forever (strong redirect to APP_HOME)
-    if (isSetupPath(path)) {
+    // Keep users OUT of onboarding/public entry pages forever (Facebook-like)
+    if (isOnboardingPublic(path) || isSetupPath(path)) {
         const to = new URL(APP_HOME, req.url);
-        // 308 to keep method; prevents caching + back-button “revisit”
-        return addSecurityHeaders(NextResponse.redirect(to, 308));
+        // 307 keeps method and avoids cache; also makes back-button "do nothing"
+        return addSecurityHeaders(NextResponse.redirect(to, 307));
     }
 
-    // 2) Everything else is allowed (including /auth/* since you said "not auth flow")
+    // Everything else allowed
     return addSecurityHeaders(res);
 }
 

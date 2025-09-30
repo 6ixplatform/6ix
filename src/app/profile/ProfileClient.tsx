@@ -11,6 +11,7 @@ type Gender = 'male' | 'female' | 'nonbinary' | 'other' | 'prefer_not_to_say' | 
 
 type Form = {
     avatar_url?: string | null;
+    avatar_storage_path?: string | null;
     avatar_file?: File | null;
 
     username: string;
@@ -41,6 +42,23 @@ export default function ProfileSetupProfileClient() {
     const r = useRouter();
     const supabase = useMemo(() => supabaseBrowser(), []);
     const [me, setMe] = useState<{ id: string; email: string | null } | null>(null);
+    // ⬇️ Add: bounce away if user already finished onboarding (covers Safari bfcache/back)
+    useEffect(() => {
+        let mounted = true;
+        (async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+            const { data } = await supabase.from('profiles')
+                .select('onboarding_completed')
+                .eq('id', user.id)
+                .maybeSingle();
+            if (!mounted) return;
+            if (data?.onboarding_completed) r.replace('/ai');
+        })();
+        const onShow = (e: PageTransitionEvent) => { if (e.persisted) r.replace('/ai'); };
+        window.addEventListener('pageshow', onShow);
+        return () => { mounted = false; window.removeEventListener('pageshow', onShow); };
+    }, []);
 
     const [form, setForm] = useState<Form>({
         username: '', first_name: '', middle_name: '', last_name: '',
@@ -88,6 +106,9 @@ export default function ProfileSetupProfileClient() {
             const { data } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle();
             const safe = (v: any) => (v == null ? '' : String(v));
 
+            const rawAvatarPath = data?.avatar_url ?? null;
+            const previewUrl = rawAvatarPath ? toPublicUrl(rawAvatarPath) : '';
+
             setForm(f => ({
                 ...f,
                 email: safe(data?.email ?? user.email),
@@ -105,8 +126,11 @@ export default function ProfileSetupProfileClient() {
                 country_code: safe(data?.country_code),
                 bio: safe(data?.bio),
                 tagline: safe(data?.tagline),
-                avatar_url: safe(data?.avatar_url),
+                // ⬇️ preview vs storage path
+                avatar_url: previewUrl || '',
+                avatar_storage_path: rawAvatarPath,
             }));
+
 
             setLoading(false);
         })();
@@ -153,6 +177,7 @@ export default function ProfileSetupProfileClient() {
         const file = e.target.files?.[0];
         if (!file) return;
         onChange('avatar_file', file);
+        onChange('avatar_storage_path', null);
         onChange('avatar_url', URL.createObjectURL(file));
     };
 
@@ -185,10 +210,9 @@ export default function ProfileSetupProfileClient() {
         setSaving(true); setErr(undefined);
 
         try {
-            // 1) Ensure avatar uploaded (mandatory)
-            let avatar_storage_path = isStoragePath(form.avatar_url) ? (form.avatar_url as string) : '';
+            let avatar_storage_path = form.avatar_storage_path || '';
             if (!avatar_storage_path && form.avatar_file) {
-                avatar_storage_path = await uploadAvatar(form.avatar_file, me.id); // should return storage path
+                avatar_storage_path = await uploadAvatar(form.avatar_file, me.id); // returns storage path like "public/uid.png"
             }
             if (!avatar_storage_path) {
                 setErr('Please add an avatar to continue.');
@@ -239,8 +263,9 @@ export default function ProfileSetupProfileClient() {
             try {
                 const displayName =
                     payload.display_name || (payload.email?.split('@')?.[0] ?? 'Guest');
+
                 localStorage.setItem('6ixai:profile', JSON.stringify({
-                    displayName,
+                    displayName: payload.display_name || (payload.email?.split('@')?.[0] ?? 'Guest'),
                     avatarUrl: publicAvatar,
                 }));
             } catch { }
@@ -434,7 +459,7 @@ export default function ProfileSetupProfileClient() {
             )}
 
             {/* styles */}
-           <style jsx global>{`
+            <style jsx global>{`
 :root{ color-scheme: light dark; }
 
 /* Scope */
