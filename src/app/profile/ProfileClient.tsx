@@ -3,9 +3,9 @@ import Image from 'next/image';
 import { useEffect, useMemo, useRef, useState, useCallback, useMemo as useMemo2 } from 'react';
 import { useRouter } from 'next/navigation';
 import BackStopper from '@/components/BackStopper';
-import HelpWidget from '@/components/HelpWidget';
 import { supabaseBrowser } from '@/lib/supabaseBrowser';
 import { uploadAvatar } from '@/lib/avatar';
+import HelpKit from '@/components/HelpKit';
 
 type Gender = 'male' | 'female' | 'nonbinary' | 'other' | 'prefer_not_to_say' | '';
 
@@ -42,6 +42,7 @@ export default function ProfileSetupProfileClient() {
     const r = useRouter();
     const supabase = useMemo(() => supabaseBrowser(), []);
     const [me, setMe] = useState<{ id: string; email: string | null } | null>(null);
+    
     // ⬇️ Add: bounce away if user already finished onboarding (covers Safari bfcache/back)
     useEffect(() => {
         let mounted = true;
@@ -289,9 +290,10 @@ export default function ProfileSetupProfileClient() {
     return (
         <>
             <BackStopper />
-            <HelpWidget presetEmail={form.email} />
+
 
             <main className="profile-scope min-h-dvh bg-black text-zinc-100" style={{ paddingTop: 'env(safe-area-inset-top,0px)' }}>
+                <HelpKit anchorToCard={false} presetEmail={form.email} />
                 {/* Desktop */}
                 <div className="hidden md:grid grid-cols-2 min-h-dvh">
                     <aside className="relative overflow-hidden">
@@ -302,14 +304,14 @@ export default function ProfileSetupProfileClient() {
                         </div>
                     </aside>
 
-                    <section className="relative px-8 lg:px-12 pt-22 pb-12 overflow-visible">
+                    <section className="relative px-8 lg:px-12 pt-12 pb-16 overflow-visible">
                         <header className="mb-6">
                             <h1 className="text-4xl lg:text-5xl font-semibold leading-tight">Profile setup</h1>
                         </header>
 
-                        <div className="max-w-xl">
+                        <div className="max-w-[900px] mx-auto">
                             <Stepper step={step} total={TOTAL_STEPS} />
-                            <div className="profile-card mt-3 rounded-2xl border border-white/10 bg-white/6 backdrop-blur-xl shadow-[0_10px_60px_-10px_rgba(0,0,0,.6)] p-6 sm:p-7">
+                            <div className="profile-card silver-ring mt-4 w-full rounded-2xl border border-white/10 bg-white/6 backdrop-blur-xl shadow-[0_10px_60px_-10px_rgba(0,0,0,.6)] p-6 sm:p-8">
                                 {step === 1 && (
                                     <Step1Identity
                                         form={form}
@@ -386,7 +388,7 @@ export default function ProfileSetupProfileClient() {
 
                     <div className="px-4 mt-5">
                         <Stepper step={step} total={TOTAL_STEPS} mobile />
-                        <div className="profile-card mt-4 rounded-2xl border border-white/10 bg-white/6 backdrop-blur-xl shadow-[0_10px_60px_-10px_rgba(0,0,0,.6)] p-6 sm:p-7">
+                        <div className="profile-card  silver-ring mt-4 rounded-2xl border border-white/10 bg-white/6 backdrop-blur-xl shadow-[0_10px_60px_-10px_rgba(0,0,0,.6)] p-6 sm:p-7">
                             {step === 1 && <Step1Identity form={form} onChange={onChange} chooseAvatar={chooseAvatar} uname={uname} />}
                             {step === 2 && <Step2Details form={form} onChange={onChange} age={age} onWhyDob={() => setDobOpen(true)} />}
                             {step === 3 && <Step3Bio form={form} onChange={onChange} onWhyDob={() => setDobOpen(true)} />}
@@ -437,7 +439,7 @@ export default function ProfileSetupProfileClient() {
             {/* DOB modal */}
             {dobOpen && (
                 <div className="fixed inset-0 z-[100] grid place-items-center bg-black/70 backdrop-blur-sm p-4">
-                    <div className="profile-modal relative w-[min(92vw,640px)] rounded-2xl border border-white/12 bg-white/10 backdrop-blur-xl p-6 sm:p-7 shadow-[0_20px_120px_-20px_rgba(0,0,0,.85)]">
+                    <div className="profile-modal silver-ring relative w-[min(92vw,640px)] rounded-2xl border border-white/12 bg-white/10 backdrop-blur-xl p-6 sm:p-7 shadow-[0_20px_120px_-20px_rgba(0,0,0,.85)]">
                         <button
                             onClick={() => setDobOpen(false)}
                             aria-label="Close"
@@ -460,6 +462,189 @@ export default function ProfileSetupProfileClient() {
 
             {/* styles */}
             <style jsx global>{`
+            /* Base pill (same across pages) */
+.help-toggle{
+position:fixed; z-index:50;
+top:calc(env(safe-area-inset-top)+10px);
+padding:.28rem .55rem; font-size:12px; line-height:1; border-radius:9999px;
+-webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px);
+border:1px solid rgba(255,255,255,.18);
+background:rgba(255,255,255,.10); color:#fff;
+box-shadow:
+inset 0 1px 0 rgba(255,255,255,.22),
+inset 0 -1px 0 rgba(0,0,0,.35),
+0 4px 12px rgba(0,0,0,.35);
+transition:transform .12s ease, opacity .2s ease, box-shadow .2s ease;
+}
+.help-toggle:active{ transform:scale(.98); }
+html.theme-light .help-toggle{
+background:rgba(0,0,0,.06); border-color:rgba(0,0,0,.18); color:#000;
+}
+
+/* ✅ Force the button to the RIGHT, even if some other CSS tried to put it left */
+.help-pos-right{
+right:calc(env(safe-area-inset-right)+10px) !important;
+left:auto !important;
+}
+
+/* Panel position (stays under the button on the right) */
+.help-panel{
+position:fixed;
+right:calc(env(safe-area-inset-right)+14px);
+top:calc(env(safe-area-inset-top)+56px);
+width:min(92vw,360px);
+border-radius:16px; padding:14px;
+-webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px);
+background:rgba(0,0,0,.55); border:1px solid rgba(255,255,255,.12); color:#fff;
+box-shadow:0 18px 60px rgba(0,0,0,.45);
+}
+html.theme-light .help-panel{
+background:rgba(255,255,255,.94); border-color:#e5e7eb; color:#0b0c10;
+}
+
+
+/* === Help toggle & panel positioning (same as signup) === */
+.profile-scope .help-toggle{
+position: fixed;
+top: calc(env(safe-area-inset-top) + 10px);
+right: calc(env(safe-area-inset-right) - 10px);
+z-index: 50;
+
+
+display: inline-flex; align-items: center; justify-content: center;
+padding: .28rem .55rem;
+border-radius: 9999px;
+font-size: 12px; line-height: 1;
+letter-spacing: .1px;
+
+background: rgba(255,255,255,.10);
+border: 1px solid rgba(255,255,255,.18);
+color: #fff;
+-webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+box-shadow:
+inset 0 1px 0 rgba(255,255,255,.22),
+inset 0 -1px 0 rgba(0,0,0,.35),
+0 4px 12px rgba(0,0,0,.35);
+transition: transform .12s ease, opacity .2s ease, box-shadow .2s ease;
+}
+.profile-scope .help-toggle:active { transform: scale(.98); }
+html.theme-light .profile-scope .help-toggle{
+background: rgba(0,0,0,.06);
+border-color: rgba(0,0,0,.18);
+color: #000;
+}
+
+/* Open the panel just under the button, same edge, small offset down */
+.profile-scope .help-panel{
+position: fixed;
+right: calc(env(safe-area-inset-right) + 14px);
+top: calc(env(safe-area-inset-top) + 56px);
+z-index: 60;
+width: min(92vw, 360px);
+
+border-radius: 16px;
+padding: 14px;
+-webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+
+/* surfaces were already themed in your file; keep them */
+}
+
+/* === Inputs: pill/oval + glassy === */
+.profile-scope .inp{
+width:100%;
+color:#fff;
+background: rgba(255,255,255,.07);
+border:1px solid rgba(255,255,255,.16);
+border-radius: 9999px; /* <- pill */
+padding: .56rem .95rem; /* slimmer */
+line-height: 1.2;
+outline: none;
+transition: border-color .2s, background .2s;
+}
+.profile-scope textarea.inp{ min-height:84px; border-radius: 18px; } /* textareas not full-pill */
+.profile-scope .inp::placeholder{ color:rgba(255,255,255,.55); }
+.profile-scope .inp:focus{
+border-color: rgba(255,255,255,.34);
+background: rgba(255,255,255,.10);
+}
+
+/* Light theme flips */
+html.theme-light .profile-scope .inp{
+color:#0b0c10;
+background: rgba(0,0,0,.04);
+border-color: rgba(0,0,0,.14);
+}
+html.theme-light .profile-scope .inp:focus{
+border-color: rgba(0,0,0,.40);
+background: rgba(0,0,0,.07);
+}
+html.theme-light .profile-scope .inp::placeholder{ color:rgba(0,0,0,.45); }
+
+/* Field label + hint readable in both themes */
+.profile-scope .field-label{ color: rgba(255,255,255,.75); }
+.profile-scope .field-hint{ color: rgba(255,255,255,.70); }
+html.theme-light .profile-scope .field-label{ color:#1f2937; }
+html.theme-light .profile-scope .field-hint{ color:#374151; }
+
+/* Neutral “muted” text (for Avatar required) */
+.profile-scope .text-muted{ color: rgba(255,255,255,.80); }
+html.theme-light .profile-scope .text-muted{ color:#333; }
+
+/* Slim pill inputs */
+.profile-scope .inp{
+width:100%;
+color:#fff;
+background:rgba(255,255,255,.06);
+border:1px solid rgba(255,255,255,.12);
+border-radius:9999px; /* pill */
+padding:9px 14px; /* slimmer */
+line-height:1.25;
+outline:none;
+transition:border-color .2s, background .2s;
+}
+.profile-scope textarea.inp{
+border-radius:16px; /* textarea less pill */
+min-height:84px;
+}
+.profile-scope .inp::placeholder{ color:rgba(255,255,255,.55); }
+.profile-scope .inp:focus{ border-color:rgba(255,255,255,.34); background:rgba(255,255,255,.10); }
+
+/* Light theme flip */
+html.theme-light .profile-scope .inp{
+color:#111; background:rgba(0,0,0,.04); border-color:rgba(0,0,0,.12);
+}
+html.theme-light .profile-scope .inp:focus{
+border-color:rgba(0,0,0,.40); background:rgba(0,0,0,.06);
+}
+html.theme-light .profile-scope .inp::placeholder{ color:rgba(0,0,0,.45); }
+
+
+/* Card flip in light for clearer borders */
+html.theme-light .profile-scope .profile-card{
+background:rgba(255,255,255,.90);
+border:1px solid rgba(0,0,0,.10);
+}
+
+/* Button themes (same as signup) */
+.profile-scope .btn-primary{ background:#fff; color:#000; }
+html.theme-light .profile-scope .btn-outline{ background:#111; color:#fff; border-color:#0b0c10; }
+/* Avatar required text – neutral, visible in both themes */
+.profile-scope .need-avatar{ color:rgba(255,255,255,.70); }
+html.theme-light .profile-scope .need-avatar{ color:#333; }
+            /* same chip position/colors as signup */
+.profile-scope .help-toggle{
+position:fixed; z-index:50;
+top:calc(env(safe-area-inset-top)+10px);
+right:calc(env(safe-area-inset-right)+10px);
+display:inline-flex; align-items:center; justify-content:center;
+padding:.28rem .55rem; border-radius:9999px; font-size:12px; line-height:1;
+background:rgba(255,255,255,.10);
+border:1px solid rgba(255,255,255,.18);
+color:#fff;
+-webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px);
+}
+
+/* panel surfaces already exist in your styles under .help-panel */
 :root{ color-scheme: light dark; }
 
 /* Scope */
@@ -492,24 +677,6 @@ border-color:rgba(0,0,0,.10);
 color:#111;
 }
 
-/* --- Help modal (HelpWidget root uses .help-panel) --- */
-.profile-scope .help-panel{
-background:rgba(0,0,0,.55);
-border-color:rgba(255,255,255,.15);
-color:#fff;
-}
-html.theme-light .profile-scope .help-panel{
-background:rgba(255,255,255,.92);
-border-color:rgba(0,0,0,.12);
-color:#111;
-}
-html.theme-light .profile-scope .help-panel .btn-primary{
-background:#000; color:#fff;
-}
-html.theme-light .profile-scope .help-panel .btn-outline{
-background:#111; color:#fff; border-color:rgba(0,0,0,.88);
-}
-
 /* --- Buttons --- */
 .profile-scope .btn{
 display:inline-flex; align-items:center; justify-content:center; gap:.5rem; font-weight:600;
@@ -525,22 +692,6 @@ transition:transform .12s ease, box-shadow .2s ease, background .3s ease, color 
 .profile-scope .btn-outline:disabled{ opacity:.55; }
 html.theme-light .profile-scope .btn-outline{ background:#111; color:#fff; border-color:rgba(0,0,0,.85); }
 
-/* --- Inputs (shorter / denser) --- */
-.profile-scope .inp{
-width:100%; color:#fff; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12);
-border-radius:12px; padding:10px 12px; line-height:1.25; outline:none; transition:border-color .2s, background .2s;
-}
-.profile-scope textarea.inp{ min-height:84px; }
-.profile-scope .inp::placeholder{ color:rgba(255,255,255,.55); }
-.profile-scope .inp:focus{ border-color:rgba(255,255,255,.34); background:rgba(255,255,255,.10); }
-
-html.theme-light .profile-scope .inp{
-color:#111; background:rgba(0,0,0,.04); border-color:rgba(0,0,0,.12);
-}
-html.theme-light .profile-scope .inp:focus{
-border-color:rgba(0,0,0,.40); background:rgba(0,0,0,.06);
-}
-html.theme-light .profile-scope .inp::placeholder{ color:rgba(0,0,0,.45); }
 
 /* selects/date pickers */
 .profile-scope select.inp, .profile-scope select.inp option{ background:rgba(12,14,17,.94); color:#fff; }
@@ -602,7 +753,7 @@ function Step1Identity({
             <div className="flex flex-col items-center mt-1">
                 <div className="relative">
                     <label className="block cursor-pointer">
-                        <div className={`w-28 h-28 rounded-full overflow-hidden ring-2 ${needAvatar ? 'ring-red-400/60' : 'ring-white/20'} shadow grid place-items-center bg-white/10`}>
+                        <div className={`w-28 h-28 rounded-full overflow-hidden ring-2 ${needAvatar ? 'ring-white/30' : 'ring-white/20'} shadow grid place-items-center bg-white/10`}>
                             {form.avatar_url
                                 ? <img src={form.avatar_url} alt="avatar" className="w-full h-full object-cover" />
                                 : <span className="text-sm opacity-80">Add</span>}
@@ -617,7 +768,7 @@ function Step1Identity({
                         </label>
                     )}
                 </div>
-                {needAvatar && <div className="mt-2 text-xs text-red-400">Avatar is required</div>}
+                {needAvatar && <div className="mt-2 text-xs need-avatar">Avatar is required</div>}
             </div>
 
             <Row cols={2}>
@@ -729,5 +880,68 @@ function Step3Bio({
                 <textarea className="inp h-28" value={form.bio} onChange={e => onChange('bio', e.target.value)} />
             </Field>
         </>
+    );
+}
+
+/* -------- Help mini dialog (anchored to top-right) -------- */
+function HelpPanel({ onClose, presetEmail }: { onClose: () => void; presetEmail?: string }) {
+    const [firstName, setFirst] = useState('');
+    const [lastName, setLast] = useState('');
+    const [location, setLoc] = useState('');
+    const [reason, setReason] = useState('');
+    const [email, setEmail] = useState(presetEmail || '');
+    const [sending, setSending] = useState(false);
+    const [done, setDone] = useState<null | 'ok' | 'err'>(null);
+    const [msg, setMsg] = useState<string>('');
+
+    const emailOk = /^[^\s@]+@[^\s@]+\.[A-Za-z]{2,}$/i.test(email);
+    const canSend = firstName.trim() && lastName.trim() && location.trim() && reason.trim() && emailOk && !sending;
+
+    const submit = async () => {
+        if (!canSend) return;
+        setSending(true); setDone(null); setMsg('');
+        try {
+            const r = await fetch('/api/support', {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({ firstName, lastName, location, reason, email })
+            });
+            const data = await r.json();
+            if (!r.ok) throw new Error(data?.error || 'Could not send');
+            setDone('ok'); setMsg('Thanks! Our team will reach out.');
+        } catch (e: any) {
+            setDone('err'); setMsg(e?.message || 'Could not send');
+        } finally {
+            setSending(false);
+        }
+    };
+
+    return (
+        <div className="help-panel border shadow-lg">
+            <div className="flex items-center justify-between">
+                <div className="font-medium">Need help?</div>
+                <button onClick={onClose} className="text-sm opacity-80">Close</button>
+            </div>
+
+            <div className="mt-3 grid gap-2">
+                <input className="inp text-sm" placeholder="First name" value={firstName} onChange={e => setFirst(e.target.value)} />
+                <input className="inp text-sm" placeholder="Last name" value={lastName} onChange={e => setLast(e.target.value)} />
+                <input className="inp text-sm" placeholder="Email (reply to)" value={email} onChange={e => setEmail(e.target.value)} />
+                <input className="inp text-sm" placeholder="Location (city, country)" value={location} onChange={e => setLoc(e.target.value)} />
+                <textarea className="inp text-sm" placeholder="Tell us what went wrong…" rows={3} value={reason} onChange={e => setReason(e.target.value)} />
+
+                {done && (
+                    <p className={`text-sm ${done === 'ok' ? 'text-emerald-400' : 'text-red-400'}`}>{msg}</p>
+                )}
+
+                <button
+                    className={`btn btn-primary ${!canSend ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    disabled={!canSend}
+                    onClick={submit}
+                >
+                    {sending ? 'Sending…' : 'Send to support@6ixapp.com'}
+                </button>
+            </div>
+        </div>
     );
 }

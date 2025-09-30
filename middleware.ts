@@ -13,6 +13,12 @@ const APP_HOME = '/ai'; // main app page after onboarding
 const RESUME_DEFAULT = '/profile'; // onboarding entry page (profile setup)
 const UNAUTH_REDIRECT = '/'; // where unauth’d users land
 
+// add near top
+const PUBLIC_API_ALLOW = [
+    '/api/auth/check-email',
+    '/api/support',
+];
+
 // Public (no auth required) pages
 const PUBLIC_ALLOW = [
     '/',
@@ -66,14 +72,14 @@ const isOnboardingPublic = (p: string) => p === '/' || p === '/get-started' || p
 /* ────────────────────────────────────────────────────────────────────────────
 Security headers
 ──────────────────────────────────────────────────────────────────────────── */
-function addSecurityHeaders(res: NextResponse) {
-    const supabase = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-    const supabaseHost = supabase ? new URL(supabase).host : '';
+function addSecurityHeaders(res: NextResponse, dev = false) {
+    const supabaseHost = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost').host;
+    const scriptSrc = dev ? "'self' 'unsafe-inline' 'unsafe-eval' blob:" : "'self' 'unsafe-inline'";
     const csp = [
         "default-src 'self'",
         `connect-src 'self' https://${supabaseHost} https://api.resend.com`,
         "img-src 'self' data: blob: https:",
-        "script-src 'self'",
+        `script-src ${scriptSrc}`,
         "style-src 'self' 'unsafe-inline'",
         "font-src 'self' data: https:",
         "frame-ancestors 'none'",
@@ -94,6 +100,7 @@ function addSecurityHeaders(res: NextResponse) {
     res.headers.set('Cache-Control', 'no-store');
     return res;
 }
+
 
 /* ────────────────────────────────────────────────────────────────────────────
 (Optional) Upstash REST rate limit
@@ -132,6 +139,7 @@ Middleware
 export async function middleware(req: NextRequest) {
     const { nextUrl, method, headers } = req;
     const path = nextUrl.pathname;
+    const dev = isLocalHost(nextUrl.host);
 
     // Canonical host + HTTPS (prod only)
     const host = nextUrl.host;
@@ -144,7 +152,8 @@ export async function middleware(req: NextRequest) {
         const url = new URL(nextUrl);
         url.host = CANONICAL_HOST;
         url.protocol = 'https:';
-        return addSecurityHeaders(NextResponse.redirect(url, 308));
+        return addSecurityHeaders(NextResponse.next(), dev);
+
     }
 
     // Skip static/assets
@@ -188,7 +197,8 @@ export async function middleware(req: NextRequest) {
     /* ── Unauthenticated users ─────────────────────────────────────────────── */
     if (!session) {
         if (path.startsWith('/api/')) {
-            const allowed = OTP_ENDPOINTS.includes(path);
+            const allowed =
+                OTP_ENDPOINTS.includes(path) || PUBLIC_API_ALLOW.includes(path);
             if (!allowed) {
                 return addSecurityHeaders(
                     NextResponse.json({ error: 'auth_required' }, { status: 401, headers: res.headers })

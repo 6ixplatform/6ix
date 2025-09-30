@@ -1671,3 +1671,222 @@ html.theme-light .legal-scope {
   backdrop-filter: blur(12px);
   border-radius: 16px;
 }
+
+/* --- Universal helper to anchor the help button to the card on desktop --- */
+@media (min-width:768px) {
+
+  /* Mark the card wrapper with .help-anchor (see step 2) */
+  .help-anchor {
+    position: relative !important;
+  }
+
+  /* The button itself lives inside .help-anchor */
+  .help-anchor>.help-toggle {
+    position: absolute !important;
+    right: 0 !important;
+    /* snap to card's right edge */
+    left: auto !important;
+    top: -12px !important;
+    /* sits just above the card */
+    transform: none !important;
+  }
+}
+
+/* Mobile stays fixed at the screen top-right (safe area aware) */
+@media (max-width:767px) {
+  .help-toggle {
+    position: fixed !important;
+    top: calc(env(safe-area-inset-top)+10px) !important;
+    right: calc(env(safe-area-inset-right)+10px) !important;
+    left: auto !important;
+  }
+}
+
+/*
+/* === Silver ring border with pendulum highlight (rounded + subtle) === */
+:root {
+  --ring-w: 1px;
+  /* border thickness */
+  --ring-speed: 4.5s;
+  /* sweep speed */
+  --ring-base-alpha: .14;
+  /* dim glassy line */
+  --ring-glint-alpha: .95;
+  /* bright moving highlight */
+  --ring-glint-width: 6deg;
+  /* width of the bright glint */
+}
+
+/* animated angle custom property */
+@property --sweep {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+.silver-ring {
+  position: relative;
+  isolation: isolate;
+  border-radius: inherit;
+  /* follow the card's radius */
+}
+
+/* Shared pseudo setup: draw INSIDE the element so corners stay rounded */
+.silver-ring::before,
+.silver-ring::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  /* ⬅️ was negative; now inside the box */
+  border-radius: inherit;
+  /* exactly matches rounded corners */
+  padding: var(--ring-w);
+  background-clip: border-box;
+
+  /* masks so only the border ring shows */
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  -webkit-mask-composite: xor;
+
+  pointer-events: none;
+}
+
+/* Dim, glassy metallic line */
+.silver-ring::before {
+  background:
+    conic-gradient(from 0deg,
+      rgba(255, 255, 255, var(--ring-base-alpha)),
+      rgba(255, 255, 255, calc(var(--ring-base-alpha) * .8)),
+      rgba(255, 255, 255, var(--ring-base-alpha)));
+  /* looks a touch more “glass” on dark backgrounds */
+  filter: saturate(.85) brightness(.95);
+}
+
+/* Bright moving highlight that sweeps around (pendulum) */
+.silver-ring::after {
+  background:
+    conic-gradient(from var(--sweep),
+      /* transparent all the way until the final few degrees */
+      transparent 0deg calc(360deg - var(--ring-glint-width)),
+      rgba(255, 255, 255, var(--ring-glint-alpha)) calc(360deg - var(--ring-glint-width)) 360deg);
+  animation: hk-sweep var(--ring-speed) linear infinite alternate;
+}
+
+@keyframes hk-sweep {
+  from {
+    --sweep: 0deg;
+  }
+
+  to {
+    --sweep: 360deg;
+  }
+}
+
+/* optional: reduce motion */
+@media (prefers-reduced-motion: reduce) {
+  .silver-ring::after {
+    animation: none;
+  }
+}
+
+/* (Optional) light theme: use a darker, subtler base so it doesn't look too white */
+html.theme-light .silver-ring::before {
+  background:
+    conic-gradient(from 0deg,
+      rgba(0, 0, 0, .12),
+      rgba(0, 0, 0, .09),
+      rgba(0, 0, 0, .12));
+  filter: none;
+}
+
+/* === AUTO-ATTACH the ring to all card containers === */
+/* 1) Base hook so pseudos have a positioned anchor */
+:where(.signup-card,
+  .verify-card,
+  .profile-card,
+  .profile-modal,
+  .policy-card,
+  .legal-card,
+  .hk-panel
+
+  /* HelpKit panel */
+) {
+  position: relative;
+  isolation: isolate;
+  border-radius: inherit;
+}
+
+/* 2) Steady metallic ring (same as .silver-ring::before) */
+:where(.signup-card,
+  .verify-card,
+  .profile-card,
+  .profile-modal,
+  .policy-card,
+  .legal-card,
+  .hk-panel)::before {
+  content: "";
+  position: absolute;
+  inset: calc(-1 * var(--ring-w));
+  border-radius: inherit;
+  padding: var(--ring-w);
+
+  background:
+    conic-gradient(from 0deg,
+      rgba(220, 220, 220, .9),
+      rgba(160, 160, 160, .9),
+      rgba(220, 220, 220, .9));
+  background-clip: border-box;
+
+  /* ✅ standard + webkit masks (stops the warning) */
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+
+  /* cut out the middle so only the border shows */
+  mask-composite: exclude;
+  -webkit-mask-composite: xor;
+
+  pointer-events: none;
+}
+
+/* 3) The moving highlight that sweeps around the ring */
+:where(.signup-card,
+  .verify-card,
+  .profile-card,
+  .profile-modal,
+  .policy-card,
+  .legal-card,
+  .hk-panel)::after {
+  content: "";
+  position: absolute;
+  inset: calc(-1 * var(--ring-w));
+  border-radius: inherit;
+  padding: var(--ring-w);
+
+  background:
+    conic-gradient(from var(--sweep),
+      transparent 0deg,
+      transparent 346deg,
+      rgba(255, 255, 255, .95) 348deg,
+      rgba(255, 255, 255, .95) 352deg,
+      transparent 354deg 360deg);
+  background-clip: border-box;
+
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  -webkit-mask-composite: xor;
+
+  pointer-events: none;
+  animation: hk-sweep var(--ring-speed) linear infinite alternate;
+  opacity: .9;
+}
+
+/* Optional: turn off the sweep for reduce-motion users */
+@media (prefers-reduced-motion: reduce) {
+
+  :where(.signup-card, .verify-card, .profile-card, .profile-modal,
+    .policy-card, .legal-card, .hk-panel)::after {
+    animation: none;
+  }
+}

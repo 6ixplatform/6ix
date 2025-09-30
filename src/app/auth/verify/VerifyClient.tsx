@@ -5,6 +5,8 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabaseBrowser } from '@/lib/supabaseBrowser';
+import BackStopper from '@/components/BackStopper';
+import HelpKit from '@/components/HelpKit';
 
 const DIGITS = 6;
 const RESEND_COOLDOWN_SEC = 30;
@@ -29,7 +31,7 @@ export default function VerifyClient() {
     const [resending, setResending] = useState(false);
     const [cooldown, setCooldown] = useState(0);
     const [err, setErr] = useState<string | null>(null);
-    const [helpOpen, setHelpOpen] = useState(false);
+    
 
     // ---- NEW: strict one-shot guards to stop double verify
     const verifyingRef = useRef(false); // blocks concurrent verify
@@ -228,15 +230,11 @@ export default function VerifyClient() {
 
     return (
         <main className="verify-scope min-h-dvh" style={{ paddingTop: 'env(safe-area-inset-top,0px)' }}>
-            {/* HELP (smaller) */}
-            <button
-                className="help-toggle"
-                onClick={() => setHelpOpen(v => !v)}
-                aria-label="Need help?"
-            >
-                Need help?
-            </button>
-            {helpOpen && <HelpPanel onClose={() => setHelpOpen(false)} presetEmail={email} />}
+            
+            <BackStopper/>
+            <HelpKit anchorToCard={false} presetEmail={email} />
+            {/* HELP (mirror Sign-up) */}
+           
             {/* Desktop */}
             <div className="hidden md:grid grid-cols-2 min-h-dvh">
                 <aside className="relative overflow-hidden">
@@ -248,6 +246,7 @@ export default function VerifyClient() {
                 </aside>
 
                 <section className="relative px-8 lg:px-12 pt-50 pb-12 overflow-y-auto">
+                    
                     <header>
                         <h1 className="text-4xl lg:text-5xl font-semibold leading-tight">Verify your code</h1>
                         <p className="mt-3 text-zinc-300">
@@ -255,7 +254,8 @@ export default function VerifyClient() {
                         </p>
                     </header>
 
-                    <div className="mt-8 max-w-lg md:max-w-xl">
+                    <div className="silver-card mt-8 max-w-lg md:max-w-xl">
+
                         <VerifyCard
                             code={code}
                             onKeyDown={handleKeyDown}
@@ -276,7 +276,8 @@ export default function VerifyClient() {
 
             {/* Mobile */}
             <div className="md:hidden pb-20">
-                <div className="pt-6 grid place-items-center">
+                
+                <div className="verify-card silver-ring pt-6 grid place-items-center">
                     <Image src="/splash.png" alt="6ix" width={120} height={120} priority className="rounded-xl object-cover" />
                     <h1 className="mt-4 text-3xl font-semibold text-center px-6">Verify your code</h1>
                     <p className="mt-2 text-center px-6 text-zinc-300">
@@ -284,7 +285,7 @@ export default function VerifyClient() {
                     </p>
                 </div>
 
-                <div className="px-4 mt-5">
+                <div className="silver-card px-4 mt-5">
                     <VerifyCard
                         code={code}
                         onKeyDown={handleKeyDown}
@@ -313,24 +314,26 @@ export default function VerifyClient() {
 
             {/* Minimal global styles (keep your UI) */}
             <style jsx global>{`
+
+          
             /* ===== Verify page theming ===== */
 .verify-scope { background:#0a0b0d; color:#e9e9f0; }
 html.theme-light .verify-scope { background:#ffffff; color:#0b0c10; }
 
-/* smaller Help pill that adapts to theme */
-.help-toggle{
-position:fixed; z-index:50;
-top:calc(env(safe-area-inset-top)+10px);
-right:calc(env(safe-area-inset-right)+10px);
-padding:.22rem .5rem; font-size:11px; line-height:1;
-border-radius:9999px; backdrop-filter:blur(8px);
-border:1px solid rgba(255,255,255,.18);
-background:rgba(255,255,255,.12); color:#fff;
+
+
+
+.verify-scope .field{
+background: rgba(255,255,255,.06);
+color:#fff;
+border:1px solid rgba(255,255,255,.12);
 }
-html.theme-light .help-toggle{
-border-color:rgba(0,0,0,.18);
-background:rgba(0,0,0,.06); color:#000;
+.verify-scope .field:focus{ outline:none; border-color: rgba(255,255,255,.34); }
+html.theme-light .verify-scope .field{
+background: rgba(0,0,0,.03);
+color:#111; border-color: rgba(0,0,0,.12);
 }
+html.theme-light .verify-scope .field:focus{ border-color: rgba(0,0,0,.35); }
 
 /* Glass card (dark) / crystal card (light) */
 .verify-card{
@@ -380,20 +383,6 @@ html.theme-light .btn-outline:disabled{ background:#f3f4f6; color:#9ca3af; borde
 /* One-line trademark */
 .verify-tm{ color:#9ca3af; white-space:nowrap; text-align:center; }
 html.theme-light .verify-tm{ color:#6b7280; }
-
-/* Help panel surfaces */
-.help-panel{
-background:rgba(0,0,0,.55);
-border:1px solid rgba(255,255,255,.12);
-color:#fff;
-box-shadow:0 18px 60px rgba(0,0,0,.45);
-}
-html.theme-light .help-panel{
-background:rgba(255,255,255,.94);
-border:1px solid #e5e7eb;
-color:#0b0c10;
-box-shadow:0 18px 60px rgba(0,0,0,.10);
-}
 
 /* Links inside the card stay visible on light */
 html.theme-light .verify-card a{
@@ -446,7 +435,7 @@ function VerifyCard({
     const inputsDisabled = verifying;
 
     return (
-        <div className="verify-card relative w-[min(92vw,40rem)] p-5 sm:p-6">
+        <div className="verify-card silver-ring relative w-[min(92vw,40rem)] p-5 sm:p-6">
             <div className="mb-4 relative z-10">
                 <div className="text-lg sm:text-xl font-semibold">Enter code</div>
             </div>
@@ -525,52 +514,3 @@ function Spinner() {
     );
 }
 
-/* -------- Help mini dialog -------- */
-function HelpPanel({ onClose, presetEmail }: { onClose: () => void; presetEmail?: string }) {
-    const [firstName, setFirst] = useState('');
-    const [lastName, setLast] = useState('');
-    const [location, setLoc] = useState('');
-    const [reason, setReason] = useState('');
-    const [email, setEmail] = useState(presetEmail || '');
-    const [sending, setSending] = useState(false);
-    const [done, setDone] = useState<null | 'ok' | 'err'>(null);
-    const [msg, setMsg] = useState<string>('');
-
-    const submit = async () => {
-        setSending(true); setDone(null); setMsg('');
-        try {
-            const r = await fetch('/api/support', {
-                method: 'POST',
-                headers: { 'content-type': 'application/json' },
-                body: JSON.stringify({ firstName, lastName, location, reason, email })
-            });
-            const data = await r.json();
-            if (!r.ok) throw new Error(data?.error || 'Could not send');
-            setDone('ok'); setMsg('Thanks! Our team will reach out.');
-        } catch (e: any) {
-            setDone('err'); setMsg(e?.message || 'Could not send');
-        } finally {
-            setSending(false);
-        }
-    };
-
-    return (
-        <div className="help-panel fixed right-4 top-14 z-40 w-[min(92vw,360px)] rounded-2xl backdrop-blur-xl p-4 shadow-lg">
-            <div className="flex items-center justify-between">
-                <div className="font-medium">Need help?</div>
-                <button onClick={onClose} className="text-sm text-zinc-300 hover:text-white">Close</button>
-            </div>
-            <div className="mt-3 grid gap-2">
-                <input className="rounded-lg bg-white/10 border border-white/10 px-3 py-2 text-sm focus:outline-none focus:border-white/30" placeholder="First name" value={firstName} onChange={e => setFirst(e.target.value)} />
-                <input className="rounded-lg bg-white/10 border border-white/10 px-3 py-2 text-sm focus:outline-none focus:border-white/30" placeholder="Last name" value={lastName} onChange={e => setLast(e.target.value)} />
-                <input className="rounded-lg bg-white/10 border border-white/10 px-3 py-2 text-sm focus:outline-none focus:border-white/30" placeholder="Email (reply to)" value={email} onChange={e => setEmail(e.target.value)} />
-                <input className="rounded-lg bg-white/10 border border-white/10 px-3 py-2 text-sm focus:outline-none focus:border-white/30" placeholder="Location (city, country)" value={location} onChange={e => setLoc(e.target.value)} />
-                <textarea className="rounded-lg bg-white/10 border border-white/10 px-3 py-2 text-sm focus:outline-none focus:border-white/30" placeholder="Tell us what went wrong…" rows={3} value={reason} onChange={e => setReason(e.target.value)} />
-                {done && <p className={`text-sm ${done === 'ok' ? 'text-emerald-400' : 'text-red-400'}`}>{msg}</p>}
-                <button className="btn btn-primary btn-water" disabled={sending} onClick={submit}>
-                    {sending ? 'Sending…' : 'Send to support@6ixapp.com'}
-                </button>
-            </div>
-        </div>
-    );
-}

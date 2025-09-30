@@ -6,6 +6,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import BackStopper from '@/components/BackStopper';
+import HelpKit from '@/components/HelpKit';
 
 type LastUser = {
     handle?: string;
@@ -31,7 +32,7 @@ export default function SignInClient() {
     const [err, setErr] = useState<string | null>(null);
     const [notice, setNotice] = useState<string | null>(null);
 
-    const [helpOpen, setHelpOpen] = useState(false);
+
     const [lastUser, setLastUser] = useState<LastUser | null>(null);
 
     // auto-redirect for new emails → signup (effect-based countdown)
@@ -146,15 +147,9 @@ export default function SignInClient() {
     return (
         <>
             <BackStopper />
+
             <main className="auth-scope min-h-dvh bg-black text-white" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
-                {/* HELP button top-right */}
-                <button
-                    className="help-fab fixed right-4 top-4 z-40"
-                    onClick={() => setHelpOpen(v => !v)}
-                >
-                    Need help?
-                </button>
-                {helpOpen && <HelpPanel onClose={() => setHelpOpen(false)} presetEmail={email} />}
+
 
                 {/* DESKTOP / LAPTOP */}
                 <div className="hidden md:grid grid-cols-2 min-h-dvh">
@@ -169,6 +164,7 @@ export default function SignInClient() {
 
                     {/* Right */}
                     <section className="relative px-8 lg:px-12 pt-30 pb-12 overflow-y-auto">
+                        <HelpKit presetEmail={email} anchorToCard />
                         <header className="flex items-start gap-4">
                             {lastUser?.avatar_url && (
                                 <div className="shrink-0 w-16 h-16 rounded-full overflow-hidden border border-white/15">
@@ -185,7 +181,8 @@ export default function SignInClient() {
                             </div>
                         </header>
 
-                        <div className="mt-8 max-w-md md:max-w-2xl lg:max-w-[820px]">
+                        <div className="silver-ring mt-8 max-w-md md:max-w-2xl lg:max-w-[820px] relative">
+
                             <SignInCard
                                 email={email}
                                 setEmail={setEmail}
@@ -211,6 +208,7 @@ export default function SignInClient() {
 
                 {/* MOBILE */}
                 <div className="md:hidden pb-12">
+                    <HelpKit presetEmail={email} anchorToCard />
                     <div className="pt-6 grid place-items-center">
                         <Image src="/splash.png" alt="6ix" width={120} height={120} priority className="rounded-xl object-cover" />
                         <div className="mt-4 text-center px-6">
@@ -228,7 +226,8 @@ export default function SignInClient() {
                         </div>
                     </div>
 
-                    <div className="px-4 mt-5 w-full">
+                    <div className="silver-ring px-4 mt-5 w-full relative">
+
                         <SignInCard
                             email={email}
                             setEmail={setEmail}
@@ -254,7 +253,50 @@ export default function SignInClient() {
 
                 {/* Global tweaks (UI unchanged) */}
                 <style jsx global>{`
+                html.theme-light .auth-scope .btn-primary {
+background:#000;
+color:#fff;
+}
                 :root{ color-scheme: light dark; }
+/* Base pill (same across pages) */
+.help-toggle{
+position:fixed; z-index:50;
+top:calc(env(safe-area-inset-top)+10px);
+padding:.28rem .55rem; font-size:12px; line-height:1; border-radius:9999px;
+-webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px);
+border:1px solid rgba(255,255,255,.18);
+background:rgba(255,255,255,.10); color:#fff;
+box-shadow:
+inset 0 1px 0 rgba(255,255,255,.22),
+inset 0 -1px 0 rgba(0,0,0,.35),
+0 4px 12px rgba(0,0,0,.35);
+transition:transform .12s ease, opacity .2s ease, box-shadow .2s ease;
+}
+.help-toggle:active{ transform:scale(.98); }
+html.theme-light .help-toggle{
+background:rgba(0,0,0,.06); border-color:rgba(0,0,0,.18); color:#000;
+}
+
+/* ✅ Force the button to the RIGHT, even if some other CSS tried to put it left */
+.help-pos-right{
+right:calc(env(safe-area-inset-right)+10px) !important;
+left:auto !important;
+}
+
+/* Panel position (stays under the button on the right) */
+.help-panel{
+position:fixed;
+right:calc(env(safe-area-inset-right)+14px);
+top:calc(env(safe-area-inset-top)+56px);
+width:min(92vw,360px);
+border-radius:16px; padding:14px;
+-webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px);
+background:rgba(0,0,0,.55); border:1px solid rgba(255,255,255,.12); color:#fff;
+box-shadow:0 18px 60px rgba(0,0,0,.45);
+}
+html.theme-light .help-panel{
+background:rgba(255,255,255,.94); border-color:#e5e7eb; color:#0b0c10;
+}
 
 /* Scope the page */
 .auth-scope *{ -webkit-tap-highlight-color:transparent; }
@@ -461,13 +503,7 @@ function SignInCard({
             )}
             {err && <p className="mt-3 text-sm text-red-500" aria-live="polite">{err}</p>}
 
-            <button
-                className={`btn btn-primary btn-water ${loading ? 'pointer-events-none' : ''}`}
-                disabled={!canSend}
-                onClick={onSend}
-            >
-                {loading && <Spinner />} {loading ? 'Signing…' : 'Sign in'}
-            </button>
+
 
             <div className="mt-4 text-center text-sm text-soft">
                 New to 6ix? <span role="img" aria-label="down">↓</span>
@@ -491,51 +527,4 @@ function SignInCard({
             />
         );
     }
-}
-/* -------- Help mini dialog (theme-aware) -------- */
-function HelpPanel({ onClose, presetEmail }: { onClose: () => void; presetEmail?: string }) {
-    const [firstName, setFirst] = useState('');
-    const [lastName, setLast] = useState('');
-    const [location, setLoc] = useState('');
-    const [reason, setReason] = useState('');
-    const [email, setEmail] = useState(presetEmail || '');
-    const [sending, setSending] = useState(false);
-    const [done, setDone] = useState<null | 'ok' | 'err'>(null);
-    const [msg, setMsg] = useState<string>('');
-
-    const submit = async () => {
-        setSending(true); setDone(null); setMsg('');
-        try {
-            const r = await fetch('/api/support', {
-                method: 'POST',
-                headers: { 'content-type': 'application/json' },
-                body: JSON.stringify({ firstName, lastName, location, reason, email })
-            });
-            const data = await r.json();
-            if (!r.ok) throw new Error(data?.error || 'Could not send');
-            setDone('ok'); setMsg('Thanks! Our team will reach out.');
-        } catch (e: any) {
-            setDone('err'); setMsg(e?.message || 'Could not send');
-        } finally { setSending(false); }
-    };
-
-    return (
-        <div className="help-panel fixed right-4 top-14 z-40 w-[min(92vw,360px)] rounded-2xl border backdrop-blur-xl p-4 shadow-lg">
-            <div className="flex items-center justify-between">
-                <div className="font-medium">Need help?</div>
-                <button onClick={onClose} className="chip-sm">Close</button>
-            </div>
-            <div className="mt-3 grid gap-2">
-                <input className="inp" placeholder="First name" value={firstName} onChange={e => setFirst(e.target.value)} />
-                <input className="inp" placeholder="Last name" value={lastName} onChange={e => setLast(e.target.value)} />
-                <input className="inp" placeholder="Email (reply to)" value={email} onChange={e => setEmail(e.target.value)} />
-                <input className="inp" placeholder="Location (city, country)" value={location} onChange={e => setLoc(e.target.value)} />
-                <textarea className="inp" rows={3} placeholder="Tell us what went wrong…" value={reason} onChange={e => setReason(e.target.value)} />
-                {done && <p className={`text-sm ${done === 'ok' ? 'text-emerald-600' : 'text-red-600'}`}>{msg}</p>}
-                <button className="btn btn-primary btn-water" disabled={sending} onClick={submit}>
-                    {sending ? 'Sending…' : 'Send to support@6ixapp.com'}
-                </button>
-            </div>
-        </div>
-    );
 }

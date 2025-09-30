@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Script from 'next/script';
 import BackStopper from '@/components/BackStopper';
+import HelpKit from '@/components/HelpKit';
 
 const EMAIL_DOMAINS = [
     'gmail.com', 'icloud.com', 'yahoo.com', 'hotmail.com', 'outlook.com',
@@ -24,7 +25,7 @@ export default function SignUpPage() {
 
     const [err, setErr] = useState<string | null>(null);
     const [info, setInfo] = useState<string | null>(null);
-    const [helpOpen, setHelpOpen] = useState(false);
+
 
     const [emailStatus, setEmailStatus] = useState<EmailStatus>('idle');
     const [sending, setSending] = useState(false);
@@ -266,20 +267,12 @@ export default function SignUpPage() {
 
             <BackStopper />
 
+
             <main
                 className="auth-scope min-h-dvh bg-black text-zinc-100 pb-[calc(env(safe-area-inset-bottom)+60px)]"
                 style={{ paddingTop: 'env(safe-area-inset-top,0px)' }}
+
             >
-                <button
-                    type="button"
-                    className={`help-toggle ${pageDisabled ? 'is-disabled' : ''}`}
-                    onClick={() => setHelpOpen(v => !v)}
-                    disabled={pageDisabled}
-                    aria-label="Need help?"
-                >
-                    Need Help?
-                </button>
-                {helpOpen && <HelpPanel onClose={() => setHelpOpen(false)} presetEmail={email} />}
 
                 {/* Email-exists modal */}
                 {existsOpen && (
@@ -302,6 +295,7 @@ export default function SignUpPage() {
                     </aside>
 
                     <section className="relative px-8 lg:px-12 pt-30 pb-12 overflow-visible">
+                        <HelpKit presetEmail={email} anchorToCard />
                         <header>
                             <h1 className="text-4xl lg:text-5xl font-semibold leading-tight">Sign up to 6ix today</h1>
                             <p className="mt-3 text-zinc-300 max-w-2xl">
@@ -309,7 +303,8 @@ export default function SignUpPage() {
                             </p>
                         </header>
 
-                        <div className="mt-8 max-w-md md:max-w-2xl lg:max-w-[820px]">
+                        <div className="signup-card silver-ring mt-8 max-w-md md:max-w-2xl lg:max-w-[820px] help-anchor">
+
                             <SignUpCard
                                 email={email}
                                 setEmail={setEmail}
@@ -336,6 +331,7 @@ export default function SignUpPage() {
 
                 {/* MOBILE */}
                 <div className="md:hidden min-h-dvh flex flex-col">
+                    <HelpKit presetEmail={email} anchorToCard />
                     <div className="pt-6 grid place-items-center">
                         <Image src="/splash.png" alt="6ix" width={120} height={120} priority className="rounded-xl object-cover" />
                         <h1 className="mt-4 text-3xl font-semibold text-center px-6">Sign up to 6ix today</h1>
@@ -344,7 +340,8 @@ export default function SignUpPage() {
                         </p>
                     </div>
 
-                    <div className="px-4 mt-5 flex-1">
+                    <div className="signup-card silver-ring px-4 mt-5 flex-1 help-anchor">
+
                         <SignUpCard
                             email={email}
                             setEmail={setEmail}
@@ -371,6 +368,8 @@ export default function SignUpPage() {
 
                 {/* Page-scoped styles (NO HOVER; tap-only effects) */}
                 <style jsx global>{`
+
+                
                 /* --- Email-exists modal theming --- */
 .auth-scope .auth-overlay{ background:rgba(0,0,0,.68); }
 html.theme-light .auth-scope .auth-overlay{ background:rgba(0,0,0,.22); }
@@ -412,48 +411,7 @@ background: rgba(0,0,0,.06);
 border-color: rgba(0,0,0,.18);
 color:#111;
 }
-                /* Tiny top-right Help pill (NOT full width) */
-.auth-scope .help-toggle{
-position: fixed;
-top: calc(env(safe-area-inset-top) + 10px);
-right: calc(env(safe-area-inset-right) + 10px);
-z-index: 50;
-
-display: inline-flex;
-align-items: center;
-justify-content: center;
-
-width: auto; min-width: 0;
-padding: .28rem .55rem; /* small */
-border-radius: 9999px;
-font-size: 12px; line-height: 1;
-letter-spacing: .1px;
-
-background: rgba(255,255,255,.10);
-border: 1px solid rgba(255,255,255,.18);
-color: #fff;
-
--webkit-backdrop-filter: blur(10px);
-backdrop-filter: blur(10px);
-box-shadow:
-inset 0 1px 0 rgba(255,255,255,.22),
-inset 0 -1px 0 rgba(0,0,0,.35),
-0 4px 12px rgba(0,0,0,.35);
-
-transition: transform .12s ease, opacity .2s ease, box-shadow .2s ease;
-}
-
-/* tap “flick” */
-.auth-scope .help-toggle:active { transform: scale(.98); }
-.auth-scope .help-toggle.is-disabled{ opacity:.6; pointer-events:none; }
-
-/* Light theme flip */
-html.theme-light .auth-scope .help-toggle{
-background: rgba(0,0,0,.06);
-border-color: rgba(0,0,0,.18);
-color: #000;
-}
-
+                
                 /* Pressed state: quick 3D push-in, no color flip */
 .auth-scope .btn.pressed {
 transform: translateY(1px) scale(.995);
@@ -589,22 +547,7 @@ html.theme-light .auth-scope input[type="checkbox"]:checked { background:#000; b
 /* Small utilities */
 .auth-scope .text-link { text-decoration: underline; text-decoration-color: rgba(255,255,255,.3); }
 html.theme-light .auth-scope .text-link { text-decoration-color: rgba(0,0,0,.3); }
-/* Help panel dark/light surfaces */
-.auth-scope .help-panel{
-background: rgba(0,0,0,.55);
-border-color: rgba(255,255,255,.12);
-color:#fff;
-box-shadow: 0 18px 60px rgba(0,0,0,.45);
-}
-html.theme-light .auth-scope .help-panel{
-background: rgba(255,255,255,.92);
-border-color: rgba(0,0,0,.12);
-color:#111;
-box-shadow: 0 18px 60px rgba(0,0,0,.12);
-}
-/* Close pill inside panel */
-.auth-scope .help-panel .close-pill{ background: rgba(255,255,255,.10); }
-html.theme-light .auth-scope .help-panel .close-pill{ background: rgba(0,0,0,.06); color:#111; }
+
 
 `}</style>
             </main>
@@ -656,50 +599,53 @@ function SignUpCard({
             <label className="block">
                 <div className="text-sm text-zinc-400 mb-1">Email</div>
 
-                <input
-                    list="email-suggest"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@email.com"
-                    className="field w-full rounded-lg pl-3 pr-14 py-2.5 placeholder-zinc-500 disabled:opacity-60"
-                    inputMode="email"
-                    autoComplete="email"
-                    autoFocus
-                    aria-label="Email address"
-                    disabled={pageDisabled}
-                />
+                {/* anchor the suffix to the input, not the card */}
+                <div className="relative">
+                    <input
+                        list="email-suggest"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="you@email.com"
+                        className="field w-full rounded-lg pl-3 pr-14 py-2.5 placeholder-zinc-500 disabled:opacity-60"
+                        inputMode="email"
+                        autoComplete="email"
+                        autoFocus
+                        aria-label="Email address"
+                        disabled={pageDisabled}
+                    />
 
-                <div className="absolute top-1/2 -translate-y-1/2 right-3 grid place-items-center w-8">
-                    {emailStatus === 'checking' && <Spinner />}
+                    {/* centered inside the input, right side */}
+                    <div className="absolute inset-y-0 right-3 flex items-center justify-center w-8 pointer-events-none">
+                        {emailStatus === 'checking' && <Spinner />}
 
-                    {emailStatus === 'new' && (
-                        <svg viewBox="0 0 20 20" className="h-5 w-5">
-                            <circle cx="10" cy="10" r="8.5" fill="none" className="stroke-emerald-400" strokeWidth="1.8" />
-                            <path d="M6 10.5l2.2 2.2L14 7.8" className="stroke-emerald-400" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                    )}
+                        {emailStatus === 'new' && (
+                            <svg viewBox="0 0 20 20" className="h-5 w-5">
+                                <circle cx="10" cy="10" r="8.5" fill="none" className="stroke-emerald-400" strokeWidth="1.8" />
+                                <path d="M6 10.5l2.2 2.2L14 7.8" className="stroke-emerald-400" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                        )}
 
-                    {emailStatus === 'exists' && (
-                        <svg viewBox="0 0 20 20" className="h-5 w-5">
-                            <circle cx="10" cy="10" r="8.5" fill="none" className="stroke-red-400" strokeWidth="1.8" />
-                            <path d="M10 6v6M10 14.5h.01" className="stroke-red-400" strokeWidth="2" fill="none" strokeLinecap="round" />
-                        </svg>
-                    )}
+                        {emailStatus === 'exists' && (
+                            <svg viewBox="0 0 20 20" className="h-5 w-5">
+                                <circle cx="10" cy="10" r="8.5" fill="none" className="stroke-red-400" strokeWidth="1.8" />
+                                <path d="M10 6v6M10 14.5h.01" className="stroke-red-400" strokeWidth="2" fill="none" strokeLinecap="round" />
+                            </svg>
+                        )}
 
-                    {(emailStatus === 'idle' || emailStatus === 'error') && (
-                        <button
-                            type="button"
-                            onClick={onCheckEmail}
-                            disabled={!looksLikeEmail(email) || pageDisabled}
-                            title="Check email"
-                            aria-label="Check email"
-                            className="field-suffix pointer-events-auto inline-flex items-center justify-center h-8 w-8 rounded-full border bg-black/40 border-white/20 disabled:opacity-40 btn"
-                        >
-                            <span className="text-xs leading-none">☑︎</span>
-                        </button>
-                    )}
+                        {(emailStatus === 'idle' || emailStatus === 'error') && (
+                            <button
+                                type="button"
+                                onClick={onCheckEmail}
+                                disabled={!looksLikeEmail(email) || pageDisabled}
+                                title="Check email"
+                                aria-label="Check email"
+                                className="field-suffix inline-flex items-center justify-center h-8 w-8 rounded-full border bg-black/40 border-white/20 disabled:opacity-40 btn pointer-events-auto"
+                            >
+                                <span className="text-xs leading-none">☑︎</span>
+                            </button>
+                        )}
+                    </div>
                 </div>
-
             </label>
 
             {err && <p className="mt-3 text-sm text-red-400" aria-live="polite">{err}</p>}
@@ -725,7 +671,7 @@ function SignUpCard({
             </label>
 
             <button
-                className={`btn btn-primary ${(!canSend || pageDisabled) ? 'pointer-events-none' : ''}`}
+                className={`btn btn-primary mt-5 md:mt-4 ${(!canSend || pageDisabled) ? 'pointer-events-none' : ''}`}
                 data-enabled={canSend && !pageDisabled}
                 disabled={!canSend || pageDisabled}
                 onClick={onSend}
@@ -760,56 +706,6 @@ function Spinner() {
     return <span className="inline-block h-4 w-4 rounded-full border-2 border-zinc-600 border-t-transparent animate-spin" aria-hidden="true" />;
 }
 
-/* -------- Help mini dialog -------- */
-function HelpPanel({ onClose, presetEmail }: { onClose: () => void; presetEmail?: string }) {
-    const [firstName, setFirst] = useState('');
-    const [lastName, setLast] = useState('');
-    const [location, setLoc] = useState('');
-    const [reason, setReason] = useState('');
-    const [email, setEmail] = useState(presetEmail || '');
-    const [sending, setSending] = useState(false);
-    const [done, setDone] = useState<null | 'ok' | 'err'>(null);
-    const [msg, setMsg] = useState<string>('');
-
-    const submit = async () => {
-        setSending(true); setDone(null); setMsg('');
-        try {
-            const r = await fetch('/api/support', {
-                method: 'POST',
-                headers: { 'content-type': 'application/json' },
-                body: JSON.stringify({ firstName, lastName, location, reason, email })
-            });
-            const data = await r.json();
-            if (!r.ok) throw new Error(data?.error || 'Could not send');
-            setDone('ok'); setMsg('Thanks! Our team will reach out.');
-        } catch (e: any) {
-            setDone('err'); setMsg(e?.message || 'Could not send');
-        } finally {
-            setSending(false);
-        }
-    };
-
-    return (
-        <div className="help-panel fixed right-4 top-14 z-40 w-[min(92vw,360px)] rounded-2xl border backdrop-blur-xl p-4 shadow-lg">
-            <div className="container justify-between">
-                <div className="font-medium">Need help?</div>
-                <button onClick={onClose} className="text-sm text-zinc-300">Close</button>
-            </div>
-            <div className="mt-3 grid gap-2">
-                <input className="field rounded-lg px-3 py-2 text-sm" placeholder="First name" value={firstName} onChange={e => setFirst(e.target.value)} />
-                <input className="field rounded-lg px-3 py-2 text-sm" placeholder="Last name" value={lastName} onChange={e => setLast(e.target.value)} />
-                <input className="field rounded-lg px-3 py-2 text-sm" placeholder="Email (reply to)" value={email} onChange={e => setEmail(e.target.value)} />
-                <input className="field rounded-lg px-3 py-2 text-sm" placeholder="Location (city, country)" value={location} onChange={e => setLoc(e.target.value)} />
-                <textarea className="field rounded-lg px-3 py-2 text-sm" placeholder="Tell us what went wrong…" rows={3} value={reason} onChange={e => setReason(e.target.value)} />
-                {done && <p className={`text-sm ${done === 'ok' ? 'text-emerald-400' : 'text-red-400'}`}>{msg}</p>}
-                {/* Primary button uses black text on white background */}
-                <button className="btn btn-primary" disabled={sending} onClick={submit}>
-                    {sending ? 'Sending…' : 'Send to support@6ixapp.com'}
-                </button>
-            </div>
-        </div>
-    );
-}
 
 /* -------- Email-exists modal (light/dark glass) -------- */
 function EmailExistsModal({
