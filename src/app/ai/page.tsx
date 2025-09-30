@@ -256,28 +256,34 @@ function splitVisibleAndSuggestions(md: string) {
 function isHttp(u?: string | null) {
     return !!u && /^(https?:)?\/\//i.test(u);
 }
-
 async function toPublicAvatarUrl(raw?: string | null): Promise<string | null> {
     if (!raw) return null;
-    if (isHttp(raw)) return raw;
+    const supabase = supabaseBrowser();
 
-    try {
-        const supabase = supabaseBrowser();
-        if (!supabase) return raw;
-
-        // Try public URL first
-        const pub = supabase.storage.from('avatars').getPublicUrl(raw);
-        const publicUrl = pub?.data?.publicUrl || null;
-
-        // If bucket is private, sign it
-        if (!publicUrl) {
-            const signed = await supabase.storage.from('avatars').createSignedUrl(raw, 3600);
-            return signed.data?.signedUrl ?? raw;
+    // Already a web URL?
+    if (/^https?:\/\//i.test(raw)) {
+        // If it's a Supabase "public" URL but bucket is private, fall back to a signed one.
+        if (supabase && raw.includes('/storage/v1/object/public/avatars/')) {
+            const path = raw.split('/storage/v1/object/public/avatars/')[1];
+            if (path) {
+                try {
+                    const signed = await supabase.storage.from('avatars').createSignedUrl(path, 60 * 60 * 24 * 7);
+                    return signed.data?.signedUrl ?? raw;
+                } catch { }
+            }
         }
-        return publicUrl;
-    } catch {
         return raw;
     }
+
+    // Storage path → public or signed URL
+    try {
+        const pub = supabase.storage.from('avatars').getPublicUrl(raw).data.publicUrl;
+        if (pub) return pub;
+    } catch { }
+    try {
+        const signed = await supabase.storage.from('avatars').createSignedUrl(raw, 60 * 60 * 24 * 7);
+        return signed.data?.signedUrl ?? null;
+    } catch { return null; }
 }
 
 async function loadProfileFromSupabase(): Promise<Profile | null> {
@@ -361,25 +367,25 @@ async function loadProfileFromAPI(): Promise<Profile | null> {
         return null;
     }
 }
-
 async function uploadAvatarToSupabase(file: File): Promise<string | null> {
     try {
         const supabase = supabaseBrowser();
-        if (!supabase) return null;
         const { data: auth } = await supabase.auth.getUser();
-        const user = auth?.user;
-        if (!user) return null;
+        const user = auth?.user; if (!user) return null;
+
         const ext = file.name.split('.').pop() || 'jpg';
-        const path = `${user.id}/${Date.now()}.${ext}`;
+        const path = `${user.id}/${Date.now()}.${ext}`; // e.g. avatars/<user>/<ts>.jpg
         const up = await supabase.storage.from('avatars').upload(path, file, { cacheControl: '3600', upsert: true });
         if (up.error) return null;
 
-        // ✅ store storage path in DB
+        // Persist the *path* in DB
         await supabase.from('profiles').update({ avatar_url: path }).eq('id', user.id);
 
-        // return a displayable URL for the UI
-        const publicUrl = supabase.storage.from('avatars').getPublicUrl(path).data.publicUrl ?? null;
-        return publicUrl;
+        // Return a displayable URL for immediate UI update
+        const pub = supabase.storage.from('avatars').getPublicUrl(path).data.publicUrl;
+        if (pub) return pub;
+        const signed = await supabase.storage.from('avatars').createSignedUrl(path, 60 * 60 * 24 * 7);
+        return signed.data?.signedUrl ?? null;
     } catch { return null; }
 }
 
