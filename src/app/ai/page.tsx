@@ -532,7 +532,7 @@ function AvatarCard({
                 {/* header */}
                 <div className="p-3 flex items-center gap-3 border-b border-white/10">
                     <div className="relative">
-                        <AvatarThumb url={profile.avatarUrl} name={profile.displayName || undefined} plan={profile.plan} />
+                        <AvatarThumb key={profile.avatarUrl || 'none'} url={profile.avatarUrl} name={profile.displayName || undefined} plan={profile.plan} />
                     </div>
                     <div className="flex-1">
                         <div className="text-[14px] leading-tight">{profile.displayName || 'User'}</div>
@@ -1965,7 +1965,7 @@ export default function AIPage() {
                         aria-label="Account menu"
                     >
                         <div className="relative h-9 w-9">
-                            <AvatarThumb url={profile.avatarUrl} name={profile.displayName || undefined} plan={plan} />
+                            <AvatarThumb key={profile.avatarUrl || 'none'} url={profile.avatarUrl} name={profile.displayName || undefined} plan={plan} />
                         </div>
                     </button>
                 </div>
