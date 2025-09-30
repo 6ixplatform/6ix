@@ -258,7 +258,7 @@ export default function ProfileSetupProfileClient() {
             const j = await res.json().catch(() => ({}));
             if (!res.ok) throw new Error(j?.error || 'save_failed');
 
-            // 4) Seed the AI page 3-dot menu immediately
+            // 4) Seed the AI page avatar immediately
             const publicAvatar = toPublicUrl(avatar_storage_path);
             try {
                 const displayName =
