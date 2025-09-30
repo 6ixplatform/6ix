@@ -281,58 +281,53 @@ async function toPublicAvatarUrl(raw?: string | null): Promise<string | null> {
 }
 
 async function loadProfileFromSupabase(): Promise<Profile | null> {
-    try {
-        const supabase = supabaseBrowser();
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return null;
+    const supabase = supabaseBrowser();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
 
-        // Try to fetch enriched columns; fall back to base set if table doesn't have them yet.
-        const BASE = 'id, display_name, username, email, avatar_url, plan, credits, wallet';
-        const EXTRA = 'first_name, last_name, age, location, timezone, bio, language';
-        let data: any | null = null;
+    const BASE = 'id, display_name, username, email, avatar_url, plan, credits, wallet';
+    const EXTRA = 'first_name, last_name, age, location, timezone, bio, language';
 
-        const rich = await supabase
-            .from('profiles')
-            .select(`${BASE}, ${EXTRA}`)
-            .eq('id', user.id)
-            .single();
+    const rich = await supabase
+        .from('profiles')
+        .select(`${BASE}, ${EXTRA}`)
+        .eq('id', user.id)
+        .single();
 
-        if (rich.data) data = rich.data;
-        else {
-            const lean = await supabase
-                .from('profiles')
-                .select(BASE)
-                .eq('id', user.id)
-                .single();
-            data = lean.data ?? null;
-        }
-        if (!data) return null;
+    let row: any | null = null;
+    if (rich.data) row = rich.data;
+    else {
+        const lean = await supabase.from('profiles').select(BASE).eq('id', user.id).single();
+        row = lean.data ?? null;
+    }
+    if (!row) return null;
 
-        let avatarUrl: string | null = data?.avatar_url ?? null;
-        if (avatarUrl && !/^https?:\/\//i.test(avatarUrl)) {
-            const { data: pub } = supabase.storage.from('avatars').getPublicUrl(avatarUrl);
-            avatarUrl = pub?.publicUrl ?? null;
-        }
+    // resolve avatar (storage path → public URL)
+    let avatarUrl: string | null = row.avatar_url ?? null;
+    if (avatarUrl && !/^https?:\/\//i.test(avatarUrl)) {
+        const { data: pub } = supabase.storage.from('avatars').getPublicUrl(avatarUrl);
+        avatarUrl = pub?.publicUrl ?? null;
+    }
 
-        return {
-            id: data.id,
-            displayName: data.display_name ?? null,
-            username: data.username ?? null,
-            email: data.email ?? null,
-            avatarUrl,
-            plan: (data.plan as Plan) ?? 'free',
-            credits: data.credits ?? null,
-            wallet: data.wallet ?? null,
-            firstName: data.first_name ?? null,
-            lastName: data.last_name ?? null,
-            age: (typeof data.age === 'number' ? data.age : null),
-            location: data.location ?? null,
-            timezone: data.timezone ?? null,
-            bio: data.bio ?? null,
-            language: data.language ?? null,
-        };
-    } catch { return null; }
+    return {
+        id: row.id,
+        displayName: row.display_name ?? null,
+        username: row.username ?? null,
+        email: row.email ?? null,
+        avatarUrl,
+        plan: (row.plan as Plan) ?? 'free',
+        credits: row.credits ?? null,
+        wallet: row.wallet ?? null,
+        firstName: row.first_name ?? null,
+        lastName: row.last_name ?? null,
+        age: typeof row.age === 'number' ? row.age : null,
+        location: row.location ?? null,
+        timezone: row.timezone ?? null,
+        bio: row.bio ?? null,
+        language: row.language ?? null,
+    };
 }
+
 
 
 async function loadProfileFromAPI(): Promise<Profile | null> {
@@ -374,17 +369,16 @@ async function uploadAvatarToSupabase(file: File): Promise<string | null> {
         const { data: auth } = await supabase.auth.getUser();
         const user = auth?.user;
         if (!user) return null;
-
-        const path = `avatars/${user.id}-${Date.now()}.${file.name.split('.').pop() || 'jpg'}`;
+        const ext = file.name.split('.').pop() || 'jpg';
+        const path = `${user.id}/${Date.now()}.${ext}`;
         const up = await supabase.storage.from('avatars').upload(path, file, { cacheControl: '3600', upsert: true });
         if (up.error) return null;
 
-        const { data: pub } = supabase.storage.from('avatars').getPublicUrl(path);
-        const publicUrl = pub?.publicUrl ?? null;
+        // ✅ store storage path in DB
+        await supabase.from('profiles').update({ avatar_url: path }).eq('id', user.id);
 
-        if (publicUrl) {
-            await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('id', user.id);
-        }
+        // return a displayable URL for the UI
+        const publicUrl = supabase.storage.from('avatars').getPublicUrl(path).data.publicUrl ?? null;
         return publicUrl;
     } catch { return null; }
 }
@@ -971,6 +965,7 @@ export default function AIPage() {
                 'Guest';
 
             const p = { ...base, displayName, avatarUrl };
+            try { localStorage.setItem('6ixai:profile', JSON.stringify({ displayName, avatarUrl })); } catch { }
             if (alive) { setProfile(p); setPlan(p.plan); }
 
             // Realtime updates (also resolve avatar path → URL)
@@ -984,10 +979,11 @@ export default function AIPage() {
                         async (payload: any) => {
                             const row = payload.new || payload.old;
                             const nextUrl = await toPublicAvatarUrl(row?.avatar_url ?? null);
+                            try { localStorage.setItem('6ixai:profile', JSON.stringify({ displayName, avatarUrl })); } catch { }
                             setProfile(prev => ({
                                 ...prev,
                                 displayName: row?.display_name ?? prev.displayName,
-                                avatarUrl: row.avatar_url ?? prev.avatarUrl,
+                                avatarUrl: nextUrl ?? prev.avatarUrl, // ✅ use resolved public URL
                                 credits: row?.credits ?? prev.credits,
                                 wallet: row?.wallet ?? prev.wallet,
                                 plan: (row?.plan as Plan) ?? prev.plan,
