@@ -303,7 +303,7 @@ export default function SignUpPage() {
                             </p>
                         </header>
 
-                        <div className=" mt-8 max-w-md md:max-w-2xl lg:max-w-[820px] help-anchor">
+                        <div className="rounded-2xl mt-8 max-w-md md:max-w-2xl lg:max-w-[820px] help-anchor">
 
                             <SignUpCard
                                 email={email}
@@ -340,7 +340,7 @@ export default function SignUpPage() {
                         </p>
                     </div>
 
-                    <div className="px-4 mt-5 flex-1">
+                    <div className="rounded-2xl px-4 mt-5 flex-1">
 
                         <SignUpCard
                             email={email}
@@ -369,7 +369,50 @@ export default function SignUpPage() {
                 {/* Page-scoped styles (NO HOVER; tap-only effects) */}
                 <style jsx global>{`
 
-                
+                /* === Local Silver Ring (rounded, 20s sweep) === */
+:root { --sr-w: 1px; --sr-speed: 20s; --sr-glint: 6deg; }
+
+@property --sr-sweep { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
+
+.sr-ring{
+position: relative; isolation: isolate; border-radius: inherit; overflow: visible;
+}
+.sr-ring::before,
+.sr-ring::after{
+content:""; position:absolute; inset:0; border-radius:inherit; padding:var(--sr-w);
+background-clip:border-box;
+/* only draw the ring, not the fill */
+-webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+-webkit-mask-composite: xor; mask-composite: exclude;
+pointer-events:none;
+}
+/* subtle steady metallic rim */
+.sr-ring::before{
+background: conic-gradient(from 0deg,
+rgba(255,255,255,.16), rgba(255,255,255,.10), rgba(255,255,255,.16));
+filter: saturate(.9) brightness(.95);
+}
+html.theme-light .sr-ring::before{
+background: conic-gradient(from 0deg,
+rgba(0,0,0,.12), rgba(0,0,0,.08), rgba(0,0,0,.12));
+filter:none;
+}
+/* moving glint */
+.sr-ring::after{
+background: conic-gradient(from var(--sr-sweep),
+transparent 0deg calc(360deg - var(--sr-glint)),
+rgba(255,255,255,.95) calc(360deg - var(--sr-glint)) 360deg);
+animation: sr-sweep var(--sr-speed) linear infinite;
+opacity:.9;
+}
+@keyframes sr-sweep { to { --sr-sweep: 360deg; } }
+
+/* helper speeds if you ever want them */
+.sr-12 { --sr-speed: 12s; }
+.sr-20 { --sr-speed: 20s; } /* ← default you asked for */
+.sr-30 { --sr-speed: 30s; }
+
                 /* --- Email-exists modal theming --- */
 .auth-scope .auth-overlay{ background:rgba(0,0,0,.68); }
 html.theme-light .auth-scope .auth-overlay{ background:rgba(0,0,0,.22); }
@@ -591,7 +634,7 @@ function SignUpCard({
     };
 
     return (
-        <div className={`relative signup-card rounded-2xl border border-white/10 silver-ring bg-white/6 backdrop-blur-xl shadow-[0_10px_60px_-10px_rgba(0,0,0,.6)] p-5 sm:p-6 ${mobile ? '' : ''} ${pageDisabled ? 'opacity-90' : ''}`}>
+        <div className={`relative signup-card rounded-2xl border border-white/10 sr-ring sr-20 bg-white/6 backdrop-blur-xl shadow-[0_10px_60px_-10px_rgba(0,0,0,.6)] p-5 sm:p-6 ${mobile ? '' : ''} ${pageDisabled ? 'opacity-90' : ''}`}>
             <div className="flex items-center gap-3 mb-4">
                 <div className="text-lg sm:text-xl font-semibold">Create your 6ix account</div>
             </div>

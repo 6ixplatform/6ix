@@ -214,7 +214,7 @@ export default function SignInClient() {
                         </header>
 
 
-                        <div className="rounded-2xl mt-8 max-w-md md:max-w-2xl lg:max-w-[820px] relative">
+                        <div className="sr-ring sr-20 mt-8 max-w-md md:max-w-2xl lg:max-w-[820px]">
 
                             <SignInCard
                                 email={email}
@@ -262,7 +262,7 @@ export default function SignInClient() {
                         </p>
                     </div>
 
-                    <div className="px-4 mt-5 w-full relative">
+                    <div className="rounded-2xl sr-ring sr-20 px-4 mt-5 w-full relative">
 
                         <SignInCard
                             email={email}
@@ -289,6 +289,50 @@ export default function SignInClient() {
 
                 {/* Global tweaks (UI unchanged) */}
                 <style jsx global>{`
+                /* === Local Silver Ring (rounded, 20s sweep) === */
+:root { --sr-w: 1px; --sr-speed: 20s; --sr-glint: 6deg; }
+
+@property --sr-sweep { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
+
+.sr-ring{
+position: relative; isolation: isolate; border-radius: inherit; overflow: visible;
+}
+.sr-ring::before,
+.sr-ring::after{
+content:""; position:absolute; inset:0; border-radius:inherit; padding:var(--sr-w);
+background-clip:border-box;
+/* only draw the ring, not the fill */
+-webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+-webkit-mask-composite: xor; mask-composite: exclude;
+pointer-events:none;
+}
+/* subtle steady metallic rim */
+.sr-ring::before{
+background: conic-gradient(from 0deg,
+rgba(255,255,255,.16), rgba(255,255,255,.10), rgba(255,255,255,.16));
+filter: saturate(.9) brightness(.95);
+}
+html.theme-light .sr-ring::before{
+background: conic-gradient(from 0deg,
+rgba(0,0,0,.12), rgba(0,0,0,.08), rgba(0,0,0,.12));
+filter:none;
+}
+/* moving glint */
+.sr-ring::after{
+background: conic-gradient(from var(--sr-sweep),
+transparent 0deg calc(360deg - var(--sr-glint)),
+rgba(255,255,255,.95) calc(360deg - var(--sr-glint)) 360deg);
+animation: sr-sweep var(--sr-speed) linear infinite;
+opacity:.9;
+}
+@keyframes sr-sweep { to { --sr-sweep: 360deg; } }
+
+/* helper speeds if you ever want them */
+.sr-12 { --sr-speed: 12s; }
+.sr-20 { --sr-speed: 20s; } /* ← default you asked for */
+.sr-30 { --sr-speed: 30s; }
+
                 html.theme-light .auth-scope .btn-primary {
 background:#000;
 color:#fff;
@@ -492,7 +536,7 @@ function SignInCard({
         router.push('/auth/signup');
     };
     return (
-        <div className="relative signup-card rounded-2xl border border-white/10 silver-ring bg-white/6 backdrop-blur-xl auth-card p-5 sm:p-6 sheen-auto water-mobile">
+        <div className="relative signup-card rounded-2xl border border-white/10 sr-ring sr-20 bg-white/6 backdrop-blur-xl auth-card p-5 sm:p-6 sheen-auto water-mobile">
             <div className="flex items-center gap-3 mb-4">
                 <div className="text-lg sm:text-xl font-semibold">Sign in to 6ix</div>
             </div>

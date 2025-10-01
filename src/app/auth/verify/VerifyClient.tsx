@@ -254,7 +254,7 @@ export default function VerifyClient() {
                         </p>
                     </header>
 
-                    <div className="silver-card mt-8 max-w-lg md:max-w-xl">
+                    <div className="silver-card rounded-2xl mt-8 max-w-lg md:max-w-xl">
 
                         <VerifyCard
                             code={code}
@@ -285,7 +285,7 @@ export default function VerifyClient() {
                     </p>
                 </div>
 
-                <div className=" px-4 mt-5">
+                <div className="rounded-2xl px-4 mt-5">
                     <VerifyCard
                         code={code}
                         onKeyDown={handleKeyDown}
@@ -314,6 +314,49 @@ export default function VerifyClient() {
 
             {/* Minimal global styles (keep your UI) */}
             <style jsx global>{`
+/* === Local Silver Ring (rounded, 20s sweep) === */
+:root { --sr-w: 1px; --sr-speed: 20s; --sr-glint: 6deg; }
+
+@property --sr-sweep { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
+
+.sr-ring{
+position: relative; isolation: isolate; border-radius: inherit; overflow: visible;
+}
+.sr-ring::before,
+.sr-ring::after{
+content:""; position:absolute; inset:0; border-radius:inherit; padding:var(--sr-w);
+background-clip:border-box;
+/* only draw the ring, not the fill */
+-webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+-webkit-mask-composite: xor; mask-composite: exclude;
+pointer-events:none;
+}
+/* subtle steady metallic rim */
+.sr-ring::before{
+background: conic-gradient(from 0deg,
+rgba(255,255,255,.16), rgba(255,255,255,.10), rgba(255,255,255,.16));
+filter: saturate(.9) brightness(.95);
+}
+html.theme-light .sr-ring::before{
+background: conic-gradient(from 0deg,
+rgba(0,0,0,.12), rgba(0,0,0,.08), rgba(0,0,0,.12));
+filter:none;
+}
+/* moving glint */
+.sr-ring::after{
+background: conic-gradient(from var(--sr-sweep),
+transparent 0deg calc(360deg - var(--sr-glint)),
+rgba(255,255,255,.95) calc(360deg - var(--sr-glint)) 360deg);
+animation: sr-sweep var(--sr-speed) linear infinite;
+opacity:.9;
+}
+@keyframes sr-sweep { to { --sr-sweep: 360deg; } }
+
+/* helper speeds if you ever want them */
+.sr-12 { --sr-speed: 12s; }
+.sr-20 { --sr-speed: 20s; } /* ← default you asked for */
+.sr-30 { --sr-speed: 30s; }
 
           
             /* ===== Verify page theming ===== */
@@ -432,7 +475,7 @@ function VerifyCard({
     const inputsDisabled = verifying;
 
     return (
-        <div className="verify-card silver-ring relative w-[min(92vw,40rem)] p-5 sm:p-6">
+        <div className="verify-card sr-ring sr-20relative w-[min(92vw,40rem)] p-5 sm:p-6">
             <div className="mb-4 relative z-10">
                 <div className="text-lg sm:text-xl font-semibold">Enter code</div>
             </div>

@@ -323,7 +323,7 @@ export default function ProfileSetupProfileClient() {
 
                         <div className="max-w-[900px] mx-auto">
                             <Stepper step={step} total={TOTAL_STEPS} />
-                            <div className="profile-card silver-ring mt-4 w-full rounded-2xl border border-white/10 bg-white/6 backdrop-blur-xl shadow-[0_10px_60px_-10px_rgba(0,0,0,.6)] p-6 sm:p-8">
+                            <div className="profile-card sr-ring sr-20 mt-4 w-full rounded-2xl border border-white/10 bg-white/6 backdrop-blur-xl shadow-[0_10px_60px_-10px_rgba(0,0,0,.6)] p-6 sm:p-8">
                                 {step === 1 && (
                                     <Step1Identity
                                         form={form}
@@ -451,7 +451,7 @@ export default function ProfileSetupProfileClient() {
             {/* DOB modal */}
             {dobOpen && (
                 <div className="fixed inset-0 z-[100] grid place-items-center bg-black/70 backdrop-blur-sm p-4">
-                    <div className="profile-modal silver-ring relative w-[min(92vw,640px)] rounded-2xl border border-white/12 bg-white/10 backdrop-blur-xl p-6 sm:p-7 shadow-[0_20px_120px_-20px_rgba(0,0,0,.85)]">
+                    <div className="profile-modal sr-ring sr-20 relative w-[min(92vw,640px)] rounded-2xl border border-white/12 bg-white/10 backdrop-blur-xl p-6 sm:p-7 shadow-[0_20px_120px_-20px_rgba(0,0,0,.85)]">
                         <button
                             onClick={() => setDobOpen(false)}
                             aria-label="Close"
@@ -474,6 +474,50 @@ export default function ProfileSetupProfileClient() {
 
             {/* styles */}
             <style jsx global>{`
+            /* === Local Silver Ring (rounded, 20s sweep) === */
+:root { --sr-w: 1px; --sr-speed: 20s; --sr-glint: 6deg; }
+
+@property --sr-sweep { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
+
+.sr-ring{
+position: relative; isolation: isolate; border-radius: inherit; overflow: visible;
+}
+.sr-ring::before,
+.sr-ring::after{
+content:""; position:absolute; inset:0; border-radius:inherit; padding:var(--sr-w);
+background-clip:border-box;
+/* only draw the ring, not the fill */
+-webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+-webkit-mask-composite: xor; mask-composite: exclude;
+pointer-events:none;
+}
+/* subtle steady metallic rim */
+.sr-ring::before{
+background: conic-gradient(from 0deg,
+rgba(255,255,255,.16), rgba(255,255,255,.10), rgba(255,255,255,.16));
+filter: saturate(.9) brightness(.95);
+}
+html.theme-light .sr-ring::before{
+background: conic-gradient(from 0deg,
+rgba(0,0,0,.12), rgba(0,0,0,.08), rgba(0,0,0,.12));
+filter:none;
+}
+/* moving glint */
+.sr-ring::after{
+background: conic-gradient(from var(--sr-sweep),
+transparent 0deg calc(360deg - var(--sr-glint)),
+rgba(255,255,255,.95) calc(360deg - var(--sr-glint)) 360deg);
+animation: sr-sweep var(--sr-speed) linear infinite;
+opacity:.9;
+}
+@keyframes sr-sweep { to { --sr-sweep: 360deg; } }
+
+/* helper speeds if you ever want them */
+.sr-12 { --sr-speed: 12s; }
+.sr-20 { --sr-speed: 20s; } /* ← default you asked for */
+.sr-30 { --sr-speed: 30s; }
+
             /* Base pill (same across pages) */
 .help-toggle{
 position:fixed; z-index:50;
