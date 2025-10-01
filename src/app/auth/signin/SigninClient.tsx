@@ -148,7 +148,7 @@ export default function SignInClient() {
         <>
             <BackStopper />
 
-            <main className="signup-card silver-ring rounded-2xl auth-screen auth-scope min-h-dvh bg-black text-white" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
+            <main className="auth-screen auth-scope min-h-dvh bg-black text-white" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
 
 
                 {/* DESKTOP / LAPTOP */}

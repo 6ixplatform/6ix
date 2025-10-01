@@ -269,7 +269,7 @@ export default function SignUpPage() {
 
 
             <main
-                className="auth-screen auth-scope signup-card silver-ring rounded-2xl min-h-dvh bg-black text-zinc-100 pb-[calc(env(safe-area-inset-bottom)+60px)]"
+                className="auth-screen auth-scope min-h-dvh bg-black text-zinc-100 pb-[calc(env(safe-area-inset-bottom)+60px)]"
                 style={{ paddingTop: 'env(safe-area-inset-top,0px)' }}
 
             >
