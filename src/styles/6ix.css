@@ -1175,7 +1175,7 @@ textarea {
     backdrop-filter: blur(8px) saturate(120%);
 }
 
-/* ===== 6IX AI Intro Orb ===== */
+/* ===== 6IX AI Intro Orb now ===== */
 .intro-orb-wrap {
     position: fixed;
     inset: calc(var(--header-h, 72px) + 6px) 0 0 0;
@@ -1185,6 +1185,114 @@ textarea {
     pointer-events: none;
     z-index: 10;
 }
+
+/* --- Tagline above the orb (never overlaps) --- */
+.intro-orb__stage {
+    display: grid;
+    place-items: center;
+    /* keeps it clear of header and composer in all viewports */
+    padding-top: clamp(10px, 3vh, 24px);
+}
+
+.intro-orb__title {
+    /* sits ABOVE the orb, centered */
+    margin-bottom: 0px;
+    /* space between tagline and orb */
+    pointer-events: none;
+    position: relative;
+    z-index: 12;
+}
+
+/* Make the embossed SVG naturally center */
+.intro-orb__title svg {
+    display: block;
+    width: min(92vw, 980px);
+    height: 80px;
+    margin-inline: auto;
+}
+
+/* --- Orb ring “sr-ring sr-20 round” only on the liner --- */
+/* Your liner is .intro-orb__ring; add a soft inset ring look */
+.intro-orb__ring::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    /* acts like a ring-20; tweak alpha to taste */
+    box-shadow: inset 0 0 0 20px rgba(255, 255, 255, .06);
+    pointer-events: none;
+}
+
+/* Keep the core and label above the ring visual */
+.intro-orb__core,
+.intro-orb__label {
+    position: relative;
+    z-index: 1;
+}
+
+/* ---------- Soft Ring utilities ---------- */
+.sr-ring {
+    position: relative;
+    z-index: 0;
+}
+
+/* creates a stacking context */
+.sr-ring::after {
+    content: "";
+    position: absolute;
+    inset: calc(-1 * var(--sr, 12px));
+    /* ring thickness outside element */
+    border-radius: inherit;
+    /* keep it perfectly round */
+    pointer-events: none;
+    z-index: -1;
+    /* behind orb contents */
+    border: 1px solid rgba(255, 255, 255, .18);
+
+    .intro-orb__ring::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        border-radius: 50%;
+        box-shadow: inset 0 0 0 clamp(10px, 5vw, 20px) rgba(255, 255, 255, .06);
+        pointer-events: none;
+    }
+
+    /* soft outer glow */
+    background: radial-gradient(65% 55% at 50% 45%,
+        rgba(255, 255, 255, .06), rgba(255, 255, 255, 0) 70%);
+}
+
+/* light theme tweak */
+html.theme-light .sr-ring::after {
+    border-color: rgba(0, 0, 0, .12);
+    box-shadow:
+        0 0 0 calc(var(--sr, 12px)) rgba(0, 0, 0, .06),
+        0 8px 28px rgba(0, 0, 0, .18);
+}
+
+/* sizes */
+.sr-12 {
+    --sr: 12px;
+}
+
+.sr-16 {
+    --sr: 16px;
+}
+
+.sr-20 {
+    --sr: 20px;
+}
+
+.sr-24 {
+    --sr: 24px;
+}
+
+/* optional: force round if you reuse it on non-circles */
+.round {
+    border-radius: 50% !important;
+}
+
 
 /* Orb */
 .intro-orb {
@@ -1239,7 +1347,7 @@ textarea {
 
 /* Tagline with flowing gradient */
 .intro-orb__tagline {
-    margin-top: 22px;
+    margin-top: 2px;
     font-size: clamp(10px, 2.6vw, 16px);
     letter-spacing: .5em;
     text-align: center;
@@ -1681,3 +1789,62 @@ textarea {
     }
 }
 
+/* subtle frosted look for inline header nav if you want it */
+.header-flow {
+    border-top: 1px solid rgba(255, 255, 255, 0.10);
+}
+
+@media (min-width: 768px) {
+    .hdr-compact .btn.btn-water {
+        height: 28px;
+        padding: 0 8px;
+        font-size: 11px;
+        border-radius: 9999px
+    }
+
+    .hdr-compact select {
+        font-size: 11px
+    }
+}
+
+/* GLASS DROPDOWN */
+.select-trigger {
+    min-height: 34px;
+}
+
+.glass-dd {
+    z-index: 9999;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, .18);
+    background: rgba(20, 20, 20, .72);
+    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(16px);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, .35), inset 0 1px 0 rgba(255, 255, 255, .05);
+    padding: 6px;
+}
+
+.glass-dd__list {
+    max-height: 260px;
+    overflow: auto;
+}
+
+.glass-dd__item {
+    width: 100%;
+    text-align: left;
+    font-size: 13px;
+    line-height: 1;
+    padding: 10px 12px;
+    border-radius: 10px;
+    color: #f2f2f2;
+    background: transparent;
+    border: 1px solid transparent;
+}
+
+.glass-dd__item:hover {
+    background: rgba(255, 255, 255, .07);
+}
+
+.glass-dd__item.is-active {
+    background: rgba(255, 255, 255, .12);
+    border-color: rgba(255, 255, 255, .18);
+}

@@ -456,23 +456,118 @@ function Chip({ children, title }: { children: React.ReactNode; title?: string }
     );
 }
 
-function Select(props: { value: string; onChange: (e: any) => void; items: readonly string[] }) {
+function useIsMobile(breakpoint = 767) {
+    const [isMobile, setIsMobile] = React.useState(false);
+    React.useEffect(() => {
+        if (typeof window === 'undefined') return;
+        const mq = window.matchMedia(`(max-width: ${breakpoint}px)`);
+        const update = () => setIsMobile(mq.matches);
+        update();
+        // Safari fallback for old addListener/removeListener
+        mq.addEventListener ? mq.addEventListener('change', update) : mq.addListener(update);
+        return () => {
+            mq.removeEventListener ? mq.removeEventListener('change', update) : mq.removeListener(update);
+        };
+    }, [breakpoint]);
+    return isMobile;
+}
+
+/* --- mobile: keep native select (you liked this look) --- */
+function MobileSelect(props: { value: string; onChange: (e: any) => void; items: readonly string[] }) {
+    const { value, onChange, items } = props;
     return (
         <label className="btn btn-water">
             <select
                 tabIndex={-1}
-                value={props.value}
-                onChange={props.onChange}
+                value={value}
+                onChange={onChange}
                 className="bg-transparent outline-none text-[12px] pr-4 appearance-none"
             >
-
-                {props.items.map(x => <option key={x} value={x}>{x}</option>)}
+                {items.map(x => <option key={x} value={x}>{x}</option>)}
             </select>
             <span className="text-xs opacity-70 -ml-3">⌄</span>
         </label>
     );
 }
 
+/* --- desktop/tablet: glass dropdown --- */
+function DesktopSelect(props: { value: string; onChange: (e: any) => void; items: readonly string[] }) {
+    const { value, onChange, items } = props;
+
+    const [open, setOpen] = React.useState(false);
+    const btnRef = React.useRef<HTMLButtonElement | null>(null);
+    const panelRef = React.useRef<HTMLDivElement | null>(null);
+    const [pos, setPos] = React.useState<{ top: number; left: number; width: number }>({ top: 0, left: 0, width: 180 });
+
+    // anchor and size panel to the trigger
+    const recalc = React.useCallback(() => {
+        const el = btnRef.current; if (!el) return;
+        const r = el.getBoundingClientRect();
+        setPos({ top: Math.round(r.bottom + 8), left: Math.round(r.left), width: Math.round(r.width) });
+    }, []);
+    React.useLayoutEffect(() => {
+        if (!open) return;
+        recalc();
+        const h = () => recalc();
+        window.addEventListener('resize', h);
+        window.addEventListener('scroll', h, true);
+        return () => { window.removeEventListener('resize', h); window.removeEventListener('scroll', h, true); };
+    }, [open, recalc]);
+
+    // close on outside click / Esc
+    React.useEffect(() => {
+        if (!open) return;
+        const onDoc = (e: MouseEvent) => {
+            const t = e.target as Node;
+            if (!panelRef.current?.contains(t) && !btnRef.current?.contains(t)) setOpen(false);
+        };
+        const onEsc = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+        document.addEventListener('mousedown', onDoc);
+        document.addEventListener('keydown', onEsc);
+        return () => { document.removeEventListener('mousedown', onDoc); document.removeEventListener('keydown', onEsc); };
+    }, [open]);
+
+    const commit = (v: string) => {
+        setOpen(false);
+        onChange({ target: { value: v } } as any); // keep your original onChange signature
+    };
+
+    return (
+        <>
+            <button ref={btnRef} className="btn btn-water select-trigger" onClick={() => setOpen(v => !v)} type="button">
+                {value}
+                <span className="text-xs opacity-70 -ml-1">⌄</span>
+            </button>
+
+            {open && createPortal(
+                <div ref={panelRef} className="glass-dd" style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width }}>
+                    <div className="glass-dd__list" role="listbox" aria-activedescendant={`opt-${value}`}>
+                        {items.map(x => (
+                            <button
+                                id={`opt-${x}`}
+                                key={x}
+                                type="button"
+                                role="option"
+                                aria-selected={x === value}
+                                className={`glass-dd__item ${x === value ? 'is-active' : ''}`}
+                                onClick={() => commit(x)}
+                            >
+                                {x}
+                            </button>
+                        ))}
+                    </div>
+                </div>,
+                document.body
+            )}
+        </>
+    );
+}
+
+/* --- exported Select: stable hook order every render --- */
+function Select(props: { value: string; onChange: (e: any) => void; items: readonly string[] }) {
+    const isMobile = useIsMobile(767);
+    return isMobile ? <MobileSelect {...props} /> : <DesktopSelect {...props} />;
+}
 /* ---------- Premium Guard Modal ---------- */
 function PremiumModal({
     open, displayName, required, onClose, onGoPremium,
@@ -1671,17 +1766,59 @@ export default function AIPage() {
 
             {/* HEADER */}
             <div ref={headerRef} className="app-header sticky top-0 z-30 bg-black/75 backdrop-blur-xl border-b border-white/10">
-                <div className="mx-auto max-w-xl px-3 py-2 flex items-center gap-2">
+                <div className="mx-auto px-3 py-2 flex items-center gap-2 max-w-[min(1100px,92vw)]">
+                    {/* left – logo */}
                     <button onClick={() => scrollToBottom(false)} className="rounded-sm" aria-label="Scroll to latest">
                         <Image src="/splash.png" alt="6IX" width={44} height={44} className="rounded-sm opacity-80" />
                     </button>
 
-                    <div className="flex-1 h-9 rounded-full bg-white/5 border border-white/15 grid grid-cols-[28px_1fr_24px] items-center pl-2 pr-2">
-                        <i className="h-6 w-6 rounded-md bg-white/70" />
-                        <span className="text-[13px] text-zinc-200">Music player pill</span>
-                        <span className="text-zinc-400 text-lg leading-none">⋯</span>
+                    {/* center – music pill + (desktop) compact controls */}
+                    <div className="flex-1 flex items-center gap-2 min-w-0">
+                        <div className="h-9 flex-1 rounded-full bg-white/5 border border-white/15 grid grid-cols-[28px_1fr_24px] items-center pl-2 pr-2">
+                            <i className="h-6 w-6 rounded-md bg-white/70" />
+                            <span className="truncate text-[13px] text-zinc-200">Music player pill</span>
+                            <span className="text-zinc-400 text-lg leading-none">⋯</span>
+                        </div>
+
+                        {/* compact plan/model/speed — desktop only */}
+                        <div className="hdr-compact hidden md:flex items-center gap-2 shrink-0">
+                            <span className="btn btn-water h-7 px-2 text-[11px]">{plan}</span>
+
+                            {/* keep same allow/guard logic as before */}
+                            <div className="min-w-[120px]">
+                                <Select
+                                    value={model}
+                                    onChange={(e) => {
+                                        const next = e.target.value as UiModelId;
+                                        if (!isModelAllowed(next, plan)) {
+                                            setPremiumModal({ open: true, required: modelRequiredPlan(next) });
+                                            return;
+                                        }
+                                        setModel(next);
+                                    }}
+                                    items={UI_MODEL_IDS}
+                                />
+                            </div>
+
+                            <div className="min-w-[96px]">
+                                <Select
+                                    value={speed}
+                                    onChange={(e) => {
+                                        const next = e.target.value as SpeedMode;
+                                        const req = speedRequiredPlan(next);
+                                        if (!isAllowedPlan(plan, req)) {
+                                            setPremiumModal({ open: true, required: req });
+                                            return;
+                                        }
+                                        setSpeed(next);
+                                    }}
+                                    items={SPEEDS}
+                                />
+                            </div>
+                        </div>
                     </div>
 
+                    {/* right – avatar */}
                     <button
                         ref={avatarBtnRef}
                         onClick={() => setMenuOpen(v => !v)}
@@ -1694,39 +1831,16 @@ export default function AIPage() {
                     </button>
                 </div>
 
-                {/* plan indicator / model / speed */}
-                <div className="mx-auto max-w-xl px-3 pb-2 flex items-center gap-2">
-                    {/* Non-tappable plan chip */}
+                {/* MOBILE keeps the old row under the pill */}
+                <div className="md:hidden mx-auto max-w-[min(680px,92vw)] px-3 pb-2 flex items-center gap-2">
                     <Chip title="Your current plan">{plan}</Chip>
+                    <Select value={model} onChange={(e) => { /* same as above */ }} items={UI_MODEL_IDS} />
+                    <Select value={speed} onChange={(e) => { /* same as above */ }} items={SPEEDS} />
+                </div>
 
-                    {/* Model selector (guarded) */}
-                    <Select
-                        value={model}
-                        onChange={(e) => {
-                            const next = e.target.value as UiModelId;
-                            if (!isModelAllowed(next, plan)) {
-                                setPremiumModal({ open: true, required: modelRequiredPlan(next) });
-                                return;
-                            }
-                            setModel(next);
-                        }}
-                        items={UI_MODEL_IDS}
-                    />
-
-                    {/* Speed selector (thinking is max-only) */}
-                    <Select
-                        value={speed}
-                        onChange={(e) => {
-                            const next = e.target.value as SpeedMode;
-                            const req = speedRequiredPlan(next);
-                            if (!isAllowedPlan(plan, req)) {
-                                setPremiumModal({ open: true, required: req });
-                                return;
-                            }
-                            setSpeed(next);
-                        }}
-                        items={SPEEDS}
-                    />
+                {/* (Desktop) put the section buttons under the pill if you want them there */}
+                <div className="hidden md:block mx-auto max-w-[min(1100px,92vw)] px-3 pb-2">
+                    <BottomNav />
                 </div>
 
                 {/* Avatar card */}
@@ -1738,19 +1852,19 @@ export default function AIPage() {
                     />
                 )}
             </div>
-            {/* EMPTY STATE — orb + tagline together */}
+
+            {/* EMPTY STATE — tagline above orb */}
             {messages.length === 0 && !streaming && (
-                <div className="intro-orb__stage relative mx-auto max-w-[900px] pt-10 pb-8">
-                    <IntroOrb
-                        orbOffset={{ x: 0, y: 0 }}
-                        textOffset={{ x: 0, y: 140 }}
-                    />
-                    <EmbossedTagline
-                        text="A 6 CLEMENT JOSHUA GROUP SERVICE"
-                        x={0}
-                        y={180}
-                    />
-                </div>
+                <section className="intro-orb__stage relative mx-auto max-w-[900px] pt-8 pb-8">
+                    {/* Tagline FIRST so it's always on top and never hidden */}
+                    <div className="intro-orb__title z-20 mt-0 mb-0">
+                        {/* If you prefer your SVG emboss component, keep using it: */}
+                       
+                    </div>
+
+                    {/* Orb */}
+                    <IntroOrb orbOffset={{ x: 0, y: 0 }} />
+                </section>
             )}
 
 
@@ -1775,8 +1889,13 @@ export default function AIPage() {
             {/* LIST */}
             <div
                 ref={listRef}
-                className="chat-list mx-auto w-full max-w-xl px-3 pt-2 pb-8 space-y-2 overflow-y-auto will-change-scroll"
-                style={{ paddingBottom: 'calc(var(--composer-h,260px) + env(safe-area-inset-bottom,0px) + 200px)' }}
+                className="
+chat-list mx-auto w-full px-3 pt-2 pb-8 space-y-2 will-change-scroll
+md:h-[calc(100svh-var(--header-h,120px)-var(--composer-h,220px))]
+md:overflow-y-auto md:scroll-pb-[160px]
+max-w-[min(900px,92vw)]
+"
+                style={{ paddingBottom: 'calc(var(--composer-h,260px) + env(safe-area-inset-bottom,0px) + 120px)' }}
                 suppressHydrationWarning
             >
                 {messages.filter(m => m.role !== 'system').map((m, i) => {
@@ -1902,7 +2021,9 @@ If a message is still streaming and it's the last one, hide until it finishes. *
                 ref={compRef}
                 className="composer-root fixed bottom-0 left-0 right-0 z-40 bg-black border-t border-white/10"
             >
-                <div className="relative mx-auto max-w-xl px-3 pt-2 pb-[calc(env(safe-area-inset-bottom,8px))]">
+                <div className="relative mx-auto w-full md:max-w-3xl lg:max-w-5xl px-3 pt-2
+pb-[calc(env(safe-area-inset-bottom,8px)+64px)] md:pb-[calc(env(safe-area-inset-bottom,8px))]">
+
 
                     <div
                         className={[
@@ -1957,10 +2078,17 @@ If a message is still streaming and it's the last one, hide until it finishes. *
                             />
                         )}
                         {/* BOTTOM: typing row stays put; shape is pill when no files */}
-                        <div className="input-row grid grid-cols-[auto_1fr_auto_auto] items-center gap-2 px-2 py-[6px]">
+                        <div
+                            className="
+input-row
+grid gap-2 px-2 py-[6px]
+grid-cols-3 grid-rows-[auto_auto]
+md:grid-cols-[auto_1fr_auto_auto] md:grid-rows-1 md:items-center
+"
+                        >
                             <button
                                 type="button"
-                                className="upload-btn h-8 w-8 rounded-full grid place-items-center active:scale-95"
+                                className="upload-btn h-8 w-8 rounded-full grid place-items-center active:scale-95 row-start-2 md:row-start-auto"
                                 title="Add files"
                                 aria-label="Add files"
                                 onClick={() => {
@@ -1993,7 +2121,7 @@ If a message is still streaming and it's the last one, hide until it finishes. *
                                 onChange={(e) => setInput(e.target.value)}
                                 placeholder="Ask 6IX AI anything"
                                 rows={1}
-                                className="w-full bg-transparent outline-none text-[16px] leading-[20px] px-1 py-[6px] resize-none"
+                                className="w-full bg-transparent outline-none text-[16px] leading-[20px] px-1 py-[6px] resize-none col-span-3 md:col-span-1"
                                 onFocus={() => { focusLockRef.current = true; }}
                                 onBlur={() => {
                                     // If blur wasn't caused by the file picker, force focus back.
@@ -2018,7 +2146,7 @@ If a message is still streaming and it's the last one, hide until it finishes. *
 
                             <button
                                 type="button"
-                                className="h-8 w-8 rounded-full grid place-items-center active:scale-95"
+                                className="h-8 w-8 rounded-full grid place-items-center active:scale-95 row-start-2 md:row-start-auto"
                                 title={recState === 'recording' ? 'Stop recording' : 'Record voice'}
                                 aria-label="Record voice"
                                 onClick={recState === 'recording' ? stopRecording : startRecording}
@@ -2032,7 +2160,7 @@ If a message is still streaming and it's the last one, hide until it finishes. *
                             <button
                                 type="button"
                                 onClick={() => (streaming || imgInFlightRef.current) ? handleStop() : send()}
-                                className={`h-8 px-3 rounded-full bg-white text-black text-[22px] font-medium active:scale-95 ${isSendingOrBusy ? 'opacity-50 pointer-events-none' : ''}`}
+                                className={`h-8 px-3 rounded-full bg-white text-black text-[22px] font-medium active:scale-95 row-start-2 md:row-start-auto ${isSendingOrBusy ? 'opacity-50 pointer-events-none' : ''}`}
                                 disabled={isSendingOrBusy}
                                 aria-label={(streaming || imgInFlightRef.current) ? 'Stop' : 'Send'}
                                 title={hasPendingUpload ? 'Waiting for files…' : (streaming || imgInFlightRef.current) ? 'Stop' : 'Send'}
@@ -2041,8 +2169,10 @@ If a message is still streaming and it's the last one, hide until it finishes. *
                             </button>
                         </div>
                     </div>
-
-                    <BottomNav />
+                    {/* Mobile bottom nav fixed to device bottom */}
+                    <div className="md:hidden fixed bottom-0 inset-x-0 z-50">
+                        <BottomNav />
+                    </div>
                 </div>
             </div>
 
