@@ -214,7 +214,7 @@ export default function SignInClient() {
                         </header>
 
 
-                        <div className="sr-ring sr-20 mt-8 max-w-md md:max-w-2xl lg:max-w-[820px]">
+                        <div className="mt-8 max-w-md md:max-w-2xl lg:max-w-[820px]">
 
                             <SignInCard
                                 email={email}
@@ -240,7 +240,7 @@ export default function SignInClient() {
                 </div>
 
                 {/* MOBILE */}
-                <div className="md:hidden pb-12">
+                <div className="sr-ring sr-20 md:hidden pb-0">
                     <HelpKit side="left" />
                     <div className="relative mt-4 text-center px-6">
                         <h1 className="text-3xl font-semibold">Welcome back to 6ix</h1>
@@ -262,7 +262,7 @@ export default function SignInClient() {
                         </p>
                     </div>
 
-                    <div className="rounded-2xl sr-ring sr-20 px-4 mt-5 w-full relative">
+                    <div className="rounded-2xl  px-4 mt-5 w-full relative">
 
                         <SignInCard
                             email={email}
