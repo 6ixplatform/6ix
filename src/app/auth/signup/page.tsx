@@ -303,7 +303,7 @@ export default function SignUpPage() {
                             </p>
                         </header>
 
-                        <div className="signup-card silver-ring mt-8 max-w-md md:max-w-2xl lg:max-w-[820px] help-anchor">
+                        <div className="signup-card mt-8 max-w-md md:max-w-2xl lg:max-w-[820px] help-anchor">
 
                             <SignUpCard
                                 email={email}
