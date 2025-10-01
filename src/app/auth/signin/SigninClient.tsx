@@ -58,6 +58,30 @@ export default function SignInClient() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
+    // Fallback: if only the email was remembered
+    useEffect(() => {
+        if (email) return;
+        try {
+            const e = localStorage.getItem('6ix:last_email');
+            if (e) setEmail(e);
+        } catch { }
+    }, [email]);
+
+    // Fallback: reuse AI profile’s avatar if present
+    useEffect(() => {
+        try {
+            const raw = localStorage.getItem('6ixai:profile');
+            if (!raw) return;
+            const p = JSON.parse(raw) as { displayName?: string; avatarUrl?: string };
+            setLastUser(u => ({
+                ...(u || {}),
+                display_name: u?.display_name ?? p?.displayName ?? undefined,
+                avatar_url: u?.avatar_url ?? p?.avatarUrl ?? undefined,
+            }));
+        } catch { }
+    }, []);
+
+
     const emailOk = useMemo(() => /\S+@\S+\.\S+/.test(email), [email]);
     const canSend = emailOk && agree && !loading;
 
@@ -164,22 +188,31 @@ export default function SignInClient() {
 
                     {/* Right */}
                     <section className="relative px-8 lg:px-12 pt-30 pb-12 overflow-y-auto">
-                       <HelpKit side="left" />
-                        <header className="flex items-start gap-4">
+                        <HelpKit side="left" />
+                        <header className="relative pb-8">
+                            <h1 className="text-4xl lg:text-5xl font-semibold leading-tight">
+                                Welcome back to 6ix
+                            </h1>
+
+                            {/* Email under the headline */}
+                            {(email || lastUser?.email) && (
+                                <div className="mt-2 text-lg text-zinc-400 break-all">
+                                    {(email || lastUser?.email)}
+                                </div>
+                            )}
+
+                            {/* Avatar on the right */}
                             {lastUser?.avatar_url && (
-                                <div className="shrink-0 w-16 h-16 rounded-full overflow-hidden border border-white/15">
+                                <div className="absolute right-0 top-1/2 -translate-y-1/2 w-16 h-16 rounded-full overflow-hidden border border-white/15">
                                     <Image src={lastUser.avatar_url} alt="" width={64} height={64} className="w-full h-full object-cover" />
                                 </div>
                             )}
-                            <div>
-                                <h1 className="text-4xl lg:text-5xl font-semibold leading-tight">
-                                    Welcome back to 6ix{lastUser?.handle ? `, @${lastUser.handle}` : ''}
-                                </h1>
-                                <p className="mt-3 text-zinc-300 max-w-2xl">
-                                    <span className="font-medium">Content Creator&apos;s Edition</span> — where <span style={{ color: 'var(--gold)' }}>earnings</span> and growth are transparent for all.
-                                </p>
-                            </div>
+
+                            <p className="mt-4 text-zinc-300 max-w-2xl">
+                                <span className="font-medium">Content Creator&apos;s Edition</span> — where <span style={{ color: 'var(--gold)' }}>earnings</span> and growth are transparent for all.
+                            </p>
                         </header>
+
 
                         <div className="rounded-2xl mt-8 max-w-md md:max-w-2xl lg:max-w-[820px] relative">
 
@@ -209,21 +242,24 @@ export default function SignInClient() {
                 {/* MOBILE */}
                 <div className="md:hidden pb-12">
                     <HelpKit side="left" />
-                    <div className="pt-6 grid place-items-center">
-                        <Image src="/splash.png" alt="6ix" width={120} height={120} priority className="rounded-xl object-cover" />
-                        <div className="mt-4 text-center px-6">
-                            {lastUser?.avatar_url && (
-                                <div className="mx-auto w-16 h-16 rounded-full overflow-hidden border border-white/15">
-                                    <Image src={lastUser.avatar_url} alt="" width={64} height={64} className="w-full h-full object-cover" />
-                                </div>
-                            )}
-                            <h1 className="mt-3 text-3xl font-semibold">
-                                Welcome back to 6ix{lastUser?.handle ? `, @${lastUser.handle}` : ''}
-                            </h1>
-                            <p className="mt-2 text-zinc-300">
-                                <span className="font-medium">Content Creator&apos;s Edition</span> — where <span style={{ color: 'var(--gold)' }}>earnings</span> and growth are transparent for all.
-                            </p>
-                        </div>
+                    <div className="relative mt-4 text-center px-6">
+                        <h1 className="text-3xl font-semibold">Welcome back to 6ix</h1>
+
+                        {(email || lastUser?.email) && (
+                            <div className="mt-1 text-base text-zinc-400 break-all">
+                                {(email || lastUser?.email)}
+                            </div>
+                        )}
+
+                        {lastUser?.avatar_url && (
+                            <div className="absolute right-6 -top-6 w-12 h-12 rounded-full overflow-hidden border border-white/15">
+                                <Image src={lastUser.avatar_url} alt="" width={48} height={48} className="w-full h-full object-cover" />
+                            </div>
+                        )}
+
+                        <p className="mt-2 text-zinc-300">
+                            <span className="font-medium">Content Creator&apos;s Edition</span> — where <span style={{ color: 'var(--gold)' }}>earnings</span> and growth are transparent for all.
+                        </p>
                     </div>
 
                     <div className="px-4 mt-5 w-full relative">
@@ -246,7 +282,7 @@ export default function SignInClient() {
                         />
                     </div>
 
-                     <footer className="md:hidden fixed left-0 right-0 bottom-0 pb-[calc(env(safe-area-inset-bottom)+10px)] pt-2 text-center text-zinc-500 text-sm bg-gradient-to-t from-black/40 to-transparent">
+                    <footer className="md:hidden fixed left-0 right-0 bottom-0 pb-[calc(env(safe-area-inset-bottom)+10px)] pt-2 text-center text-zinc-500 text-sm bg-gradient-to-t from-black/40 to-transparent">
                         A 6clement Joshua service · © {new Date().getFullYear()} 6ix
                     </footer>
                 </div>

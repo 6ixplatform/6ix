@@ -42,7 +42,7 @@ export default function ProfileSetupProfileClient() {
     const r = useRouter();
     const supabase = useMemo(() => supabaseBrowser(), []);
     const [me, setMe] = useState<{ id: string; email: string | null } | null>(null);
-    
+
     // ⬇️ Add: bounce away if user already finished onboarding (covers Safari bfcache/back)
     useEffect(() => {
         let mounted = true;
@@ -266,10 +266,22 @@ export default function ProfileSetupProfileClient() {
                     payload.display_name || (payload.email?.split('@')?.[0] ?? 'Guest');
 
                 localStorage.setItem('6ixai:profile', JSON.stringify({
-                    displayName: payload.display_name || (payload.email?.split('@')?.[0] ?? 'Guest'),
+                    displayName,
                     avatarUrl: publicAvatar,
                 }));
+
+                // ▼ ADD: keep a compact record for the sign-in screen
+                localStorage.setItem('6ix:last_user', JSON.stringify({
+                    handle: payload.username,
+                    display_name: displayName,
+                    avatar_url: publicAvatar, // store PUBLIC url
+                    email: payload.email.toLowerCase(),
+                }));
+
+                // ▼ ADD: also remember last email separately (used as a fallback)
+                localStorage.setItem('6ix:last_email', payload.email.toLowerCase());
             } catch { }
+
 
             // 5) local flag to avoid loops
             try { localStorage.setItem('6ix_onboarded', '1'); } catch { }
