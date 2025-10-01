@@ -4,20 +4,26 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
+type Side = 'left' | 'right';
+
 type Props = {
-    anchorToCard?: boolean; // (kept for API parity; no longer affects overlay behavior)
+    /** Visual only: which edge to pin the chip on mobile/overlay screens. */
+    side?: Side;
+    /** Optional preset email to prefill the form. */
     presetEmail?: string;
+    /** Chip label text. */
     label?: string;
 };
 
 export default function HelpKit({
-    anchorToCard = true,
+    side = 'right',
     presetEmail = '',
     label = 'Need help?',
 }: Props) {
     const [open, setOpen] = useState(false);
     const [mounted, setMounted] = useState(false);
 
+    // form
     const [firstName, setFirst] = useState('');
     const [lastName, setLast] = useState('');
     const [location, setLoc] = useState('');
@@ -27,20 +33,20 @@ export default function HelpKit({
     const chipRef = useRef<HTMLButtonElement | null>(null);
     const panelRef = useRef<HTMLDivElement | null>(null);
 
-    // computed dropdown position
+    // dropdown position (computed from chip rect)
     const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
 
     useEffect(() => setMounted(true), []);
     useEffect(() => setEmail(presetEmail || ''), [presetEmail]);
 
-    // Close on Escape
+    // Esc closes
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
         if (open) window.addEventListener('keydown', onKey);
         return () => window.removeEventListener('keydown', onKey);
     }, [open]);
 
-    // Click outside (works even with portal)
+    // Click outside (works with portal)
     useEffect(() => {
         const onDoc = (e: MouseEvent) => {
             if (!open) return;
@@ -53,25 +59,49 @@ export default function HelpKit({
         return () => document.removeEventListener('mousedown', onDoc);
     }, [open]);
 
-    // Place dropdown under chip (no layout shift)
+    // Lock body scroll while open (no background movement)
+    useEffect(() => {
+        if (!open) return;
+        const y = window.scrollY;
+        const prevOverflow = document.body.style.overflow;
+        const prevPos = document.body.style.position;
+        const prevTop = document.body.style.top;
+        const prevW = document.body.style.width;
+
+        document.body.style.overflow = 'hidden';
+        // iOS-safe body lock
+        document.body.style.position = 'fixed';
+        document.body.style.top = `-${y}px`;
+        document.body.style.width = '100%';
+
+        return () => {
+            document.body.style.overflow = prevOverflow;
+            document.body.style.position = prevPos;
+            document.body.style.top = prevTop;
+            document.body.style.width = prevW;
+            window.scrollTo(0, y);
+        };
+    }, [open]);
+
+    // Compute dropdown position just under the chip
     const placePanel = () => {
         const chip = chipRef.current;
         const panelW =
-            panelRef.current?.offsetWidth ?? Math.min(window.innerWidth * 0.92, 380);
+            panelRef.current?.offsetWidth ?? Math.min(window.innerWidth * 0.92, 360);
         if (!chip) return;
 
-        // read adjustable gap from CSS var (default 8px)
         const root = getComputedStyle(document.documentElement);
         const gap = parseFloat(root.getPropertyValue('--hk-panel-gap') || '8');
-
         const r = chip.getBoundingClientRect();
         const margin = 10;
 
         const top = Math.max(r.bottom + gap, margin);
-        const left = Math.min(
-            Math.max(r.right - panelW, margin),
-            window.innerWidth - panelW - margin
-        );
+
+        // align panel’s trailing edge to the chip edge
+        const left = side === 'right'
+            ? Math.min(Math.max(r.right - panelW, margin), window.innerWidth - panelW - margin)
+            : Math.max(Math.min(r.left, window.innerWidth - panelW - margin), margin);
+
         setPos({ top, left });
     };
 
@@ -80,13 +110,13 @@ export default function HelpKit({
         placePanel();
         const onReflow = () => placePanel();
         window.addEventListener('resize', onReflow);
-        window.addEventListener('scroll', onReflow, true); // capture scrolling containers
+        window.addEventListener('scroll', onReflow, true);
         return () => {
             window.removeEventListener('resize', onReflow);
             window.removeEventListener('scroll', onReflow, true);
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [open]);
+    }, [open, side]);
 
     const emailOk = /^[^\s@]+@[^\s@]+\.[A-Za-z]{2,}$/i.test(email);
     const canSend =
@@ -113,8 +143,8 @@ export default function HelpKit({
     };
 
     return (
-        <div className={`hk-root ${anchorToCard ? 'hk-anchor' : 'hk-fixed'}`}>
-            {/* CHIP (ref for dropdown anchor) */}
+        <div className={`hk-root ${side === 'left' ? 'hk-left' : 'hk-right'}`}>
+            {/* CHIP (fixed, safe-area aware) */}
             <button
                 ref={chipRef}
                 type="button"
@@ -127,7 +157,7 @@ export default function HelpKit({
                 {label}
             </button>
 
-            {/* PANEL (portal + fixed = overlay dropdown; never pushes layout) */}
+            {/* PANEL (portal + fixed dropdown; never pushes layout) */}
             {mounted && open && pos &&
                 createPortal(
                     <div
@@ -160,61 +190,53 @@ export default function HelpKit({
                 )
             }
 
+            {/* Styles (scoped) */}
             <style jsx>{`
 :root{
-/* 🔧 Nudge the chip */
---hk-chip-top: 18px;
---hk-chip-right: 8px;
+/* 🔧 move the chip without code changes */
+--hk-chip-top: 6px;
+--hk-chip-right: 10px;
+--hk-chip-left: 10px;
 --hk-chip-pad-y: .28rem;
 --hk-chip-pad-x: .55rem;
 
-/* 🔧 Nudge the dropdown distance from the chip */
+/* 🔧 distance from chip to dropdown */
 --hk-panel-gap: 8px;
 }
 
 .hk-root { position: relative; z-index: 40; display: block; width: 100%; }
 
-/* ---------- Chip ---------- */
+/* ---------- Chip (fixed) ---------- */
 .hk-chip{
+position: fixed mt-0;
+top: calc(env(safe-area-inset-top) + var(--hk-chip-top));
+z-index: 2147483001;
+
 display:inline-flex; align-items:center; justify-content:center;
 padding: var(--hk-chip-pad-y) var(--hk-chip-pad-x);
 font-size:12px; line-height:1; letter-spacing:.1px;
 border-radius:9999px;
 -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px);
-border:1px solid rgba(255,255,255,.18);
+border:1px solid rgba(255, 255, 255, 0);
 background:rgba(255,255,255,.12); color:#fff;
 box-shadow:
-inset 0 1px 0 rgba(255,255,255,.22),
-inset 0 -1px 0 rgba(0,0,0,.35),
+inset 0 2px 0 rgba(0, 0, 0, 0.22),
+inset 0 -1px 0 rgba(0, 0, 0, 0.06),
 0 4px 12px rgba(0,0,0,.35);
 transition:transform .12s ease, box-shadow .2s ease, opacity .2s ease;
 cursor:pointer;
 }
+.hk-right .hk-chip{ right: calc(env(safe-area-inset-right) + var(--hk-chip-right)); }
+.hk-left .hk-chip{ left: calc(env(safe-area-inset-left) + var(--hk-chip-left)); }
 .hk-chip:active{ transform:scale(.98); }
 html.theme-light .hk-chip{
 background:rgba(0,0,0,.06); border-color:rgba(0,0,0,.18); color:#000;
 box-shadow: inset 0 1px 0 rgba(255,255,255,.15), 0 4px 12px rgba(0,0,0,.12);
 }
 
-/* Where the chip sits */
-.hk-anchor .hk-chip{ position:absolute; right:0; top:-18px; }
-@media (max-width:767px){
-.hk-anchor .hk-chip,
-.hk-fixed .hk-chip{
-position:fixed;
-right:calc(env(safe-area-inset-right) + var(--hk-chip-right));
-top:calc(env(safe-area-inset-top) + var(--hk-chip-top));
-}
-}
-.hk-fixed .hk-chip{
-position:fixed;
-right:calc(env(safe-area-inset-right) + var(--hk-chip-right));
-top:calc(env(safe-area-inset-top) + var(--hk-chip-top));
-}
-
-/* ---------- Dropdown Panel (overlay) ---------- */
+/* ---------- Panel (overlay dropdown) ---------- */
 .hk-panel{
-width:min(92vw, 380px);
+width: min(92vw, 360px);
 border-radius:16px;
 padding:14px;
 -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px);
@@ -223,7 +245,8 @@ border:1px solid rgba(255,255,255,.12);
 color:#fff;
 box-shadow:0 18px 60px rgba(0,0,0,.45);
 z-index: 2147483000;
-/* simple dropdown animation */
+
+/* dropdown feel */
 transform: translateY(-6px);
 opacity: 0;
 transition: transform .16s ease, opacity .16s ease;
@@ -233,6 +256,11 @@ html.theme-light .hk-panel{
 background:rgba(255,255,255,.94);
 border-color:#e5e7eb; color:#0b0c10;
 box-shadow:0 18px 60px rgba(0,0,0,.10);
+}
+
+/* ---------- Prevent iOS zoom on focus ---------- */
+@media (max-width: 768px){
+.hk-inp{ font-size:16px; }
 }
 
 /* ---------- Pendulum silver ring (unchanged) ---------- */
@@ -280,10 +308,10 @@ html.theme-light .hk-chip-mini{ background:rgba(0,0,0,.06); border-color:rgba(0,
 
 .hk-grid{ display:grid; gap:8px; margin-top:12px; }
 .hk-inp{
-width:100%; font-size:14px; color:#fff;
+width:100%;
 background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12);
 border-radius:12px; padding:10px 12px; outline:none;
-transition:border-color .2s, background .2s;
+color:#fff; transition:border-color .2s, background .2s;
 }
 .hk-inp::placeholder{ color:rgba(255,255,255,.65); }
 .hk-inp:focus{ border-color:rgba(255,255,255,.34); background:rgba(255,255,255,.10); }

@@ -1890,3 +1890,22 @@ html.theme-light .silver-ring::before {
     animation: none;
   }
 }
+
+/* No vertical scroll on focused auth screens */
+.auth-screen {
+  min-height: 100svh;
+  /* safe viewport height on mobile */
+  overflow: hidden;
+  /* lock page scrolling */
+}
+
+@supports (height: 100dvh) {
+  .auth-screen {
+    min-height: 100dvh;
+  }
+}
+
+/* Prevent rubber-band on iOS */
+.auth-screen {
+  overscroll-behavior: none;
+}

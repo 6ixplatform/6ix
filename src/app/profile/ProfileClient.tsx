@@ -293,7 +293,7 @@ export default function ProfileSetupProfileClient() {
 
 
             <main className="profile-scope min-h-dvh bg-black text-zinc-100" style={{ paddingTop: 'env(safe-area-inset-top,0px)' }}>
-                <HelpKit anchorToCard={false} presetEmail={form.email} />
+                <HelpKit side="left" />
                 {/* Desktop */}
                 <div className="hidden md:grid grid-cols-2 min-h-dvh">
                     <aside className="relative overflow-hidden">
@@ -388,7 +388,7 @@ export default function ProfileSetupProfileClient() {
 
                     <div className="px-4 mt-5">
                         <Stepper step={step} total={TOTAL_STEPS} mobile />
-                        <div className="profile-card  silver-ring mt-4 rounded-2xl border border-white/10 bg-white/6 backdrop-blur-xl shadow-[0_10px_60px_-10px_rgba(0,0,0,.6)] p-6 sm:p-7">
+                        <div className="profile-card mt-4 rounded-2xl border border-white/10 bg-white/6 backdrop-blur-xl shadow-[0_10px_60px_-10px_rgba(0,0,0,.6)] p-6 sm:p-7">
                             {step === 1 && <Step1Identity form={form} onChange={onChange} chooseAvatar={chooseAvatar} uname={uname} />}
                             {step === 2 && <Step2Details form={form} onChange={onChange} age={age} onWhyDob={() => setDobOpen(true)} />}
                             {step === 3 && <Step3Bio form={form} onChange={onChange} onWhyDob={() => setDobOpen(true)} />}

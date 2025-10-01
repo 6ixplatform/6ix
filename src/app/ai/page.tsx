@@ -1,5 +1,5 @@
 'use client';
-
+export const dynamic = 'force-dynamic';
 import { loadUserPrefs, saveUserPrefs, parseUserDirective, mergePrefs, type UserPrefs } from '@/lib/prefs'
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -632,57 +632,6 @@ export default function AIPage() {
     // AIPage() — replace your messages state initializer:
     const [messages, setMessages] = useState<ChatMessage[]>(() => []);
 
-    // Immediately after other top-level state, add:
-    useEffect(() => {
-        (async () => {
-            const restored = await restoreChat(); // <- from /lib/chatPersist
-            if (restored.length) setMessages(restored as any);
-        })();
-    }, []);
-
-    // If any image bubble had no URL (reload during generation), quietly regenerate it:
-    useEffect(() => {
-        (async () => {
-            const restored = await restoreChat();
-            if (!restored.length) return;
-            setMessages(restored as any);
-
-            // one-shot repair ONLY for restored placeholders
-            const pend = restored
-                .map((m, i) => ({ m, i }))
-                .filter(x => x.m.kind === 'image' && !x.m.url && x.m.prompt);
-
-            for (const { i, m } of pend) {
-                try {
-                    const url = await createImage(m.prompt!, plan);
-                    setMessages(ms => {
-                        const nx = ms.slice();
-                        if (nx[i]?.kind === 'image' && !nx[i].url) nx[i] = { ...(nx[i] as any), url };
-                        return nx;
-                    });
-                } catch { /* leave placeholder; user can tap recreate */ }
-            }
-        })();
-    }, []); // run once
-
-
-    useEffect(() => {
-        const id = setTimeout(() => { void persistChat(messages as any); }, 250);
-        return () => clearTimeout(id);
-    }, [messages]);
-
-    // Cross-tab sync & hard-refresh safety
-    useEffect(() => {
-        const onStorage = async (e: StorageEvent) => {
-            if (e.key === '6ixai:chat:v3') {
-                const fresh = await restoreChat();
-                setMessages(fresh as any);
-            }
-        };
-        window.addEventListener('storage', onStorage);
-        return () => window.removeEventListener('storage', onStorage);
-    }, []);
-
     const [input, setInput] = useState('');
     const [attachments, setAttachments] = useState<Attachment[]>([]); // ← NEW
     const fileInputRef = useRef<HTMLInputElement | null>(null); // ← NEW
@@ -724,9 +673,6 @@ export default function AIPage() {
     const avatarBtnRef = useRef<HTMLButtonElement | null>(null);
     const toolFiredRef = useRef(false); // put at component top (once)
 
-
-
-
     const [followups, setFollowups] = useState<FollowUp[]>([]);
     const lastAssistantRef = useRef(''); // keep full streamed text
 
@@ -742,6 +688,20 @@ export default function AIPage() {
     const [lastNudgeAt, setLastNudgeAt] = useState<number>(() => {
         try { return Number(localStorage.getItem('6ix:lastNudgeTs') || 0); } catch { return 0; }
     });
+
+
+    // inside AIPage(), add:
+    const signOutNow = async () => {
+        try { await supabaseBrowser().auth.signOut(); } catch { }
+        try {
+            localStorage.removeItem('6ixai:profile');
+            localStorage.removeItem('6ix_onboarded');
+            localStorage.removeItem('6ixai:chat:v3');
+        } catch { }
+        router.replace('/auth/signin?next=/ai');
+        // hard replace to kill back-button into the app
+        setTimeout(() => { window.location.replace('/auth/signin?next=/ai'); }, 20);
+    };
 
     // --- put these near the top of AIPage(), with other state ---
     const [speaking, setSpeaking] = useState(false);
@@ -839,6 +799,64 @@ export default function AIPage() {
         }
     }
 
+    // ---- STREAM-SAFE LIFECYCLE (restore + persist + cross-tab) ----
+
+    // Treat any in-flight work as "busy" so we don't overwrite the ghost reply
+    const busy = streaming || imgInFlightRef.current || transcribing || attachments.some(a => !a.remoteUrl);
+
+    // Restore ONCE on mount, then (optionally) repair only image placeholders.
+    // This never runs again, so it cannot clobber an in-flight turn.
+    useEffect(() => {
+        let alive = true;
+        (async () => {
+            const restored = await restoreChat();
+            if (!alive || !restored?.length) return;
+
+            // Apply restore once before any turn has started
+            setMessages(restored as any);
+
+            // One-shot image repair (only if placeholders were restored)
+            const pend = restored
+                .map((m, i) => ({ m, i }))
+                .filter(x => x.m?.kind === 'image' && !x.m?.url && x.m?.prompt);
+
+            for (const { i, m } of pend) {
+                try {
+                    const url = await createImage(m.prompt!, plan);
+                    if (!alive) return;
+                    setMessages(ms => {
+                        const nx = ms.slice();
+                        if (nx[i]?.kind === 'image' && !nx[i].url) {
+                            nx[i] = { ...(nx[i] as any), url, remoteUrl: url };
+                        }
+                        return nx;
+                    });
+                } catch { /* leave placeholder; user can recreate */ }
+            }
+        })();
+        return () => { alive = false; };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // Single, guarded persist. Do NOT persist while busy (streaming/creating images/uploads).
+    useEffect(() => {
+        if (busy) return; // guard during a turn
+        const t = setTimeout(() => { void persistChat(messages as any); }, 220);
+        return () => clearTimeout(t);
+    }, [messages, busy]);
+
+    // Guarded cross-tab sync. Ignore updates while busy so we don't replace an active ghost.
+    useEffect(() => {
+        const onStorage = async (e: StorageEvent) => {
+            if (e.key !== '6ixai:chat:v3') return;
+            if (busy) return; // do not hydrate mid-turn
+            const fresh = await restoreChat();
+            setMessages(fresh as any);
+        };
+        window.addEventListener('storage', onStorage);
+        return () => window.removeEventListener('storage', onStorage);
+    }, [busy]);
+
 
     const [kbOpen, setKbOpen] = useState(false);
 
@@ -852,6 +870,32 @@ export default function AIPage() {
         vv.addEventListener('resize', onResize);
         onResize();
         return () => vv.removeEventListener('resize', onResize);
+    }, []);
+
+
+
+    // don't persist/restore/merge while busy
+    useEffect(() => {
+        if (busy) return;
+        const t = setTimeout(() => persistChat(messages as any), 200);
+        return () => clearTimeout(t);
+    }, [messages, busy]);
+
+    useEffect(() => {
+        const onStorage = async (e: StorageEvent) => {
+            if (busy) return;
+            if (e.key === '6ixai:chat:v3') setMessages(await restoreChat() as any);
+        };
+        window.addEventListener('storage', onStorage);
+        return () => window.removeEventListener('storage', onStorage);
+    }, [busy]);
+
+    // run restore/repair only once
+    const didInit = useRef(false);
+    useEffect(() => {
+        if (didInit.current) return;
+        didInit.current = true;
+        (async () => setMessages(await restoreChat() as any))();
     }, []);
 
 
@@ -1532,363 +1576,49 @@ export default function AIPage() {
         const text = input.trim();
         if (!text || streaming) return;
 
-        const myTurn = ++turnRef.current;
-        toolFiredRef.current = false;
-        lastAssistantRef.current = '';
-
-        // ------- explicit image control tokens -------
-        const mConfirmImg = text.match(/^##CONFIRM_IMAGE:\s*([\s\S]+)$/i);
-        const mCancelImg = /^##CANCEL_IMAGE\b/i.test(text);
-
-        if (mCancelImg) {
-            setMessages(m => [
-                ...m,
-                { id: safeUUID(), role: 'user', content: text },
-                { id: safeUUID(), role: 'assistant', content: 'Okay—no image this time. If you change your mind, tell me what to generate.' },
-            ]);
-            setInput('');
-            return;
-        }
-
-        if (mConfirmImg) {
-            const prompt = mConfirmImg[1].trim();
-
-            // assistant image placeholder
-            setMessages(m => [
-                ...m,
-                { id: safeUUID(), role: 'user', content: text },
-                { id: safeUUID(), role: 'assistant', content: '', kind: 'image', url: '', prompt } as any
-            ]);
-            setInput('');
-
-            try {
-                if (plan === 'free' && imgUsed() >= IMG_LIMITS.free) {
-                    setPremiumModal({ open: true, required: 'pro' });
-                    setMessages(m => {
-                        const nx = m.slice();
-                        nx[nx.length - 1] = { role: 'assistant', content: '_Free image limit reached (6/day)._' } as any;
-                        return nx;
-                    });
-                    return;
-                }
-
-                imgInFlightRef.current = true;
-                const c = new AbortController();
-                imgAbortRef.current = c;
-
-                const url = await createImage(prompt, plan, c.signal);
-                if (myTurn !== turnRef.current) return;
-                bumpImg();
-                setMessages(m => {
-                    const nx = m.slice();
-                    // NEW: also set remoteUrl for persistence
-                    nx[nx.length - 1] = { ...(nx[nx.length - 1] as any), url, remoteUrl: url };
-                    return nx;
-                });
-            } catch (e: any) {
-                const localePref = (profile as any)?.language || (navigator.language || 'en');
-                const langName =
-                    new Intl.DisplayNames([localePref || 'en'], { type: 'language' })
-                        .of((localePref || 'en').split('-')[0]) || 'your language';
-
-                setMessages(m => {
-                    const nx = m.slice();
-                    nx[nx.length - 1] = {
-                        role: 'assistant',
-                        content: (e?.name === 'AbortError')
-                            ? buildStopReply({ displayName: profile.displayName, plan, kind: 'image', langName, locale: localePref })
-                            : '_Could not create image. Please try again._'
-                    } as any;
-                    return nx;
-                });
-            } finally {
-                imgInFlightRef.current = false;
-                imgAbortRef.current = null;
-            }
-            return; // don't start text streaming
-        }
-
-        // ------- natural image intent → ask to confirm -------
-        const hasImageNoun = /\b(image|picture|photo|logo|poster|wallpaper|flyer|banner|icon|avatar|art|illustration|sketch|drawing|render)\b/i.test(text);
-        const hasImageVerb = /\b(generate|create|make|design|draw|render|paint|illustrate)\b/i.test(text);
-        const looksLikeImageIntent = hasImageNoun && hasImageVerb || /\b(logo|poster|wallpaper|flyer|banner|icon|avatar)\b/i.test(text);
-
-        if (looksLikeImageIntent) {
-            const first = (profile.displayName || 'Friend').split(' ')[0];
-            const confirmMsg =
-                `Just to confirm, ${first} — should I generate an image based on this?
-
-> “${text}”
-
-<suggested>
-"##CONFIRM_IMAGE: ${text}"
-"Tweak the prompt"
-"##CANCEL_IMAGE"
-</suggested>`;
-            setMessages(m => [
-                ...m,
-                { id: safeUUID(), role: 'user', content: text },
-                { id: safeUUID(), role: 'assistant', content: confirmMsg },
-            ]);
-            setInput('');
-            return;
-        }
-
-        // ------- file export confirmation (unchanged) -------
-        const fileAsk = classifyFileIntent?.(text);
-        if (fileAsk) {
-            const first = (profile.displayName || 'Friend').split(' ')[0];
-            setMessages(m => [
-                ...m,
-                { id: safeUUID(), role: 'user', content: text },
-                { id: safeUUID(), role: 'assistant', content: buildFileConfirm(fileAsk.kind, first) },
-            ]);
-            setInput('');
-            return;
-        }
-
-        // ------- free day guard -------
-        if (plan === 'free' && chatUsed() >= CHAT_LIMITS.free) {
-            const when = new Date(Date.now() + 24 * 60 * 60 * 1000).toLocaleString();
-            setPremiumModal({ open: true, required: 'pro' });
-            alert(`${profile.displayName || 'Friend'}, you've used all 60 free messages for today.\nTry again after: ${when}.`);
-            return;
-        }
-        bumpChat();
-
-        // model & speed gates (unchanged)
-        if (!isModelAllowed(model, plan)) return setPremiumModal({ open: true, required: modelRequiredPlan(model) });
-        const reqForSpeed = speedRequiredPlan(speed);
-        if (!isAllowedPlan(plan, reqForSpeed)) return setPremiumModal({ open: true, required: reqForSpeed });
-
-        // (optional) web context for paid plans
-        let searchHits: WebSearchResult[] = [];
-        if (plan !== 'free') { try { searchHits = await webSearch(text, 6); } catch { } }
-
-        // kids guard
-        let kidsState = getKidsState();
-        kidsState = applyKidsStateFromReply(text, kidsState);
-        setKidsState(kidsState);
-        const guardPrompt = maybeGuardianCheck(text, kidsState);
-        if (guardPrompt) { setMessages(m => [...m, { role: 'assistant', content: guardPrompt }]); return; }
-
-        // directives & prefs (unchanged)
-        const { delta, ack } = parseUserDirective(text);
-        let deltaGated = { ...delta };
-        if (plan === 'free') {
-            deltaGated = {
-                terse: delta.terse,
-                maxWords: delta.maxWords ? Math.min(delta.maxWords, 200) : undefined,
-                avoidWords: (delta.avoidWords || [])?.slice(0, 3),
-                callMe: delta.callMe ?? undefined,
-                useLanguage: delta.useLanguage ?? undefined,
-            };
-        }
-        if (Object.keys(deltaGated).length) {
-            const next = mergePrefs(prefs, deltaGated);
-            setPrefs(next);
-            if (ack) {
-                setMessages(m => {
-                    const ghost = m[m.length - 1];
-                    return [...m.slice(0, -1), { role: 'assistant', content: `_${ack}_` }, ghost];
-                });
-            }
-        }
-
-        // prepare system/context
-        const convHint = detectConversationLanguage(
-            [...messages, { role: 'user', content: text }] as any,
-            typeof navigator !== 'undefined' ? navigator.language : 'en'
-        );
-        const nameHint = nameLangHint(profile.displayName || '');
-        const convLang = choosePreferredLang(
-            plan, convHint as any, nameHint as any, typeof navigator !== 'undefined' ? navigator.language : 'en'
-        );
-
-        const SYSTEM = build6IXSystem({
-            displayName: profile.displayName, plan, model, userText: text,
-            hints: {
-                firstName: profile.displayName?.split(' ')?.[0] ?? null,
-                age: (kidsState.mode === 'kid' ? Math.min((profile as any)?.age ?? 10, 12) : (profile as any)?.age ?? null),
-                grade: kidsState.grade ?? null, kidMode: kidsState.mode,
-                location: (profile as any)?.location ?? null,
-                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone ?? null,
-                language: convLang, bio: (profile as any)?.bio ?? null,
-            },
-            prefs,
-        });
-
-        const SEARCH_NOTE = searchHits.length
-            ? '\n\n[Web context]\n' + searchHits.slice(0, 3).map((r, i) => `(${i + 1}) ${r.title}\n${r.url}\n${r.snippet}`).join('\n\n')
-            : '';
-
         const userMsg: ChatMessage = { id: safeUUID(), role: 'user', content: text };
         const ghost: ChatMessage = { id: safeUUID(), role: 'assistant', content: '' };
         setMessages(m => [...m, userMsg, ghost]);
         setInput('');
-        setError(null);
         setStreaming(true);
-        scrollToBottom(false);
+        setError(null);
 
         const controller = new AbortController();
         abortRef.current = controller;
 
-        const ctx = [
-            { role: 'system', content: SYSTEM + SEARCH_NOTE },
-            ...messages.filter(m => m.role !== 'system' && !(m.role === 'assistant' && m.content === '')),
-            userMsg,
-        ] as ChatMessage[];
-
-        // ------- streaming handler (works with new streamLLM) -------
-        const onDeltaHandler = (full: string, _delta?: string) => {
-            if (myTurn !== turnRef.current) return;
-            lastAssistantRef.current = full;
-
-            if (!toolFiredRef.current) {
-                const mImg = full.match(/^##IMAGE_REQUEST:\s*(.+)$/m);
-                if (mImg) {
-                    toolFiredRef.current = true;
-                    try { controller.abort(); } catch { }
-                    const prompt = mImg[1].trim();
-
-                    // placeholder bubble
-                    // paint into the last assistant text bubble
-                    setMessages(m => {
-                        const next = m.slice();
-                        for (let i = next.length - 1; i >= 0; i--) {
-                            if (next[i].role === 'assistant' && !(next[i] as any).kind) {
-                                next[i] = { ...next[i], content: full };
-                                break;
-                            }
-                        }
-                        return next;
-                    });
-
-                    if (plan === 'free' && imgUsed() >= IMG_LIMITS.free) {
-                        setPremiumModal({ open: true, required: 'pro' });
-                        setMessages(prev => {
-                            const nx = prev.slice();
-                            for (let k = nx.length - 1; k >= 0; k--) {
-                                if ((nx[k] as any).kind === 'image') { nx[k] = { role: 'assistant', content: '_Free image limit reached (6/day)._' } as any; break; }
-                            }
-                            return nx;
-                        });
-                        return;
-                    }
-
-                    // create image asynchronously, then fill the placeholder
-                    (async () => {
-                        imgInFlightRef.current = true;
-                        const c = new AbortController();
-                        imgAbortRef.current = c;
-                        try {
-                            const url = await createImage(prompt, plan, c.signal as any);
-                            if (myTurn !== turnRef.current) return;
-                            bumpImg();
-                            setMessages(m => {
-                                const nx = m.slice();
-                                nx[nx.length - 1] = { ...(nx[nx.length - 1] as any), url, remoteUrl: url }; // NEW: remoteUrl
-                                return nx;
-                            });
-                        } catch (e: any) {
-                            if (e?.name === 'AbortError' || stoppedRef.current) {
-                                const localePref = (profile as any)?.language || (navigator.language || 'en');
-                                const langName =
-                                    new Intl.DisplayNames([localePref || 'en'], { type: 'language' })
-                                        .of((localePref || 'en').split('-')[0]) || 'your language';
-
-                                setMessages(prev => {
-                                    const nx = prev.slice();
-                                    for (let k = nx.length - 1; k >= 0; k--) {
-                                        if ((nx[k] as any).kind === 'image' && !(nx[k] as any).url) {
-                                            nx[k] = { role: 'assistant', content: buildStopReply({ displayName: profile.displayName, plan, kind: 'image', langName, locale: localePref }) } as any;
-                                            break;
-                                        }
-                                    }
-                                    return nx;
-                                });
-                            } else {
-                                setMessages(m => {
-                                    const nx = m.slice();
-                                    nx[nx.length - 1] = { role: 'assistant', content: '_Could not create image. Please try again._' } as any;
-                                    return nx;
-                                });
-                            }
-                        } finally {
-                            imgInFlightRef.current = false;
-                            imgAbortRef.current = null;
-                            stoppedRef.current = false;
-                        }
-                    })();
-
-                    return; // pivoted to image, stop painting text
-                }
-            }
-
-            // normal text painting
-            setMessages(m => {
-                const next = m.slice();
-                for (let i = next.length - 1; i >= 0; i--) {
-                    if (next[i].role === 'assistant' && !(next[i] as any).kind) { next[i] = { ...next[i], content: full }; break; }
-                }
-                return next;
-            });
-        };
+        const ctx: ChatMessage[] = [
+            { role: 'system', content: `You are a helpful assistant.` },
+            ...messages.filter(m => m.role !== 'system'),
+            userMsg
+        ];
 
         try {
             await streamLLM(
                 { plan, model, mode: speed, contentMode: 'text', messages: ctx },
-                { signal: controller.signal, onDelta: onDeltaHandler }
-            );
-        } catch (err: any) {
-            if (err?.name !== 'AbortError') { console.error(err); setError('stream_failed'); }
-        } finally {
-            if (myTurn !== turnRef.current) return;
-            setStreaming(false);
-            abortRef.current = null;
-
-            const finalText = (lastAssistantRef.current || '').trim();
-            const localePref = (profile as any)?.language || (navigator.language || 'en');
-            const langName =
-                new Intl.DisplayNames([localePref || 'en'], { type: 'language' })
-                    .of((localePref || 'en').split('-')[0]) || 'your language';
-
-            setMessages(m => {
-                const nx = m.slice();
-                for (let i = nx.length - 1; i >= 0; i--) {
-                    const msg: any = nx[i];
-                    if (msg.role === 'assistant' && !msg.kind) {
-                        nx[i] = {
-                            ...msg,
-                            content: stoppedRef.current
-                                ? (msg.content || buildStopReply({ displayName: profile.displayName, plan, kind: 'text', langName, locale: localePref }))
-                                : (finalText || msg.content || '')
-                        };
-                        break;
+                {
+                    signal: controller.signal,
+                    onDelta: (full: string) => {
+                        setMessages(m => {
+                            const next = m.slice();
+                            for (let i = next.length - 1; i >= 0; i--) {
+                                if (next[i].role === 'assistant') {
+                                    next[i] = { ...next[i], content: full };
+                                    break;
+                                }
+                            }
+                            return next;
+                        });
                     }
                 }
-                stoppedRef.current = false;
-                return nx;
-            });
-
-            // optional free nudge + followups (unchanged)
-            if (shouldNudgeFreeUser({
-                plan,
-                lastNudgeAt,
-                turnCount: messages.filter(mm => mm.role === 'assistant').length + 1
-            })) {
-                const nudge = buildFreeNudge(profile.displayName, convLang);
-                setMessages(m => [...m, { role: 'assistant', content: nudge }]);
-                const ts = Date.now();
-                setLastNudgeAt(ts);
-                try { localStorage.setItem('6ix:lastNudgeTs', String(ts)); } catch { }
-            }
-
-            setFollowups(deriveFollowups(plan, userMsg.content, lastAssistantRef.current));
-            scrollToBottom(false);
+            );
+        } catch (err: any) {
+            console.error(err);
+            setError('stream_failed');
+        } finally {
+            setStreaming(false);
+            abortRef.current = null;
         }
     };
-
 
 
     const stop = () => {
@@ -2035,7 +1765,7 @@ export default function AIPage() {
                 onStartNew={() => { /* reset chat */ }}
                 onPremium={() => window.open('/premium', '_blank', 'noopener,noreferrer')}
                 onHelp={() => { try { window.dispatchEvent(new CustomEvent('help:open')); } catch { } }}
-                onSignout={() => { fetch('/api/auth/signout').catch(() => { }); alert('Signed out (stub).'); }}
+                onSignout={signOutNow}
                 onHistory={() => { /* setHistoryOpen(true) */ }}
                 theme={themeChoice}
                 onThemeSelect={onThemeSelect}

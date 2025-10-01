@@ -229,10 +229,10 @@ export default function VerifyClient() {
     };
 
     return (
-        <main className="verify-scope min-h-dvh" style={{ paddingTop: 'env(safe-area-inset-top,0px)' }}>
+        <main className="auth-screen verify-scope min-h-dvh" style={{ paddingTop: 'env(safe-area-inset-top,0px)' }}>
             
             <BackStopper/>
-            <HelpKit anchorToCard={false} presetEmail={email} />
+           <HelpKit side="left" />
             {/* HELP (mirror Sign-up) */}
            
             {/* Desktop */}
@@ -277,7 +277,7 @@ export default function VerifyClient() {
             {/* Mobile */}
             <div className="md:hidden pb-20">
                 
-                <div className="verify-card silver-ring pt-6 grid place-items-center">
+                <div className="verify-card  pt-6 grid place-items-center">
                     <Image src="/splash.png" alt="6ix" width={120} height={120} priority className="rounded-xl object-cover" />
                     <h1 className="mt-4 text-3xl font-semibold text-center px-6">Verify your code</h1>
                     <p className="mt-2 text-center px-6 text-zinc-300">
@@ -285,7 +285,7 @@ export default function VerifyClient() {
                     </p>
                 </div>
 
-                <div className="silver-card px-4 mt-5">
+                <div className=" px-4 mt-5">
                     <VerifyCard
                         code={code}
                         onKeyDown={handleKeyDown}
@@ -319,9 +319,6 @@ export default function VerifyClient() {
             /* ===== Verify page theming ===== */
 .verify-scope { background:#0a0b0d; color:#e9e9f0; }
 html.theme-light .verify-scope { background:#ffffff; color:#0b0c10; }
-
-
-
 
 .verify-scope .field{
 background: rgba(255,255,255,.06);

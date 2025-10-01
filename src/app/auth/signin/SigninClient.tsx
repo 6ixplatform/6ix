@@ -148,7 +148,7 @@ export default function SignInClient() {
         <>
             <BackStopper />
 
-            <main className="auth-scope min-h-dvh bg-black text-white" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
+            <main className="auth-screen auth-scope min-h-dvh bg-black text-white" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
 
 
                 {/* DESKTOP / LAPTOP */}
@@ -164,7 +164,7 @@ export default function SignInClient() {
 
                     {/* Right */}
                     <section className="relative px-8 lg:px-12 pt-30 pb-12 overflow-y-auto">
-                        <HelpKit presetEmail={email} anchorToCard />
+                       <HelpKit side="left" />
                         <header className="flex items-start gap-4">
                             {lastUser?.avatar_url && (
                                 <div className="shrink-0 w-16 h-16 rounded-full overflow-hidden border border-white/15">
@@ -208,7 +208,7 @@ export default function SignInClient() {
 
                 {/* MOBILE */}
                 <div className="md:hidden pb-12">
-                    <HelpKit presetEmail={email} anchorToCard />
+                    <HelpKit side="left" />
                     <div className="pt-6 grid place-items-center">
                         <Image src="/splash.png" alt="6ix" width={120} height={120} priority className="rounded-xl object-cover" />
                         <div className="mt-4 text-center px-6">
@@ -226,7 +226,7 @@ export default function SignInClient() {
                         </div>
                     </div>
 
-                    <div className="silver-ring px-4 mt-5 w-full relative">
+                    <div className="px-4 mt-5 w-full relative">
 
                         <SignInCard
                             email={email}

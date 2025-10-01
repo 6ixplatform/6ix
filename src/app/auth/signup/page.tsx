@@ -269,7 +269,7 @@ export default function SignUpPage() {
 
 
             <main
-                className="auth-scope min-h-dvh bg-black text-zinc-100 pb-[calc(env(safe-area-inset-bottom)+60px)]"
+                className="auth-screen auth-scope min-h-dvh bg-black text-zinc-100 pb-[calc(env(safe-area-inset-bottom)+60px)]"
                 style={{ paddingTop: 'env(safe-area-inset-top,0px)' }}
 
             >
@@ -295,7 +295,7 @@ export default function SignUpPage() {
                     </aside>
 
                     <section className="relative px-8 lg:px-12 pt-30 pb-12 overflow-visible">
-                        <HelpKit presetEmail={email} anchorToCard />
+                       <HelpKit side="left" />
                         <header>
                             <h1 className="text-4xl lg:text-5xl font-semibold leading-tight">Sign up to 6ix today</h1>
                             <p className="mt-3 text-zinc-300 max-w-2xl">
@@ -331,7 +331,7 @@ export default function SignUpPage() {
 
                 {/* MOBILE */}
                 <div className="md:hidden min-h-dvh flex flex-col">
-                    <HelpKit presetEmail={email} anchorToCard />
+                    <HelpKit side="left" />
                     <div className="pt-6 grid place-items-center">
                         <Image src="/splash.png" alt="6ix" width={120} height={120} priority className="rounded-xl object-cover" />
                         <h1 className="mt-4 text-3xl font-semibold text-center px-6">Sign up to 6ix today</h1>
@@ -340,7 +340,7 @@ export default function SignUpPage() {
                         </p>
                     </div>
 
-                    <div className="signup-card silver-ring px-4 mt-5 flex-1 help-anchor">
+                    <div className="signup-card px-4 mt-5 flex-1 help-anchor">
 
                         <SignUpCard
                             email={email}
