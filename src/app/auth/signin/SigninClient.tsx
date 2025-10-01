@@ -240,7 +240,7 @@ export default function SignInClient() {
                 </div>
 
                 {/* MOBILE */}
-                <div className="sr-ring sr-20 md:hidden pb-0">
+                <div className="md:hidden px-4 mt-5 flex-1">
                     <HelpKit side="left" />
                     <div className="relative mt-4 text-center px-6">
                         <h1 className="text-3xl font-semibold">Welcome back to 6ix</h1>
