@@ -246,7 +246,7 @@ export default function SignInClient() {
                         />
                     </div>
 
-                    <footer className="mt-10 text-center text-zinc-500 text-sm">
+                     <footer className="md:hidden fixed left-0 right-0 bottom-0 pb-[calc(env(safe-area-inset-bottom)+10px)] pt-2 text-center text-zinc-500 text-sm bg-gradient-to-t from-black/40 to-transparent">
                         A 6clement Joshua service · © {new Date().getFullYear()} 6ix
                     </footer>
                 </div>

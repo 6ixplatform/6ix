@@ -340,7 +340,7 @@ export default function SignUpPage() {
                         </p>
                     </div>
 
-                    <div className="signup-card px-4 mt-5 flex-1 help-anchor">
+                    <div className="px-4 mt-5 flex-1">
 
                         <SignUpCard
                             email={email}
