@@ -1848,3 +1848,1692 @@ html.theme-light .sr-ring::after {
     background: rgba(255, 255, 255, .12);
     border-color: rgba(255, 255, 255, .18);
 }
+
+/* ===== ANDROID / LOW-MEM SMOOTH MODE ===== */
+
+.android-smooth .app-header,
+.android-smooth .composer-root {
+    /* drop the live blur on fixed layers; use translucent fill instead */
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    background: rgba(8, 8, 8, .86) !important;
+    /* light theme auto-inverts via tokens */
+    box-shadow: 0 1px 0 rgba(255, 255, 255, .08) inset;
+}
+
+/* stop the animated conic-gradient ring (very costly on Android GPUs) */
+.android-smooth .composer-shine::before {
+    animation: none !important;
+    filter: none !important;
+    padding: 0 !important;
+    background: rgba(255, 255, 255, .06) !important;
+    /* remove masks which force extra compositing */
+    -webkit-mask: none !important;
+    mask: none !important;
+}
+
+/* chat bubbles: replace blur with a flat translucent fill */
+.android-smooth .msg-body {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    background: rgba(255, 255, 255, .06) !important;
+}
+
+/* image cards: drop heavy shadows */
+.android-smooth .img-card {
+    box-shadow: none !important;
+}
+
+/* make offscreen messages skip layout/paint until scrolled into view */
+.android-smooth .chat-list>* {
+    content-visibility: auto;
+    contain-intrinsic-size: 0 140px;
+    /* reserve space; adjust if your bubbles are taller */
+}
+
+/* scroll container polish */
+.android-smooth .chat-list {
+    overscroll-behavior-y: contain;
+    /* already set, keep it */
+    -webkit-overflow-scrolling: auto;
+    /* iOS only; harmless on Android */
+}
+
+/* slow down decorative animations when smooth mode is on */
+.android-smooth .typing-anim,
+.android-smooth .intro-orb__ring {
+    animation-duration: 12s !important;
+}
+
+/* ===== THEME TOKENS (global) ===== */
+:root {
+    /* page + text */
+    --th-bg: #000;
+    --th-text: #fff;
+    /* buttons / chips / borders adapt via these */
+    --th-btn-bg: rgba(255, 255, 255, .08);
+    --th-btn-bd: rgba(255, 255, 255, .18);
+    --th-accent: #409cff;
+}
+
+html.theme-light {
+    --th-bg: #fff;
+    --th-text: #000;
+    --th-btn-bg: rgba(0, 0, 0, .08);
+    --th-btn-bd: rgba(0, 0, 0, .18);
+}
+
+html.theme-dark {
+    --th-bg: #000;
+    --th-text: #fff;
+    --th-btn-bg: rgba(255, 255, 255, .08);
+    --th-btn-bd: rgba(255, 255, 255, .18);
+}
+
+/* Make water buttons pick up tokens */
+.btn.btn-water {
+    background: var(--th-btn-bg) !important;
+    border: 1px solid var(--th-btn-bd) !important;
+    color: var(--th-text) !important;
+}
+
+/* ===== THEME PANEL (glass slide-in on desktop) ===== */
+.theme-btn {
+    height: 36px;
+    width: 36px;
+    border-radius: 9999px;
+    display: grid;
+    place-items: center;
+    border: 1px solid rgba(255, 255, 255, .22);
+    background: rgba(255, 255, 255, .06);
+}
+
+@media (min-width:768px) {
+    .theme-panel {
+        position: fixed;
+        z-index: 99;
+        border-radius: 16px;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, .18);
+        background: rgba(20, 20, 20, .75);
+        -webkit-backdrop-filter: blur(16px);
+        backdrop-filter: blur(16px);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, .35);
+        width: 340px;
+        max-height: 70vh;
+        animation: slideIn .18s ease-out both;
+    }
+
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateX(12px)
+        }
+
+        to {
+            opacity: 1;
+            transform: none
+        }
+    }
+}
+
+@media (max-width:767px) {
+    .theme-panel {
+        position: fixed;
+        left: 50%;
+        transform: translateX(-50%);
+        bottom: env(safe-area-inset-bottom, 12px);
+        width: min(96vw, 420px);
+        max-height: 72vh;
+        border-radius: 18px;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, .16);
+        background: rgba(15, 15, 15, .82);
+        -webkit-backdrop-filter: blur(14px);
+        backdrop-filter: blur(14px);
+    }
+}
+
+/* panel internals */
+.theme-head {
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, .12);
+    display: flex;
+    align-items: center;
+    gap: 8px
+}
+
+.theme-title {
+    font-size: 13px;
+    opacity: .9;
+    font-weight: 700;
+    letter-spacing: .02em
+}
+
+.theme-row {
+    padding: 10px 12px;
+    display: grid;
+    gap: 8px
+}
+
+.theme-sub {
+    font-size: 12px;
+    opacity: .7;
+    margin-bottom: 4px
+}
+
+/* horizontal mini-scroll for palettes (shows 4, scrolls for more) */
+.palette-row {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(72px, 72px);
+    gap: 10px;
+    overflow-x: auto;
+    padding-bottom: 6px;
+    scroll-snap-type: x mandatory;
+}
+
+.palette-row::-webkit-scrollbar {
+    height: 6px
+}
+
+.palette-row::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, .18);
+    border-radius: 999px
+}
+
+/* swatch */
+.swatch {
+    width: 72px;
+    height: 72px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, .22);
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding: 6px;
+    scroll-snap-align: center;
+}
+
+.swatch span {
+    font-size: 11px;
+    line-height: 1;
+    background: rgba(0, 0, 0, .5);
+    color: #fff;
+    padding: 4px 6px;
+    border-radius: 8px;
+}
+
+/* selected */
+.swatch.is-active {
+    outline: 2px solid #fff;
+    outline-offset: 2px
+}
+
+/* backdrop for outside-click close (only closes theme panel) */
+.theme-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 98;
+    background: transparent
+}
+
+/* ===== GLOBAL THEME TOKENS ===== */
+:root {
+    --th-bg: #000;
+    /* updated by JS */
+    --th-text: #fff;
+    --th-btn-bg: rgba(255, 255, 255, .06);
+    --th-btn-bd: rgba(255, 255, 255, .16);
+}
+
+.theme-dark {
+    color-scheme: dark;
+}
+
+.theme-light {
+    color-scheme: light;
+}
+
+html, body {
+    background: var(--th-bg);
+    color: var(--th-text);
+}
+
+.btn {
+    color: var(--th-text);
+    transition: transform .06s ease, box-shadow .2s ease;
+}
+
+.btn.btn-water {
+    background: var(--th-btn-bg);
+    border: 1px solid var(--th-btn-bd);
+    border-radius: 999px;
+}
+
+.btn:active {
+    transform: translateY(0.5px) scale(.99);
+}
+
+/* header & composer tint (no pure black) */
+.app-header, .composer-root {
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-color: rgba(255, 255, 255, .1);
+}
+
+.theme-dark .app-header, .theme-dark .composer-root {
+    background: rgba(14, 14, 14, .82);
+}
+
+.theme-light .app-header, .theme-light .composer-root {
+    background: rgba(255, 255, 255, .82);
+}
+
+/* ===== THEME PANEL ===== */
+.theme-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 59;
+}
+
+.theme-panel {
+    position: fixed;
+    z-index: 60;
+    width: 340px;
+    max-height: 78vh;
+    border-radius: 18px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, .12);
+    background: rgba(30, 30, 30, .96);
+    color: #f2f2f2;
+}
+
+.theme-light .theme-panel {
+    background: rgba(255, 255, 255, .98);
+    color: #111;
+    border-color: rgba(0, 0, 0, .12);
+}
+
+.theme-head {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    padding: 10px 12px 8px 12px;
+}
+
+.theme-title {
+    font-weight: 700;
+}
+
+.theme-row {
+    padding: 4px 10px 14px 10px;
+    overflow: hidden;
+}
+
+.theme-block+.theme-block {
+    margin-top: 10px;
+}
+
+.theme-sub {
+    font-size: 12px;
+    opacity: .7;
+    margin: 8px 2px;
+}
+
+/* scrollable grid */
+.palette-row {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+    max-height: 24rem;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.swatch {
+    height: 64px;
+    border-radius: 14px;
+    border: 1px solid rgba(0, 0, 0, .15);
+    display: grid;
+    place-items: end start;
+    padding: 8px;
+    font-size: 12px;
+    line-height: 1;
+    isolation: isolate;
+    transition: transform .08s ease, box-shadow .25s ease;
+}
+
+.theme-dark .swatch {
+    border-color: rgba(255, 255, 255, .16);
+}
+
+.swatch.is-active {
+    outline: 2px solid #fff;
+    outline-offset: 2px;
+}
+
+.theme-light .swatch.is-active {
+    outline-color: #000;
+}
+
+.swatch:active::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 14px;
+    box-shadow: 0 0 0 8px rgba(255, 255, 255, .15) inset;
+    animation: wobble .3s ease;
+}
+
+@keyframes wobble {
+    50% {
+        transform: scale(.98);
+    }
+}
+
+.anim-strip {
+    display: flex;
+    gap: 6px;
+    margin-left: 6px;
+    margin-right: auto;
+    overflow: auto;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+}
+
+.anim-tile {
+    min-width: 56px;
+    height: 36px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, .2);
+    position: relative;
+    overflow: hidden;
+    background: rgba(255, 255, 255, .04);
+}
+
+.anim-tile span {
+    position: absolute;
+    inset: auto 6px 6px 6px;
+    font-size: 10px;
+    opacity: .8;
+}
+
+.anim-tile.is-active {
+    outline: 2px solid #fff;
+    outline-offset: 2px;
+}
+
+/* tiny live preview inside each anim tile */
+.anim-tile[data-anim]:before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: .9;
+    background: #000;
+}
+
+.theme-light .anim-tile {
+    border-color: rgba(0, 0, 0, .15);
+    background: rgba(0, 0, 0, .06);
+}
+
+.theme-light .anim-tile.is-active {
+    outline-color: #000;
+}
+
+/* ===== GLOBAL LIVE ANIMATIONS (applies everywhere) ===== */
+body {
+    position: relative;
+}
+
+body::before, body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+}
+
+body[data-anim="none"]::before, body[data-anim="none"]::after {
+    content: none;
+}
+
+/* 1. Matrix */
+@keyframes mDrop {
+    to {
+        transform: translateY(100%);
+    }
+}
+
+body[data-anim="matrix"]::before {
+    background:
+        repeating-linear-gradient(transparent 0 28px, rgba(255, 255, 255, .05) 28px 29px),
+        linear-gradient(#0b0f0c, #0b0f0c);
+}
+
+body[data-anim="matrix"]::after {
+    background:
+        repeating-linear-gradient(180deg, rgba(0, 255, 140, .22), rgba(0, 255, 140, .22) 2px, transparent 2px 32px);
+    transform: translateY(-100%);
+    animation: mDrop 18s linear infinite;
+}
+
+/* 2. Aqua */
+@keyframes aquaWaves {
+    to {
+        background-position: 200% 0, -200% 100%;
+    }
+}
+
+body[data-anim="aqua"]::before {
+    background:
+        radial-gradient(60% 80% at 20% 10%, rgba(0, 180, 255, .25), transparent 60%),
+        radial-gradient(60% 80% at 80% 90%, rgba(0, 255, 200, .28), transparent 60%),
+        linear-gradient(#02070a, #02070a);
+    background-size: 200% 200%, 200% 200%, auto;
+    animation: aquaWaves 24s linear infinite;
+}
+
+/* 3. Aurora */
+@keyframes auroraShift {
+    50% {
+        filter: hue-rotate(60deg)
+    }
+}
+
+body[data-anim="aurora"]::before {
+    background:
+        radial-gradient(40% 60% at 20% 20%, rgba(255, 0, 200, .18), transparent 60%),
+        radial-gradient(50% 60% at 80% 80%, rgba(0, 230, 255, .20), transparent 60%),
+        radial-gradient(60% 80% at 50% 50%, rgba(0, 255, 128, .20), transparent 60%),
+        #0a0c12;
+    animation: auroraShift 14s ease-in-out infinite;
+}
+
+/* 4. Grid scan */
+@keyframes scan {
+    to {
+        background-position: 0 100%;
+    }
+}
+
+body[data-anim="grid-scan"]::before {
+    background:
+        linear-gradient(0deg, rgba(255, 255, 255, .06) 1px, transparent 1px) 0 0/100% 32px,
+        linear-gradient(90deg, rgba(255, 255, 255, .06) 1px, transparent 1px) 0 0/32px 100%,
+        #0b0d10;
+}
+
+body[data-anim="grid-scan"]::after {
+    background: linear-gradient(180deg, transparent, rgba(0, 255, 255, .18), transparent);
+    mix-blend-mode: screen;
+    background-size: 100% 200%;
+    animation: scan 10s linear infinite;
+}
+
+/* 5. Warp stars */
+@keyframes warp {
+    to {
+        background-position: 400% 0;
+    }
+}
+
+body[data-anim="warp"]::before {
+    background:
+        radial-gradient(1px 1px at 20% 30%, rgba(255, 255, 255, .6) 50%, transparent 51%),
+        radial-gradient(1px 1px at 50% 60%, rgba(255, 255, 255, .5) 50%, transparent 51%),
+        radial-gradient(1px 1px at 80% 40%, rgba(255, 255, 255, .4) 50%, transparent 51%),
+        #050608;
+    background-size: 25% 25%, 25% 25%, 25% 25%, auto;
+    animation: warp 30s linear infinite;
+}
+
+/* 6. Neon lines */
+@keyframes neonSlide {
+    to {
+        background-position: 200% 0;
+    }
+}
+
+body[data-anim="neon-lines"]::before {
+    background:
+        repeating-linear-gradient(120deg, rgba(0, 255, 200, .22) 0 6px, transparent 6px 24px),
+        linear-gradient(#090909, #0f0f13);
+    background-size: 200% 100%, auto;
+    animation: neonSlide 18s linear infinite;
+}
+
+/* 7. Lava lamp */
+@keyframes blobs {
+    50% {
+        transform: translateY(-4%) scale(1.05)
+    }
+}
+
+body[data-anim="lava"]::before {
+    background:
+        radial-gradient(40% 35% at 20% 80%, rgba(255, 120, 0, .18), transparent 60%),
+        radial-gradient(45% 40% at 80% 20%, rgba(255, 0, 100, .18), transparent 60%),
+        #0b0b0b;
+    animation: blobs 12s ease-in-out infinite;
+}
+
+/* 8. Clouds */
+@keyframes clouds {
+    to {
+        background-position: 200% 0;
+    }
+}
+
+body[data-anim="clouds"]::before {
+    background:
+        radial-gradient(100px 80px at 10% 20%, rgba(255, 255, 255, .06), transparent 60%),
+        radial-gradient(120px 90px at 60% 60%, rgba(255, 255, 255, .06), transparent 60%),
+        #0c0e11;
+    background-size: 200% 100%, 200% 100%, auto;
+    animation: clouds 60s linear infinite;
+}
+
+/* 9. Waves */
+@keyframes waveMove {
+    to {
+        background-position: 200% 0, -200% 100%;
+    }
+}
+
+body[data-anim="waves"]::before {
+    background:
+        radial-gradient(60% 50% at 30% 70%, rgba(255, 255, 255, .04), transparent 60%),
+        radial-gradient(50% 60% at 70% 30%, rgba(255, 255, 255, .04), transparent 60%),
+        #0b1216;
+    background-size: 150% 100%, 150% 100%, auto;
+    animation: waveMove 32s linear infinite;
+}
+
+/* 10. Particles */
+@keyframes floatDots {
+    to {
+        transform: translateY(-6%);
+    }
+}
+
+body[data-anim="particles"]::before {
+    background:
+        radial-gradient(2px 2px at 10% 90%, rgba(255, 255, 255, .25), transparent 60%),
+        radial-gradient(2px 2px at 30% 70%, rgba(255, 255, 255, .18), transparent 60%),
+        radial-gradient(2px 2px at 70% 40%, rgba(255, 255, 255, .2), transparent 60%),
+        #0a0b0e;
+    animation: floatDots 20s ease-in-out infinite alternate;
+}
+
+/* 11. Circuit board */
+@keyframes scanline {
+    to {
+        background-position: 0 200%;
+    }
+}
+
+body[data-anim="circuit"]::before {
+    background:
+        linear-gradient(90deg, rgba(0, 255, 140, .18) 1px, transparent 1px) 0 0/24px 100%,
+        linear-gradient(0deg, rgba(0, 255, 140, .18) 1px, transparent 1px) 0 0/100% 24px,
+        #0b0d0b;
+}
+
+body[data-anim="circuit"]::after {
+    background: linear-gradient(180deg, transparent, rgba(0, 255, 140, .1), transparent);
+    background-size: 100% 200%;
+    animation: scanline 12s linear infinite;
+}
+
+/* 12–15. Camouflage (animated shimmer over tiled SVG) */
+@keyframes camoShimmer {
+    50% {
+        filter: brightness(1.08);
+    }
+}
+
+body[data-anim="camo-woodland"]::before {
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='320' height='320'><rect width='100%' height='100%' fill='%232c3b27'/><g fill='%233f4f32'><path d='M0,60c40,40,120,10,160,40S240,160,320,120V0H0Z'/></g><g fill='%235a6b3f'><path d='M0,200c60-20,120,60,200,40s80-40,120,0v80H0Z'/></g><g fill='%231f261b' opacity='.7'><path d='M80,0c20,60,80,60,140,80S320,40,320,0Z'/></g></svg>");
+    background-size: 420px 420px;
+    background-color: #2c3b27;
+    animation: camoShimmer 8s ease-in-out infinite;
+}
+
+body[data-anim="camo-desert"]::before {
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='320' height='320'><rect width='100%' height='100%' fill='%23b9a56a'/><g fill='%23d6c189'><path d='M0,60c40,40,120,10,160,40S240,160,320,120V0H0Z'/></g><g fill='%238a7a4b'><path d='M0,200c60-20,120,60,200,40s80-40,120,0v80H0Z'/></g></svg>");
+    background-size: 420px 420px;
+    background-color: #b9a56a;
+    animation: camoShimmer 8s ease-in-out infinite;
+}
+
+body[data-anim="camo-urban"]::before {
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='320' height='320'><rect width='100%' height='100%' fill='%232d3137'/><g fill='%23454a52'><path d='M0,60c40,40,120,10,160,40S240,160,320,120V0H0Z'/></g><g fill='%231a1d22'><path d='M0,200c60-20,120,60,200,40s80-40,120,0v80H0Z'/></g></svg>");
+    background-size: 420px 420px;
+    background-color: #2d3137;
+    animation: camoShimmer 8s ease-in-out infinite;
+}
+
+body[data-anim="camo-digital"]::before {
+    background:
+        repeating-linear-gradient(0deg, #223 0 8px, #1a1f2a 8px 16px),
+        repeating-linear-gradient(90deg, rgba(255, 255, 255, .03) 0 8px, transparent 8px 16px);
+    background-blend-mode: multiply;
+}
+
+/* live previews inside tiles use same backgrounds */
+.anim-tile[data-anim="matrix"]::before {
+    background: linear-gradient(#0b0f0c, #0b0f0c);
+}
+
+.anim-tile[data-anim="aqua"]::before {
+    background: radial-gradient(circle at 30% 20%, rgba(0, 200, 255, .35), transparent 50%), #041018;
+}
+
+.anim-tile[data-anim="aurora"]::before {
+    background: linear-gradient(130deg, #4af, #f0f);
+    filter: saturate(1.2);
+}
+
+.anim-tile[data-anim="grid-scan"]::before {
+    background: linear-gradient(0deg, rgba(255, 255, 255, .2) 1px, transparent 1px) 0/100% 12px, #101214;
+}
+
+.anim-tile[data-anim="warp"]::before {
+    background: radial-gradient(closest-side, #fff 1px, transparent 1px) 0/12px 12px, #06080a;
+}
+
+.anim-tile[data-anim="neon-lines"]::before {
+    background: repeating-linear-gradient(120deg, rgba(0, 255, 200, .4) 0 4px, transparent 4px 12px), #0b0b0e;
+}
+
+.anim-tile[data-anim="lava"]::before {
+    background: radial-gradient(closest-corner, #f60, transparent 60%), #0b0b0b;
+}
+
+.anim-tile[data-anim="clouds"]::before {
+    background: radial-gradient(closest-corner, rgba(255, 255, 255, .4), transparent 60%), #0c0e11;
+}
+
+.anim-tile[data-anim="waves"]::before {
+    background: radial-gradient(closest-corner, rgba(255, 255, 255, .25), transparent 60%), #0b1216;
+}
+
+.anim-tile[data-anim="particles"]::before {
+    background: radial-gradient(2px 2px at 50% 50%, #fff, transparent 60%), #0a0b0e;
+}
+
+.anim-tile[data-anim="circuit"]::before {
+    background: linear-gradient(90deg, rgba(0, 255, 140, .5) 1px, transparent 1px) 0/10px 100%, #0b0d0b;
+}
+
+.anim-tile[data-anim="camo-woodland"]::before {
+    background: #2c3b27;
+}
+
+.anim-tile[data-anim="camo-desert"]::before {
+    background: #b9a56a;
+}
+
+.anim-tile[data-anim="camo-urban"]::before {
+    background: #2d3137;
+}
+
+.anim-tile[data-anim="camo-digital"]::before {
+    background: #1a1f2a;
+}
+
+/* ========= CORE PAGE BACKDROP & TRANSITIONS ========= */
+html, body {
+    background: var(--th-bg, #000);
+}
+
+:root[data-anim] body {
+    background-attachment: fixed;
+    background-repeat: no-repeat;
+    transition: background 400ms ease, filter 400ms ease;
+}
+
+/* Keep the app transparent when an animation is active. (Your JS already sets --page-bg) */
+[data-anim] .min-h-svh {
+    background: transparent !important;
+}
+
+/* ========= ICON LEGIBILITY ON DARK/LIGHT ========= */
+.composer-root button,
+.composer-root button svg,
+.msg-actions button,
+.msg-actions button svg {
+    color: var(--icon-fg);
+    stroke: currentColor;
+    fill: currentColor;
+}
+
+/* ========= HORIZONTAL SCROLLER (used for anim row + every palette row) ========= */
+.hscroll-row {
+    position: relative;
+}
+
+.hscroll-wrap {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    padding: 2px 2px 6px;
+    scroll-behavior: smooth;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+.hscroll-wrap::-webkit-scrollbar {
+    display: none;
+}
+
+.hscroll-bar {
+    padding: 0 6px 8px;
+}
+
+.hscroll-bar input[type="range"] {
+    width: 100%;
+    accent-color: var(--btn-fg);
+}
+
+/* Cards */
+.anim-row {
+    display: flex;
+    gap: 10px;
+}
+
+.anim-card {
+    position: relative;
+    width: 132px;
+    height: 74px;
+    border-radius: 14px;
+    border: 1px solid var(--th-border);
+    overflow: hidden;
+    display: grid;
+    place-items: end start;
+    padding: 8px;
+    color: #fff;
+}
+
+.anim-card span {
+    font-size: 12px;
+    line-height: 1;
+    background: rgba(0, 0, 0, .45);
+    padding: 3px 8px;
+    border-radius: 999px;
+}
+
+.anim-card.is-active {
+    outline: 2px solid rgba(255, 255, 255, .55);
+}
+
+.palette-row {
+    display: flex;
+    gap: 10px;
+}
+
+.swatch {
+    width: 150px;
+    height: 64px;
+    border-radius: 14px;
+    border: 1px solid var(--th-border);
+    display: grid;
+    align-content: end;
+    padding: 8px;
+}
+
+.swatch span {
+    font-size: 12px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .85);
+    color: #000;
+}
+
+.theme-dark .swatch span {
+    background: rgba(0, 0, 0, .65);
+    color: #fff;
+}
+
+.swatch.is-active {
+    outline: 2px solid var(--btn-fg);
+}
+
+/* ========= LIVE ANIMATED THEMES (16) ========= */
+/* 1) Matrix */
+:root[data-anim="matrix"] body {
+    background:
+        repeating-linear-gradient(180deg, rgba(0, 255, 120, .10) 0 2px, transparent 2px 16px),
+        radial-gradient(1200px 600px at 120% -10%, #001, #000 60%);
+    background-size: auto, auto;
+    background-position: 0 0, 50% 0%;
+    animation: six-matrix 24s linear infinite;
+}
+
+@keyframes six-matrix {
+    from {
+        background-position: 0 0, 50% 0%;
+    }
+
+    to {
+        background-position: 0 1000px, 50% 0%;
+    }
+}
+
+/* 2) Aquarium */
+:root[data-anim="aquarium"] body {
+    background:
+        radial-gradient(600px 400px at 30% 25%, #00f0ff33, transparent 60%),
+        radial-gradient(800px 520px at 70% 70%, #00ff8833, transparent 60%),
+        linear-gradient(180deg, #02131e, #012431);
+    background-size: auto, auto, cover;
+    background-position: 30% 25%, 70% 70%, center;
+    animation: six-aquarium 20s ease-in-out infinite alternate;
+}
+
+@keyframes six-aquarium {
+    0% {
+        background-position: 28% 27%, 70% 72%, center;
+    }
+
+    100% {
+        background-position: 34% 23%, 66% 68%, center;
+    }
+}
+
+/* 3) Server */
+:root[data-anim="server"] body {
+    background:
+        repeating-linear-gradient(0deg, rgba(0, 255, 120, .16) 0 1px, transparent 1px 18px),
+        linear-gradient(90deg, #020, #041);
+    animation: six-server 18s linear infinite;
+}
+
+@keyframes six-server {
+    to {
+        background-position: 300px 0, 0 0;
+    }
+}
+
+/* 4) Racing */
+:root[data-anim="racing"] body {
+    background:
+        repeating-linear-gradient(120deg, #111 0 12px, #222 12px 24px),
+        linear-gradient(180deg, #000, #001);
+    animation: six-racing 8s linear infinite;
+}
+
+@keyframes six-racing {
+    to {
+        background-position: 400px 0, 0 0;
+    }
+}
+
+/* 5) Water */
+:root[data-anim="water"] body {
+    background:
+        radial-gradient(1200px 800px at 50% 120%, #032a40, #001926 60%),
+        repeating-radial-gradient(circle at 50% 40%, rgba(255, 255, 255, .08) 0 2px, transparent 2px 8px);
+    animation: six-water 12s ease-in-out infinite alternate;
+}
+
+@keyframes six-water {
+    0% {
+        background-position: 50% 60%, 50% 40%;
+    }
+
+    100% {
+        background-position: 50% 70%, 48% 45%;
+    }
+}
+
+/* 6) Crypto Grid */
+:root[data-anim="crypto-grid"] body {
+    background:
+        linear-gradient(180deg, rgba(0, 255, 150, .12), rgba(0, 180, 255, .12)),
+        repeating-linear-gradient(90deg, rgba(0, 255, 200, .18) 0 1px, transparent 1px 40px),
+        repeating-linear-gradient(0deg, rgba(0, 255, 200, .18) 0 1px, transparent 1px 40px),
+        radial-gradient(1200px 800px at 120% -10%, #001025, #000 60%);
+    background-size: cover, 40px 100%, 100% 40px, cover;
+    animation: six-grid 30s linear infinite;
+}
+
+@keyframes six-grid {
+    to {
+        background-position: center, 1000px 0, 0 1000px, center;
+    }
+}
+
+/* 7) Trading Ticks */
+:root[data-anim="trading-ticks"] body {
+    background:
+        repeating-linear-gradient(90deg, rgba(0, 255, 0, .20) 0 3px, transparent 3px 12px),
+        repeating-linear-gradient(90deg, rgba(255, 0, 0, .20) 6px 9px, transparent 9px 18px),
+        linear-gradient(180deg, #001016, #000);
+    animation: six-ticks 10s linear infinite;
+}
+
+@keyframes six-ticks {
+    to {
+        background-position: 600px 0, 600px 0, 0 0;
+    }
+}
+
+/* 8) Runway */
+:root[data-anim="runway"] body {
+    background:
+        repeating-linear-gradient(90deg, transparent 0 46px, rgba(255, 255, 255, .18) 46px 50px, transparent 50px 96px),
+        radial-gradient(1200px 600px at 50% -20%, #210, #000 60%);
+    animation: six-runway 12s linear infinite;
+}
+
+@keyframes six-runway {
+    to {
+        background-position: 600px 0, 0 0;
+    }
+}
+
+/* 9) Stars */
+:root[data-anim="stars"] body {
+    background:
+        radial-gradient(2px 2px at 15% 35%, #fff8, transparent 30%),
+        radial-gradient(1px 1px at 65% 60%, #fff6, transparent 30%),
+        radial-gradient(1200px 600px at 50% -20%, #001, #000 65%);
+    animation: six-stars 40s linear infinite;
+}
+
+@keyframes six-stars {
+    to {
+        background-position: 55% 38%, 68% 63%, 50% -15%;
+    }
+}
+
+/* 10) Plasma */
+:root[data-anim="plasma"] body {
+    background:
+        radial-gradient(60% 60% at 30% 40%, #7f1aff, transparent 60%),
+        radial-gradient(60% 60% at 70% 60%, #00e0ff, transparent 60%),
+        radial-gradient(80% 80% at 50% 50%, #ffff66, #000 70%);
+    animation: six-plasma 14s ease-in-out infinite alternate;
+}
+
+@keyframes six-plasma {
+    0% {
+        background-position: 30% 40%, 70% 60%, 50% 50%;
+    }
+
+    100% {
+        background-position: 35% 35%, 65% 65%, 48% 52%;
+    }
+}
+
+/* 11) Waves */
+:root[data-anim="waves"] body {
+    background:
+        radial-gradient(800px 200px at 50% 120%, rgba(255, 255, 255, .06), transparent 60%),
+        repeating-linear-gradient(180deg, rgba(255, 255, 255, .05) 0 2px, transparent 2px 10px),
+        linear-gradient(180deg, #001633, #000a1e);
+    animation: six-waves 10s ease-in-out infinite alternate;
+}
+
+@keyframes six-waves {
+    0% {
+        background-position: 50% 110%, 0 0, 0 0;
+    }
+
+    100% {
+        background-position: 50% 100%, 0 16px, 0 0;
+    }
+}
+
+/* 12) Radial Sun */
+:root[data-anim="radial-sun"] body {
+    background:
+        radial-gradient(400px 400px at 40% 35%, #ffd966, transparent 60%),
+        radial-gradient(1000px 600px at 50% -10%, #220700, #000 60%);
+    animation: six-sun 6s ease-in-out infinite;
+}
+
+@keyframes six-sun {
+    0%, 100% {
+        background-size: 400px 400px, auto;
+    }
+
+    50% {
+        background-size: 520px 520px, auto;
+    }
+}
+
+/* 13) Camo Woodland */
+:root[data-anim="camo-woodland"] body {
+    background:
+        repeating-radial-gradient(circle at 20% 30%, #2c3 0 6%, transparent 6% 12%),
+        repeating-radial-gradient(circle at 70% 60%, #263 0 6%, transparent 6% 12%),
+        repeating-radial-gradient(circle at 40% 70%, #1a2 0 6%, transparent 6% 12%),
+        #0b1e12;
+    animation: six-camo 40s linear infinite;
+}
+
+/* 14) Camo Desert */
+:root[data-anim="camo-desert"] body {
+    background:
+        repeating-radial-gradient(circle at 25% 35%, #caa 0 6%, transparent 6% 12%),
+        repeating-radial-gradient(circle at 60% 65%, #b98 0 6%, transparent 6% 12%),
+        repeating-radial-gradient(circle at 45% 75%, #a87 0 6%, transparent 6% 12%),
+        #6f574b;
+    animation: six-camo 40s linear infinite;
+}
+
+/* 15) Camo Urban */
+:root[data-anim="camo-urban"] body {
+    background:
+        repeating-radial-gradient(circle at 30% 30%, #777 0 6%, transparent 6% 12%),
+        repeating-radial-gradient(circle at 65% 60%, #666 0 6%, transparent 6% 12%),
+        repeating-radial-gradient(circle at 40% 80%, #444 0 6%, transparent 6% 12%),
+        #2f2f2f;
+    animation: six-camo 40s linear infinite;
+}
+
+/* 16) Camo Navy */
+:root[data-anim="camo-navy"] body {
+    background:
+        repeating-radial-gradient(circle at 25% 35%, #113 0 6%, transparent 6% 12%),
+        repeating-radial-gradient(circle at 60% 65%, #224 0 6%, transparent 6% 12%),
+        repeating-radial-gradient(circle at 45% 75%, #335 0 6%, transparent 6% 12%),
+        #0d1522;
+    animation: six-camo 40s linear infinite;
+}
+
+/* Shared pan for camo variants */
+@keyframes six-camo {
+    to {
+        background-position: 140% 120%, 120% 140%, 160% 100%, 0 0;
+    }
+}
+
+/* --- Theme panel vertical scrolling --- */
+.theme-panel {
+    max-height: min(78vh, 640px);
+    overflow-y: auto;
+}
+
+/* --- Generic horizontal row with slider (used by animations AND palettes) --- */
+.hscroll-row {
+    position: relative;
+    margin-bottom: 6px;
+}
+
+.hscroll-wrap {
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+    padding: 2px 0 10px;
+}
+
+.hscroll-bar {
+    display: grid;
+    place-items: center;
+    padding: 2px 0 8px;
+}
+
+.hscroll-bar input[type="range"] {
+    width: 128px;
+}
+
+/* Hide native scrollbar but keep scrollability */
+.hscroll-wrap::-webkit-scrollbar {
+    height: 6px;
+}
+
+.hscroll-wrap::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.hscroll-wrap::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, .18);
+    border-radius: 999px;
+}
+
+/* --- Row contents must not wrap; force horizontal overflow --- */
+.anim-row,
+.palette-row.is-hscroll {
+    display: flex;
+    gap: 12px;
+    flex-wrap: nowrap;
+    /* important */
+    padding: 2px 2px 4px;
+}
+
+/* Cards / swatches sized so they overflow on narrow panels */
+.anim-card {
+    flex: 0 0 180px;
+    height: 100px;
+    border-radius: 18px;
+}
+
+.swatch {
+    flex: 0 0 180px;
+    /* same width for consistent slide */
+    height: 84px;
+    border-radius: 18px;
+}
+
+.swatch span,
+.anim-card span {
+    font-size: 12px;
+    padding: 6px 8px;
+    background: rgba(255, 255, 255, .85);
+    color: #000;
+    border-radius: 999px;
+}
+
+.theme-dark .swatch span,
+.theme-dark .anim-card span {
+    background: rgba(0, 0, 0, .85);
+    color: #fff;
+}
+
+.hscroll-bar {
+    display: grid;
+    grid-auto-flow: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 2px 0 8px;
+}
+
+.hscroll-bar .hs-arrow {
+    width: 22px;
+    height: 22px;
+    border-radius: 999px;
+    border: 1px solid var(--th-border, rgba(255, 255, 255, .18));
+    background: var(--th-surface, rgba(0, 0, 0, .14));
+    color: var(--th-text, #fff);
+    display: grid;
+    place-items: center;
+    line-height: 1;
+    font-size: 12px;
+}
+
+.hscroll-row {
+    position: relative;
+}
+
+.hscroll-wrap {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.hscroll-wrap::-webkit-scrollbar {
+    display: none;
+}
+
+.hscroll-bar {
+    display: grid;
+    grid-auto-flow: column;
+    gap: 6px;
+    align-items: center;
+    justify-content: center;
+    padding: 2px 0 8px;
+}
+
+.hscroll-bar .hs-arrow {
+    width: 22px;
+    height: 22px;
+    border-radius: 999px;
+    border: 1px solid var(--th-border, rgba(255, 255, 255, .18));
+    background: var(--th-surface, rgba(0, 0, 0, .14));
+    color: var(--th-text, #fff);
+    display: grid;
+    place-items: center;
+    font-size: 12px;
+    line-height: 1;
+}
+
+/* --- THEME PANEL scrollers --- */
+.theme-panel .row-block,
+.theme-panel .theme-row {
+    overflow: visible !important;
+    /* stop clipping the slider under rows */
+}
+
+.theme-panel .hscroll-row {
+    position: relative;
+}
+
+.theme-panel .hscroll-wrap {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    /* Firefox */
+}
+
+.theme-panel .hscroll-wrap::-webkit-scrollbar {
+    display: none;
+}
+
+/* Some setups hide inputs broadly in the panel. Re-enable our range. */
+.theme-panel .hscroll-bar input[type="range"] {
+    display: inline-block !important;
+    width: 140px;
+    /* feel free to tweak */
+    height: 18px;
+}
+
+.theme-panel .hscroll-bar {
+    display: grid !important;
+    /* force visible even if a global rule hid it */
+    grid-auto-flow: column;
+    gap: 6px;
+    align-items: center;
+    justify-content: center;
+    margin-top: 6px;
+    /* puts the slider under each row */
+    padding-bottom: 6px;
+    pointer-events: auto;
+}
+
+.theme-panel .hs-arrow {
+    width: 22px;
+    height: 22px;
+    border-radius: 999px;
+    border: 1px solid var(--th-border, rgba(255, 255, 255, .18));
+    background: var(--th-surface, rgba(0, 0, 0, .14));
+    color: var(--th-text, #fff);
+    display: grid;
+    place-items: center;
+    font-size: 12px;
+    line-height: 1;
+}
+
+/* Default page bg (safe fallback) */
+html, body {
+    background: var(--th-bg, #000);
+}
+
+/* Animated themes. Put after the default block above. */
+@keyframes pan-slow {
+    to {
+        background-position: 200% 200%;
+    }
+}
+
+:root[data-anim] body {
+    background-attachment: fixed;
+}
+
+:root[data-anim="matrix"] body {
+    background:
+        repeating-linear-gradient(180deg, rgba(0, 255, 120, .14) 0 2px, transparent 2px 16px),
+        radial-gradient(1200px 600px at 120% -10%, #001, #000 60%) !important;
+}
+
+:root[data-anim="aquarium"] body {
+    background:
+        radial-gradient(600px 400px at 30% 25%, #00f0ff33, transparent 60%),
+        radial-gradient(800px 520px at 70% 70%, #00ff8833, transparent 60%),
+        linear-gradient(180deg, #02131e, #012431) !important;
+    background-size: 160% 160%, 160% 160%, 100% 100%;
+    animation: pan-slow 24s linear infinite;
+}
+
+:root[data-anim="stars"] body {
+    background:
+        radial-gradient(2px 2px at 15% 35%, #fff8, transparent 30%),
+        radial-gradient(1px 1px at 65% 60%, #fff6, transparent 30%),
+        radial-gradient(1200px 600px at 50% -20%, #001, #000 65%) !important;
+}
+
+/* quick placeholders for the others so every tile works now */
+:root[data-anim="server"] body {
+    background: linear-gradient(90deg, #020, #063) !important;
+}
+
+:root[data-anim="racing"] body {
+    background: repeating-linear-gradient(120deg, #111, #111 8px, #333 8px, #333 16px) !important;
+}
+
+:root[data-anim="water"] body {
+    background: radial-gradient(circle at 40% 40%, #aee, #036) !important;
+}
+
+:root[data-anim="crypto-grid"] body {
+    background: linear-gradient(90deg, #011, #022) !important;
+}
+
+:root[data-anim="trading-ticks"] body {
+    background: linear-gradient(90deg, #001, #112) !important;
+}
+
+:root[data-anim="runway"] body {
+    background: linear-gradient(90deg, #210, #420) !important;
+}
+
+:root[data-anim="plasma"] body {
+    background: conic-gradient(from 0deg at 50% 50%, #f0f, #0ff, #ff0, #f0f) !important;
+}
+
+:root[data-anim="waves"] body {
+    background: linear-gradient(90deg, #003, #006) !important;
+}
+
+:root[data-anim="radial-sun"] body {
+    background: radial-gradient(circle at 40% 40%, #ff8, #f60) !important;
+}
+
+:root[data-anim="camo-woodland"] body {
+    background: repeating-radial-gradient(#2c3, #263, #1a2 20%) !important;
+}
+
+:root[data-anim="camo-desert"] body {
+    background: repeating-radial-gradient(#caa, #b98, #a87 20%) !important;
+}
+
+:root[data-anim="camo-urban"] body {
+    background: repeating-radial-gradient(#777, #666, #444 20%) !important;
+}
+
+:root[data-anim="camo-navy"] body {
+    background: repeating-radial-gradient(#113, #224, #335 20%) !important;
+}
+
+/* ===== LIVE BACKGROUND ENGINE (animated) ===== */
+:root[data-anim] body {
+    background: none !important;
+}
+
+:root[data-anim] body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    will-change: transform, opacity, background-position, filter;
+    transition: opacity .3s ease;
+    opacity: 1;
+}
+
+/* Generic helpers */
+@keyframes pan-x {
+    from {
+        background-position: 0 0
+    }
+
+    to {
+        background-position: 600px 0
+    }
+}
+
+@keyframes pan-y {
+    from {
+        background-position: 0 0
+    }
+
+    to {
+        background-position: 0 600px
+    }
+}
+
+@keyframes pan-slow {
+    0% {
+        background-position: 0 0
+    }
+
+    50% {
+        background-position: 100% 60%
+    }
+
+    100% {
+        background-position: 0 0
+    }
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg) scale(1.08);
+    }
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.06);
+    }
+}
+
+/* MATRIX (vertical drift) */
+:root[data-anim="matrix"] body::before {
+    background:
+        repeating-linear-gradient(180deg, rgba(0, 255, 120, .12) 0 2px, transparent 2px 18px),
+        radial-gradient(1200px 600px at 120% -10%, #001, #000 60%);
+    animation: pan-y 12s linear infinite;
+    background-size: 100% 600px, 100% 100%;
+}
+
+/* AQUARIUM (bubbley drift) */
+:root[data-anim="aquarium"] body::before {
+    background:
+        radial-gradient(600px 400px at 30% 25%, #00f0ff33, transparent 60%),
+        radial-gradient(800px 520px at 70% 70%, #00ff8833, transparent 60%),
+        linear-gradient(180deg, #02131e, #012431);
+    background-size: 160% 160%, 140% 140%, 100% 100%;
+    animation: pan-slow 36s linear infinite;
+}
+
+/* SERVER (subtle hue drift) */
+:root[data-anim="server"] body::before {
+    background: linear-gradient(90deg, #020, #063);
+    filter: saturate(1.1);
+    animation: hueShift 12s ease-in-out infinite alternate;
+}
+
+@keyframes hueShift {
+    from {
+        filter: hue-rotate(0deg)
+    }
+
+    to {
+        filter: hue-rotate(20deg)
+    }
+}
+
+/* RACING (diagonal stripes scrolling) */
+:root[data-anim="racing"] body::before {
+    background: repeating-linear-gradient(120deg, #111 0 12px, #333 12px 24px);
+    background-size: 300px 300px;
+    animation: pan-x 3.2s linear infinite;
+}
+
+/* WATER (gentle swirl) */
+:root[data-anim="water"] body::before {
+    background: radial-gradient(circle at 40% 40%, #aee, #036);
+    animation: pulse 9s ease-in-out infinite;
+}
+
+/* CRYPTO GRID (moving grid) */
+:root[data-anim="crypto-grid"] body::before {
+    background:
+        linear-gradient(#0f81 1px, transparent 1px),
+        linear-gradient(90deg, #0f81 1px, transparent 1px),
+        linear-gradient(180deg, #011, #022);
+    background-size: 60px 60px, 60px 60px, 100% 100%;
+    background-position: 0 0, 0 0, 0 0;
+    animation: gridmove 18s linear infinite;
+}
+
+@keyframes gridmove {
+    to {
+        background-position: 60px 0, 0 60px, 0 0;
+    }
+}
+
+/* TRADING TICKS (columns sliding) */
+:root[data-anim="trading-ticks"] body::before {
+    background:
+        repeating-linear-gradient(90deg, #0f81 0 1px, transparent 1px 10px),
+        linear-gradient(180deg, #001, #112);
+    background-size: 240px 100%, 100% 100%;
+    animation: pan-x 10s linear infinite;
+}
+
+/* RUNWAY (center dashes moving) */
+:root[data-anim="runway"] body::before {
+    background:
+        radial-gradient(800px 400px at 50% 120%, #000, #210),
+        repeating-linear-gradient(90deg, transparent 0 98px, #fff8 98px 102px, transparent 102px 200px);
+    background-size: 100% 100%, 100% 200px;
+    animation: moveRunway 6s linear infinite;
+}
+
+@keyframes moveRunway {
+    to {
+        background-position: 0 0, 0 -200px;
+    }
+}
+
+/* STARS (soft twinkle) */
+:root[data-anim="stars"] body::before {
+    background:
+        radial-gradient(2px 2px at 15% 35%, #fff8, transparent 30%),
+        radial-gradient(1px 1px at 65% 60%, #fff6, transparent 30%),
+        radial-gradient(1200px 600px at 50% -20%, #001, #000 65%);
+    animation: twinkle 8s ease-in-out infinite alternate;
+}
+
+@keyframes twinkle {
+    from {
+        opacity: .82
+    }
+
+    to {
+        opacity: 1
+    }
+}
+
+/* PLASMA (rotating conic) */
+:root[data-anim="plasma"] body::before {
+    background: conic-gradient(from 0deg at 50% 50%, #f0f, #0ff, #ff0, #f0f);
+    transform: scale(1.08);
+    animation: spin 28s linear infinite;
+}
+
+/* WAVES (horizontal motion) */
+:root[data-anim="waves"] body::before {
+    background: linear-gradient(90deg, #003, #006);
+    background-size: 600px 100%;
+    animation: pan-x 16s linear infinite;
+}
+
+/* RADIAL SUN (breathing) */
+:root[data-anim="radial-sun"] body::before {
+    background: radial-gradient(circle at 40% 40%, #ff8, #f60);
+    animation: pulse 7s ease-in-out infinite;
+}
+
+/* CAMO variants (slow drift) */
+:root[data-anim^="camo-"] body::before {
+    background-size: 180% 180%;
+    animation: pan-slow 40s linear infinite;
+}
+
+:root[data-anim="camo-woodland"] body::before {
+    background: repeating-radial-gradient(#2c3, #263, #1a2 20%);
+}
+
+:root[data-anim="camo-desert"] body::before {
+    background: repeating-radial-gradient(#caa, #b98, #a87 20%);
+}
+
+:root[data-anim="camo-urban"] body::before {
+    background: repeating-radial-gradient(#777, #666, #444 20%);
+}
+
+:root[data-anim="camo-navy"] body::before {
+    background: repeating-radial-gradient(#113, #224, #335 20%);
+}
+
+/* Accessibility: if OS has “Reduce motion”, you can keep animations but slower, or disable.
+Comment the next block if you want full motion regardless. */
+@media (prefers-reduced-motion: reduce) {
+    :root[data-anim] body::before {
+        animation-duration: 0s !important;
+        animation: none !important;
+    }
+}
+
+/* === Theme panel sections (mirrors "Live animations") === */
+.theme-panel .th-section {
+    position: relative;
+    overflow: visible;
+    /* prevent the slider from being clipped */
+    margin-top: 14px;
+}
+
+/* Use the same row layout for palettes as for animations */
+.theme-panel .swatch-row,
+.theme-panel .anim-row {
+    display: flex;
+    gap: 12px;
+}
+
+/* Ensure there's room for the slider under each row */
+.theme-panel .hscroll-wrap {
+    padding: 8px 8px 30px;
+    /* bottom padding reserves space for the slider */
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+}
+
+/* Slider/arrow bar (same for all rows) */
+.theme-panel .hscroll-bar {
+    display: grid;
+    grid-template-columns: 24px 1fr 24px;
+    align-items: center;
+    gap: 8px;
+    margin-top: -22px;
+    /* tucks under the row neatly */
+    padding: 0 8px 10px 8px;
+}
+
+.theme-panel .hs-arrow {
+    border: 1px solid var(--th-border);
+    background: var(--btn-bg);
+    color: var(--btn-fg);
+    border-radius: 10px;
+    height: 20px;
+    line-height: 18px;
+}
+
+/* Optional: make swatches consistent widths so the slider feels right */
+.theme-panel .swatch.swatch-sm {
+    min-width: 220px;
+    /* tweak if you want more/less per screen */
+    height: 120px;
+    border-radius: 18px;
+    border: 1px solid var(--th-border);
+    display: grid;
+    align-items: end;
+    padding: 10px 12px;
+}
+
+.anim-card video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}

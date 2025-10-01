@@ -3,6 +3,7 @@ import './globals.css';
 import '@/styles/6ix.css';
 import type { Metadata, Viewport } from 'next';
 import ClientRoot from './ClientRoot';
+import ThemeBoot from './ThemeBoot';
 
 /** Resolve a safe absolute URL for metadataBase */
 function safeURL(input?: string): URL {
@@ -109,6 +110,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* no CSP + no “no-flash” CSS here in dev */}
       </head>
       <body>
+        <ThemeBoot />
         <ClientRoot>{children}</ClientRoot>
       </body>
     </html>
