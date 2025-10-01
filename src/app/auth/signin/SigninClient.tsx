@@ -240,7 +240,7 @@ export default function SignInClient() {
                 </div>
 
                 {/* MOBILE */}
-                <div className="md:hidden px-4 mt-5 flex-1">
+                <div className="md:hidden pb-[calc(env(safe-area-inset-bottom)+8px">
                     <HelpKit side="left" />
                     <div className="relative mt-4 text-center px-6">
                         <h1 className="text-3xl font-semibold">Welcome back to 6ix</h1>
@@ -583,7 +583,14 @@ function SignInCard({
             )}
             {err && <p className="mt-3 text-sm text-red-500" aria-live="polite">{err}</p>}
 
-
+            <button
+                className={`btn btn-primary mt-4 ${(!canSend) ? 'pointer-events-none' : ''}`}
+                onClick={onSend}
+                disabled={!canSend}
+                aria-busy={loading}
+            >
+                {loading ? 'Sending…' : 'Sign in'}
+            </button>
 
             <div className="mt-4 text-center text-sm text-soft">
                 New to 6ix? <span role="img" aria-label="down">↓</span>
