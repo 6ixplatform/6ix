@@ -303,7 +303,7 @@ export default function SignUpPage() {
                             </p>
                         </header>
 
-                        <div className="signup-card mt-8 max-w-md md:max-w-2xl lg:max-w-[820px] help-anchor">
+                        <div className="signup-card rounded-2xl mt-8 max-w-md md:max-w-2xl lg:max-w-[820px] help-anchor">
 
                             <SignUpCard
                                 email={email}
@@ -591,7 +591,7 @@ function SignUpCard({
     };
 
     return (
-        <div className={`silver-ring relative rounded-2xl border border-white/10 bg-white/6 backdrop-blur-xl shadow-[0_10px_60px_-10px_rgba(0,0,0,.6)] p-5 sm:p-6 ${mobile ? '' : ''} ${pageDisabled ? 'opacity-90' : ''}`}>
+        <div className={`relative signup-card rounded-2xl  border border-white/10 silver-ring bg-white/6 backdrop-blur-xl shadow-[0_10px_60px_-10px_rgba(0,0,0,.6)] p-5 sm:p-6 ${mobile ? '' : ''} ${pageDisabled ? 'opacity-90' : ''}`}>
             <div className="flex items-center gap-3 mb-4">
                 <div className="text-lg sm:text-xl font-semibold">Create your 6ix account</div>
             </div>

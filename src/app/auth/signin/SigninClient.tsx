@@ -181,7 +181,7 @@ export default function SignInClient() {
                             </div>
                         </header>
 
-                        <div className="silver-ring mt-8 max-w-md md:max-w-2xl lg:max-w-[820px] relative">
+                        <div className="rounded-2xl mt-8 max-w-md md:max-w-2xl lg:max-w-[820px] relative">
 
                             <SignInCard
                                 email={email}
@@ -456,7 +456,7 @@ function SignInCard({
         router.push('/auth/signup');
     };
     return (
-        <div className="auth-card p-5 sm:p-6 sheen-auto water-mobile">
+        <div className="relative signup-card rounded-2xl border border-white/10 silver-ring bg-white/6 backdrop-blur-xl auth-card p-5 sm:p-6 sheen-auto water-mobile">
             <div className="flex items-center gap-3 mb-4">
                 <div className="text-lg sm:text-xl font-semibold">Sign in to 6ix</div>
             </div>
