@@ -1702,19 +1702,13 @@ html.theme-light .legal-scope {
   }
 }
 
-/*
-/* === Silver ring (rounded + subtle) — single-class version === */
-:root {
-  --ring-w: 1px;
-  /* border thickness */
-  --ring-speed: 8.5s;
-  /* sweep speed */
-  --ring-base-alpha: .14;
-  /* dim glassy line */
-  --ring-glint-alpha: .95;
-  /* bright highlight */
-  --ring-glint-width: 6deg;
-  /* highlight width */
+
+:root{
+--ring-w: 1px; /* border thickness */
+--ring-speed: 20s; /* sweep speed */
+--ring-base-alpha: .14; /* dim glassy line */
+--ring-glint-alpha: .95; /* bright highlight */
+--ring-glint-width: 6deg; /* highlight width */
 }
 
 /* animated angle */
@@ -1724,31 +1718,36 @@ html.theme-light .legal-scope {
   initial-value: 0deg;
 }
 
+/* attach to the card */
 .silver-ring {
   position: relative;
   isolation: isolate;
   border-radius: inherit;
-  /* follows the card’s radius */
+  /* follow the card radius */
 }
 
-/* draw inside the element so corners stay rounded */
+/* draw INSIDE the element so corners stay rounded */
 .silver-ring::before,
 .silver-ring::after {
   content: "";
   position: absolute;
   inset: 0;
-  /* was negative; keep inside */
+  /* <-- inside, not negative */
   border-radius: inherit;
+  /* perfectly matches rounded corners */
   padding: var(--ring-w);
   background-clip: border-box;
+
+  /* only the border ring shows */
   mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   mask-composite: exclude;
   -webkit-mask-composite: xor;
+
   pointer-events: none;
 }
 
-/* dim, glassy base line */
+/* dim glassy base line */
 .silver-ring::before {
   background: conic-gradient(from 0deg,
       rgba(255, 255, 255, var(--ring-base-alpha)),
@@ -1757,10 +1756,10 @@ html.theme-light .legal-scope {
   filter: saturate(.85) brightness(.95);
 }
 
-/* bright moving glint */
+/* bright moving highlight (pendulum sweep) */
 .silver-ring::after {
   background: conic-gradient(from var(--sweep),
-      transparent 0deg calc(360deg - var(--ring-glint-width)),
+      transparent 0 calc(360deg - var(--ring-glint-width)),
       rgba(255, 255, 255, var(--ring-glint-alpha)) calc(360deg - var(--ring-glint-width)) 360deg);
   animation: hk-sweep var(--ring-speed) linear infinite alternate;
 }
@@ -1775,15 +1774,10 @@ html.theme-light .legal-scope {
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .silver-ring::after {
-    animation: none;
-  }
-}
-
-/* subtler on light theme */
+/* light theme tune */
 html.theme-light .silver-ring::before {
-  background: conic-gradient(from 0deg, rgba(0, 0, 0, .12), rgba(0, 0, 0, .09), rgba(0, 0, 0, .12));
+  background: conic-gradient(from 0deg,
+      rgba(0, 0, 0, .12), rgba(0, 0, 0, .09), rgba(0, 0, 0, .12));
   filter: none;
 }
 

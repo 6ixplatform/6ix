@@ -269,7 +269,7 @@ export default function SignUpPage() {
 
 
             <main
-                className="auth-screen auth-scope min-h-dvh bg-black text-zinc-100 pb-[calc(env(safe-area-inset-bottom)+60px)]"
+                className="auth-screen auth-scope signup-card silver-ring rounded-2xl min-h-dvh bg-black text-zinc-100 pb-[calc(env(safe-area-inset-bottom)+60px)]"
                 style={{ paddingTop: 'env(safe-area-inset-top,0px)' }}
 
             >
@@ -294,7 +294,7 @@ export default function SignUpPage() {
                         </div>
                     </aside>
 
-                    <section className="relative px-8 lg:px-12 pt-30 pb-12 overflow-visible">
+                    <section className="relative signup-card rounded-2x1 px-8 lg:px-12 pt-30 pb-12 overflow-visible">
                        <HelpKit side="left" />
                         <header>
                             <h1 className="text-4xl lg:text-5xl font-semibold leading-tight">Sign up to 6ix today</h1>
@@ -303,7 +303,7 @@ export default function SignUpPage() {
                             </p>
                         </header>
 
-                        <div className="signup-card rounded-2xl mt-8 max-w-md md:max-w-2xl lg:max-w-[820px] help-anchor">
+                        <div className=" mt-8 max-w-md md:max-w-2xl lg:max-w-[820px] help-anchor">
 
                             <SignUpCard
                                 email={email}
@@ -591,7 +591,7 @@ function SignUpCard({
     };
 
     return (
-        <div className={`relative signup-card rounded-2xl  border border-white/10 silver-ring bg-white/6 backdrop-blur-xl shadow-[0_10px_60px_-10px_rgba(0,0,0,.6)] p-5 sm:p-6 ${mobile ? '' : ''} ${pageDisabled ? 'opacity-90' : ''}`}>
+        <div className={`relative signup-card rounded-2xl border border-white/10 silver-ring bg-white/6 backdrop-blur-xl shadow-[0_10px_60px_-10px_rgba(0,0,0,.6)] p-5 sm:p-6 ${mobile ? '' : ''} ${pageDisabled ? 'opacity-90' : ''}`}>
             <div className="flex items-center gap-3 mb-4">
                 <div className="text-lg sm:text-xl font-semibold">Create your 6ix account</div>
             </div>
