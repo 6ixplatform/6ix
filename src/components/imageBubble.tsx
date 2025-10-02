@@ -21,7 +21,7 @@ const Btn = ({
     title, onClick, disabled, children,
 }: { title: string; onClick: () => void; disabled?: boolean; children: React.ReactNode }) => (
     <button
-        className="inline-flex items-center justify-center h-8 w-8 rounded-md hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition"
+        className="icon-btn inline-flex items-center justify-center h-8 w-8 rounded-md disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition"
         title={title}
         aria-label={title}
         onClick={onClick}
@@ -98,7 +98,7 @@ export default function ImageBubble({
         setIdx(0); // new placeholder = start from first label
         const id = setInterval(() => {
             setIdx(i => (i + 1) % STATUS.length);
-        }, 3000); // ← 3 seconds
+        }, 3000);
         return () => clearInterval(id);
     }, [url, prompt]);
 
@@ -170,7 +170,7 @@ export default function ImageBubble({
             </div>
 
             {/* Actions row */}
-            <div className="flex items-center gap-2 text-white opacity-90">
+            <div className="image-bubble-actions flex items-center gap-2 opacity-90">
                 <Btn title="Explain" onClick={explain} disabled={!url || explaining}>
                     {explaining ? <Icon.Spinner /> : <Icon.Volume />}
                 </Btn>
@@ -191,6 +191,22 @@ export default function ImageBubble({
                     {plan}
                 </span>
             </div>
+
+            {/* Theme-aware icon styles */}
+            <style jsx>{`
+/* icons follow palette token set in applyPalette() */
+.image-bubble-actions { color: var(--icon-fg); }
+.icon-btn { color: inherit; background: transparent; }
+.icon-btn:hover { background: var(--th-surface); }
+
+/* optional: subtle motion for status text */
+.pendulum { animation: pendulum 1.8s ease-in-out infinite; transform-origin: left center; }
+@keyframes pendulum {
+0% { transform: translateX(0); }
+50% { transform: translateX(10px); }
+100% { transform: translateX(0); }
+}
+`}</style>
         </div>
     );
 }

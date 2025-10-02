@@ -15,7 +15,7 @@ type Props = {
 const Btn = ({ title, onClick, children }:
     { title: string; onClick: () => void; children: React.ReactNode }) => (
     <button
-        className="inline-flex items-center justify-center h-7 w-7 rounded-md hover:bg-white/10 active:scale-95 transition disabled:opacity-40 disabled:pointer-events-none"
+        className="icon-btn inline-flex items-center justify-center h-7 w-7 rounded-md active:scale-95 transition disabled:opacity-40 disabled:pointer-events-none"
         title={title}
         aria-label={title}
         onClick={onClick}
@@ -23,7 +23,6 @@ const Btn = ({ title, onClick, children }:
         {children}
     </button>
 );
-
 const Icon = {
     Volume: () => (
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -156,7 +155,7 @@ export default function ImageMsg({
             </div>
 
             {/* Actions: disabled until ready */}
-            <div className="flex items-center gap-2 text-white">
+            <div className="image-actions flex items-center gap-2">
                 {isLoading ? (
                     <Icon.Spinner />
                 ) : (
@@ -167,13 +166,23 @@ export default function ImageMsg({
                     </>
                 )}
             </div>
-
             <style jsx>{`
 @keyframes pingpong {
 0% { transform: translateX(0); }
 50% { transform: translateX(10px); }
 100% { transform: translateX(0); }
 }
+
+@keyframes pingpong {
+0% { transform: translateX(0); }
+50% { transform: translateX(10px); }
+100% { transform: translateX(0); }
+}
+
+.image-actions { color: var(--icon-fg); } /* icons = currentColor */
+.icon-btn { color: inherit; background: transparent; }
+.icon-btn:hover { background: var(--th-surface); } /* readable on both themes */
+
 `}</style>
         </div>
     );

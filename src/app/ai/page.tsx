@@ -41,6 +41,7 @@ import TTSLimitModal from '@/components/TTSLimitModal';
 import { persistChat, restoreChat } from '@/lib/chatPersist';
 import { buildStopReply } from '@/lib/stopReply';
 import FeedbackTicker, { buildFeedback } from '@/components/FeedbackTicker';
+import CrescentIcon from '@/components/CrescentIcon';
 
 /* ---------- types ---------- */
 type Role = 'user' | 'assistant' | 'system';
@@ -2143,15 +2144,14 @@ export default function AIPage() {
                         </button>
 
                         <button
-                            ref={(el) => { (themeBtnRef as any).current = el }}
+                            ref={(el) => { (themeBtnRef as any).current = el; }}
                             onClick={() => setThemeOpen(v => !v)}
-                            className="theme-btn hidden md:grid"
+                            className="theme-btn hidden md:grid p-0"
                             aria-label="Theme"
                             title="Theme"
+                            style={{ color: 'var(--icon-fg)', background: 'transparent', border: 'none' }}
                         >
-                            <span suppressHydrationWarning>
-                                {mounted && ((mode === 'dark' || (mode === 'system' && prefersDark)) ? '🌒' : '🌙')}
-                            </span>
+                            <CrescentIcon size={18} />
                         </button>
                     </div>
 

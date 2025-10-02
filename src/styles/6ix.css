@@ -3537,3 +3537,7 @@ Comment the next block if you want full motion regardless. */
     object-fit: cover;
     display: block;
 }
+
+.msg-actions {
+    color: var(--icon-fg);
+}

@@ -26,7 +26,7 @@ const Btn = ({
     title, onClick, disabled, children,
 }: { title: string; onClick: () => void; disabled?: boolean; children: React.ReactNode }) => (
     <button
-        className="inline-flex items-center justify-center h-7 w-7 rounded-md hover:bg-black/5 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition"
+        className="icon-btn inline-flex items-center justify-center h-7 w-7 rounded-md disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition"
         title={title}
         aria-label={title}
         onClick={onClick}
@@ -37,7 +37,7 @@ const Btn = ({
     </button>
 );
 
-/* Minimal outline icons (use currentColor) */
+/* Outline icons use currentColor so they inherit theme */
 const Icon = {
     Copy: () => (
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -73,7 +73,6 @@ const Icon = {
             <path d="M10 15v4a3 3 0 0 0 3 3l1-7h5a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-8l-5 9a2 2 0 0 0 2 3h2z" />
         </svg>
     ),
-    /* 🔁 regenerate */
     Refresh: () => (
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8">
             <path d="M3 12a9 9 0 0 1 15.6-6.4M21 12a9 9 0 0 1-15.6 6.4" />
@@ -96,7 +95,6 @@ async function robustCopy(text: string) {
             return true;
         }
     } catch { /* fall through */ }
-
     try {
         const ta = document.createElement('textarea');
         ta.value = text;
@@ -134,7 +132,7 @@ export default function MsgActions({
     const showDislike = !liked;
 
     return (
-        <div className="flex gap-2 mt-1 text-black">
+        <div className="msg-actions flex gap-2 mt-1">
             {/* Copy (shows tick on success) */}
             <Btn title={copied ? 'Copied' : 'Copy'} onClick={doCopy}>
                 {copied ? <Icon.Tick /> : <Icon.Copy />}
@@ -145,7 +143,7 @@ export default function MsgActions({
                 {speaking ? <Icon.Spinner /> : <Icon.Volume />}
             </Btn>
 
-            {/* Feedback – black icons; selected one slightly enlarged */}
+            {/* Feedback – selected one slightly enlarged */}
             {showLike && (
                 <Btn title="Like" onClick={onLike}>
                     <div className={liked ? 'scale-110' : ''}>
@@ -161,7 +159,7 @@ export default function MsgActions({
                 </Btn>
             )}
 
-            {/* Regenerate (🔁 outline) */}
+            {/* Regenerate */}
             <Btn title="Recreate" onClick={onRefresh}>
                 <Icon.Refresh />
             </Btn>
@@ -170,6 +168,18 @@ export default function MsgActions({
             <Btn title="Share" onClick={onShare}>
                 {sharing ? <Icon.Spinner /> : <Icon.Share />}
             </Btn>
+
+            {/* Theme-aware styles */}
+            <style jsx>{`
+/* icons adopt theme colors */
+.msg-actions { color: var(--icon-fg); }
+
+/* buttons inherit color; hover stays readable on both themes */
+.icon-btn { color: inherit; background: transparent; }
+.icon-btn:hover { background: var(--th-surface); }
+
+/* keep the same disabled/active visuals as before via utility classes */
+`}</style>
         </div>
     );
 }
