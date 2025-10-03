@@ -712,7 +712,8 @@ function AIPageInner() {
     const search = useSearchParams();
     const showHistory = search?.get('overlay') === 'history';
     // theme state (from the new useTheme)
-    const { mode } = useTheme();
+    const theme = useTheme();
+    const mode = theme?.mode ?? 'system';
 
     const themeBtnRef = useRef<HTMLButtonElement | null>(null);
     const [themeOpen, setThemeOpen] = useState(false);
