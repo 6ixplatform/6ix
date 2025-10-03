@@ -3,7 +3,7 @@
 
 export const dynamic = 'force-dynamic';
 import { loadUserPrefs, saveUserPrefs, parseUserDirective, mergePrefs, type UserPrefs } from '@/lib/prefs'
-import React, { useEffect, Suspense , useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, Suspense, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { MutableRefObject } from 'react';
 import Image from 'next/image';
@@ -696,7 +696,7 @@ function usePrefersDark() {
 }
 
 /* ---------- PAGE ---------- */
- function AIPageInner() {
+function AIPageInner() {
     const router = useRouter();
     const prefersDark = usePrefersDark();
     const [mounted, setMounted] = React.useState(false);
@@ -2378,29 +2378,63 @@ function UserMenuPortal({
                 </div>
 
                 <ul className="sheet-list">
-                    <li className="sheet-item" role="menuitem" onClick={() => { onStartNew(); onClose(); }}>
-                        Start new chat
-                    </li>
-                    <li className="sheet-item" role="menuitem" onClick={() => { onHistory(); onClose(); }}>
-                        History
-                    </li>
-                    <li className="sheet-item" role="menuitem" onClick={() => { onPremium(); onClose(); }}>
-                        Get Premium + Verified
-                    </li>
-                    <li>
-                        <button
-                            type="button"
-                            className="six-menu__item"
-                            onClick={() => {
-                                window.dispatchEvent(new CustomEvent('help:open'));
-                            }}
-                        >
-                            Need help?
-                        </button>
-                    </li>
-                    <li className="sheet-item sheet-item--destructive" role="menuitem" onClick={() => { onSignout(); onClose(); }}>
-                        Sign out
-                    </li>
+                    <ul className="sheet-list" role="menu" aria-label="Account menu">
+                        <li>
+                            <button
+                                type="button"
+                                role="menuitem"
+                                className="sheet-item"
+                                onClick={() => { onStartNew(); onClose(); }}
+                            >
+                                Start new chat
+                            </button>
+                        </li>
+
+                        <li>
+                            <button
+                                type="button"
+                                role="menuitem"
+                                className="sheet-item"
+                                onClick={() => { onHistory(); onClose(); }}
+                            >
+                                History
+                            </button>
+                        </li>
+
+                        <li>
+                            <button
+                                type="button"
+                                role="menuitem"
+                                className="sheet-item"
+                                onClick={() => { onPremium(); onClose(); }}
+                            >
+                                Get Premium + Verified
+                            </button>
+                        </li>
+
+                        <li>
+                            <button
+                                type="button"
+                                role="menuitem"
+                                className="sheet-item"
+                                onClick={() => { onHelp(); onClose(); }}
+                            >
+                                Need help?
+                            </button>
+                        </li>
+
+                        <li>
+                            <button
+                                type="button"
+                                role="menuitem"
+                                className="sheet-item sheet-item--destructive"
+                                onClick={() => { onSignout(); onClose(); }}
+                            >
+                                Sign out
+                            </button>
+                        </li>
+                    </ul>
+
                 </ul>
             </div>
         </>,
