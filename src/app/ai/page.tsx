@@ -7,7 +7,7 @@ import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 're
 import { createPortal } from 'react-dom';
 import type { MutableRefObject } from 'react';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import '@/styles/6ix.css';
 import { build6IXSystem } from '@/prompts/6ixai-prompts';
 import BackStopper from '@/components/BackStopper';
@@ -15,7 +15,6 @@ import BottomNav from '@/components/BottomNav';
 import { supabaseBrowser } from '@/lib/supabaseBrowser';
 import remarkGfm from 'remark-gfm';
 import ReactMarkdown, { Components } from 'react-markdown';
-import EmbossedTagline from '@/components/EmbossedTagline';
 import { webSearch, type WebSearchResult } from '@/lib/ai/tools/webSearch';
 import {
     detectConversationLanguage, nameLangHint,
@@ -42,6 +41,14 @@ import { persistChat, restoreChat } from '@/lib/chatPersist';
 import { buildStopReply } from '@/lib/stopReply';
 import FeedbackTicker, { buildFeedback } from '@/components/FeedbackTicker';
 import CrescentIcon from '@/components/CrescentIcon';
+import LandingOrb from '@/components/LandingOrb';
+import { ThemePanel, ThemeProvider, useTheme } from '@/theme/ThemeProvider';
+import LiveWallpaper from '@/components/live/LiveWallpaper';
+import { upsertCloudItem } from '@/lib/historyCloud';
+import { saveFromMessages, type ChatMessage as HistMsg } from '@/lib/history';
+import HistoryOverlay from '@/components/HistoryOverlay';
+import NextDynamic from 'next/dynamic';
+const HelpOverlay = NextDynamic(() => import('@/components/HelpOverlay'), { ssr: false });
 
 /* ---------- types ---------- */
 type Role = 'user' | 'assistant' | 'system';
@@ -597,284 +604,6 @@ function PremiumModal({
         </div>
     );
 }
-// ==== THEME CORE (drop this where your ThemeMode/PaletteKey/useTheme lived) ====
-
-// --- THEME + ANIM: drop-in replacement ---
-// put above AIPage() and below imports
-
-type ThemeMode = 'system' | 'light' | 'dark';
-type PaletteKey =
-    | 'light' | 'dark'
-    | 'black' | 'white' | 'gray'
-    | 'red' | 'green' | 'yellow' | 'blue' | 'orange' | 'brown' | 'purple' | 'pink'
-    | 'navy' | 'sky' | 'powder'
-    // extra blues (6)
-    | 'cobalt' | 'azure' | 'cerulean' | 'arctic' | 'royal' | 'electric'
-    // extra reds (6)
-    | 'rose' | 'scarlet' | 'ruby' | 'brick' | 'vermilion' | 'coral'
-    // mints + butter
-    | 'mint-pastel' | 'mint-blue' | 'mint-cool' | 'mint-seafoam' | 'mint-deep' | 'mint-aqua' | 'mint-creme'
-    | 'butter' | 'butter-deep';
-
-type AnimKey =
-    | 'none'
-    | 'matrix' | 'aquarium' | 'server' | 'racing'
-    | 'water' | 'crypto-grid' | 'trading-ticks' | 'runway'
-    | 'stars' | 'plasma' | 'waves' | 'radial-sun'
-    | 'camo-woodland' | 'camo-desert' | 'camo-urban' | 'camo-navy'
-    // NEW: from /public/wallpapers
-    | 'vid-anime' | 'vid-bitcoin' | 'vid-clouds' | 'vid-deepsea'
-    | 'vid-dollars' | 'vid-drydesert' | 'vid-porche' | 'vid-seashore'
-    | 'vid-supereagles' | 'vid-birdy' | 'vid-chicken' | 'vid-currency'
-    | 'vid-desert' | 'vid-dolphin' | 'vid-motobike' | 'vid-powerbike'
-    | 'vid-soccer' | 'vid-trading';
-type Palette = { key: PaletteKey; label: string; bg: string; isDark?: boolean };
-
-const PALETTES: Palette[] = [
-    { key: 'light', label: 'Light', bg: '#ffffff', isDark: false },
-    { key: 'dark', label: 'Dark', bg: '#000000', isDark: true },
-    { key: 'black', label: 'Black', bg: '#0b0b0b', isDark: true },
-    { key: 'white', label: 'White', bg: '#ffffff', isDark: false },
-    { key: 'gray', label: 'Gray', bg: '#d9d9d9', isDark: false },
-
-    { key: 'red', label: 'Red', bg: '#b30019', isDark: true },
-    { key: 'green', label: 'Green', bg: '#0b6b2e', isDark: true },
-    { key: 'yellow', label: 'Yellow', bg: '#ffe35c', isDark: false },
-    { key: 'blue', label: 'Blue', bg: '#0f5bd7', isDark: true },
-    { key: 'orange', label: 'Orange', bg: '#ff7a1a', isDark: true },
-    { key: 'brown', label: 'Brown', bg: '#5a3b26', isDark: true },
-    { key: 'purple', label: 'Purple', bg: '#6a46ff', isDark: true },
-    { key: 'pink', label: 'Pink', bg: '#ff6ea8', isDark: true },
-
-    { key: 'navy', label: 'Navy', bg: '#0b1e3a', isDark: true },
-    { key: 'sky', label: 'Sky', bg: '#7ec9ff', isDark: false },
-    { key: 'powder', label: 'Powder', bg: '#c7dbff', isDark: false },
-
-    // extra blues
-    { key: 'cobalt', label: 'Cobalt', bg: '#1e40ff', isDark: true },
-    { key: 'azure', label: 'Azure', bg: '#00a0ff', isDark: true },
-    { key: 'cerulean', label: 'Cerulean', bg: '#2aa7d9', isDark: true },
-    { key: 'arctic', label: 'Arctic', bg: '#e7f3ff', isDark: false },
-    { key: 'royal', label: 'Royal', bg: '#2743ff', isDark: true },
-    { key: 'electric', label: 'Electric', bg: '#007bff', isDark: true },
-
-    // extra reds
-    { key: 'rose', label: 'Rose', bg: '#ff4d6d', isDark: true },
-    { key: 'scarlet', label: 'Scarlet', bg: '#ff2400', isDark: true },
-    { key: 'ruby', label: 'Ruby', bg: '#9b111e', isDark: true },
-    { key: 'brick', label: 'Brick', bg: '#8b3a3a', isDark: true },
-    { key: 'vermilion', label: 'Vermilion', bg: '#e34234', isDark: true },
-    { key: 'coral', label: 'Coral', bg: '#ff6f61', isDark: true },
-
-
-    // mints + butter tones
-    { key: 'mint-pastel', label: 'Pastel mint', bg: '#c8f7e0', isDark: false },
-    { key: 'mint-blue', label: 'Mint blue', bg: '#aeeef2', isDark: false },
-    { key: 'mint-cool', label: 'Cool mint', bg: '#b6f3e8', isDark: false },
-    { key: 'mint-seafoam', label: 'Seafoam', bg: '#c3f9ea', isDark: false },
-    { key: 'mint-deep', label: 'Deep mint', bg: '#128c7e', isDark: true },
-    { key: 'mint-aqua', label: 'Aqua mint', bg: '#17cfcf', isDark: true },
-    { key: 'mint-creme', label: 'Crème de mint', bg: '#daf5e6', isDark: false },
-    { key: 'butter', label: 'Butter', bg: '#ffe082', isDark: false },
-    { key: 'butter-deep', label: 'Deep Butter', bg: '#ffca28', isDark: true },
-
-];
-
-const FREE_KEYS: PaletteKey[] = ['light', 'dark', 'sky', 'powder', 'mint-pastel', 'mint-blue']; // testing keeps all unlocked anyway
-
-type AnimDef = {
-    key: AnimKey;
-    label: string;
-    preview?: string; // CSS preview (non-video)
-    video?: { src: string; poster?: string }; // video wallpaper
-};
-const ALL_ANIMS: AnimDef[] = [
-    { key: 'none', label: 'None', preview: 'linear-gradient(#111,#222)' },
-    { key: 'matrix', label: 'Matrix', preview: 'repeating-linear-gradient(180deg,#001,#002 8px)' },
-    { key: 'aquarium', label: 'Aquarium', preview: 'radial-gradient(circle at 30% 20%,#0ff,#006),radial-gradient(circle at 70% 80%,#0f8,#004)' },
-    { key: 'server', label: 'Server', preview: 'linear-gradient(90deg,#020,#060)' },
-    { key: 'racing', label: 'Racing', preview: 'repeating-linear-gradient(120deg,#111,#111 8px,#333 8px,#333 16px)' },
-    { key: 'water', label: 'Water', preview: 'radial-gradient(circle,#aee,#036)' },
-    { key: 'crypto-grid', label: 'Crypto Grid', preview: 'linear-gradient(90deg,#011,#022)' },
-    { key: 'trading-ticks', label: 'Ticks', preview: 'linear-gradient(90deg,#001,#112)' },
-    { key: 'runway', label: 'Runway', preview: 'linear-gradient(90deg,#210,#420)' },
-    { key: 'stars', label: 'Stars', preview: 'radial-gradient(circle,#fff,#000)' },
-    { key: 'plasma', label: 'Plasma', preview: 'conic-gradient(from 0deg at 50% 50%,#f0f,#0ff,#ff0,#f0f)' },
-    { key: 'waves', label: 'Waves', preview: 'linear-gradient(90deg,#003,#006)' },
-    { key: 'radial-sun', label: 'Sun', preview: 'radial-gradient(circle at 40% 40%,#ff8,#f60)' },
-    { key: 'camo-woodland', label: 'Camo Woodland', preview: 'repeating-radial-gradient(#2c3,#263,#1a2 20%)' },
-    { key: 'camo-desert', label: 'Camo Desert', preview: 'repeating-radial-gradient(#caa,#b98,#a87 20%)' },
-    { key: 'camo-urban', label: 'Camo Urban', preview: 'repeating-radial-gradient(#777,#666,#444 20%)' },
-    { key: 'camo-navy', label: 'Camo Navy', preview: 'repeating-radial-gradient(#113,#224,#335 20%)' },
-
-    // NEW: 18 video wallpapers (expects /public/wallpapers/<name>.mp4 and .jpg)
-    { key: 'vid-anime', label: 'Anime', video: { src: '/wallpapers/anime.mp4', poster: '/wallpapers/anime.jpg' } },
-    { key: 'vid-bitcoin', label: 'Bitcoin', video: { src: '/wallpapers/bitcoin.mp4', poster: '/wallpapers/bitcoin.jpg' } },
-    { key: 'vid-clouds', label: 'Clouds', video: { src: '/wallpapers/clouds.mp4', poster: '/wallpapers/clouds.jpg' } },
-    { key: 'vid-deepsea', label: 'Deep Sea', video: { src: '/wallpapers/deepsea.mp4', poster: '/wallpapers/deepsea.jpg' } },
-    { key: 'vid-dollars', label: 'Dollars', video: { src: '/wallpapers/dollars.mp4', poster: '/wallpapers/dollars.jpg' } },
-    { key: 'vid-drydesert', label: 'Dry Desert', video: { src: '/wallpapers/drydesert.mp4', poster: '/wallpapers/drydesert.jpg' } },
-    { key: 'vid-porche', label: 'Porche', video: { src: '/wallpapers/porche.mp4', poster: '/wallpapers/porche.jpg' } }, // keep path spelling
-    { key: 'vid-seashore', label: 'Seashore', video: { src: '/wallpapers/seashore.mp4', poster: '/wallpapers/seashore.jpg' } },
-    { key: 'vid-supereagles', label: 'Super Eagles', video: { src: '/wallpapers/supereagles.mp4', poster: '/wallpapers/supereagles.jpg' } },
-    { key: 'vid-birdy', label: 'Birdy', video: { src: '/wallpapers/birdy.mp4', poster: '/wallpapers/birdy.jpg' } },
-    { key: 'vid-chicken', label: 'Chicken', video: { src: '/wallpapers/chicken.mp4', poster: '/wallpapers/chicken.jpg' } },
-    { key: 'vid-currency', label: 'Currency', video: { src: '/wallpapers/currency.mp4', poster: '/wallpapers/currency.jpg' } },
-    { key: 'vid-desert', label: 'Desert', video: { src: '/wallpapers/desert.mp4', poster: '/wallpapers/desert.jpg' } },
-    { key: 'vid-dolphin', label: 'Dolphin', video: { src: '/wallpapers/dolphin.mp4', poster: '/wallpapers/dolphin.jpg' } },
-    { key: 'vid-motobike', label: 'Motobike', video: { src: '/wallpapers/motobike.mp4', poster: '/wallpapers/motobike.jpg' } },
-    { key: 'vid-powerbike', label: 'Powerbike', video: { src: '/wallpapers/powerbike.mp4', poster: '/wallpapers/powerbike.jpg' } },
-    { key: 'vid-soccer', label: 'Soccer', video: { src: '/wallpapers/soccer.mp4', poster: '/wallpapers/soccer.jpg' } },
-    { key: 'vid-trading', label: 'Trading', video: { src: '/wallpapers/trading.mp4', poster: '/wallpapers/trading.jpg' } },
-];
-function systemIsDark() {
-    return typeof window !== 'undefined' &&
-        window.matchMedia?.('(prefers-color-scheme: dark)').matches;
-}
-
-function contrastOn(hex: string): '#000' | '#fff' {
-    const h = hex.replace('#', '');
-    const r = parseInt(h.slice(0, 2), 16), g = parseInt(h.slice(2, 4), 16), b = parseInt(h.slice(4, 6), 16);
-    const lum = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
-    return lum > 0.6 ? '#000' : '#fff';
-}
-
-function applyPalette(p: Palette) {
-    const root = document.documentElement;
-    const fg = p.isDark != null ? (p.isDark ? '#fff' : '#000') : contrastOn(p.bg);
-
-    // base tokens (GLOBAL)
-    root.style.setProperty('--th-bg', p.bg);
-    root.style.setProperty('--th-text', fg);
-    root.style.setProperty('--th-muted', fg === '#000' ? 'rgba(0,0,0,.62)' : 'rgba(255,255,255,.62)');
-    root.style.setProperty('--th-border', fg === '#000' ? 'rgba(0,0,0,.18)' : 'rgba(255,255,255,.18)');
-    root.style.setProperty('--th-surface', fg === '#000' ? 'rgba(255,255,255,.86)' : 'rgba(0,0,0,.14)');
-
-    // buttons/icons always readable
-    const btnBG = fg === '#000' ? 'rgba(255,255,255,.88)' : 'rgba(0,0,0,.88)';
-    const btnFG = fg === '#000' ? '#000' : '#fff';
-    root.style.setProperty('--btn-bg', btnBG);
-    root.style.setProperty('--btn-fg', btnFG);
-    root.style.setProperty('--icon-fg', fg);
-
-    // orb label: black on light (system/light), white on dark
-    const orbFG = (fg === '#000') ? '#000' : '#fff';
-    root.style.setProperty('--orb-fg', orbFG);
-}
-
-function applyAnim(a: AnimKey) {
-    const root = document.documentElement;
-    const def = ALL_ANIMS.find(x => x.key === a);
-
-    const VID_ID = '__six_bg_video__';
-    let el = document.getElementById(VID_ID) as HTMLVideoElement | null;
-
-    // Non-video (or none): remove any video and fall back to CSS background
-    if (!def?.video || a === 'none') {
-        if (el) {
-            try { el.pause(); } catch { }
-            try { el.removeAttribute('src'); el.load?.(); } catch { }
-            try { el.remove(); } catch { }
-        }
-        if (!a || a === 'none') {
-            root.removeAttribute('data-anim');
-            root.style.setProperty('--page-bg', 'var(--th-bg)');
-        } else {
-            root.setAttribute('data-anim', a);
-            root.style.setProperty('--page-bg', 'transparent');
-        }
-        return;
-    }
-
-    // Ensure the fixed, full-viewport video exists behind the app
-    if (!el) {
-        el = document.createElement('video');
-        el.id = VID_ID;
-        el.muted = true; // iOS autoplay requirement
-        el.loop = true;
-        (el as any).playsInline = true;
-        el.autoplay = true;
-        el.preload = 'auto';
-        el.setAttribute('aria-hidden', 'true');
-        Object.assign(el.style, {
-            position: 'fixed',
-            inset: '0',
-            width: '100vw',
-            height: '100vh',
-            objectFit: 'cover',
-            zIndex: '-1', // ← sits behind everything
-            pointerEvents: 'none', // ← never blocks clicks/scroll
-            background: '#000'
-        });
-        document.body.appendChild(el);
-    }
-
-    try {
-        if (def.video.poster) el.poster = def.video.poster; else el.removeAttribute('poster');
-        if (el.src !== def.video.src) {
-            el.src = def.video.src;
-            void el.play().catch(() => {/* user interaction will resume if needed */ });
-        }
-    } catch { }
-
-    root.setAttribute('data-anim', a);
-    root.style.setProperty('--page-bg', 'transparent');
-}
-
-
-function useTheme() {
-    const [mode, setMode] = React.useState<ThemeMode>(() => {
-        try { return (localStorage.getItem('6ix:themeMode') as ThemeMode) || 'system'; } catch { return 'system'; }
-    });
-    const [paletteKey, setPaletteKey] = React.useState<PaletteKey>(() => {
-        try { return (localStorage.getItem('6ix:palette') as PaletteKey) || (systemIsDark() ? 'dark' : 'light'); } catch { return 'dark'; }
-    });
-    const [anim, setAnim] = React.useState<AnimKey>(() => {
-        try { return (localStorage.getItem('6ix:anim') as AnimKey) || 'none'; } catch { return 'none'; }
-    });
-
-    // react to system changes
-    React.useEffect(() => {
-        if (mode !== 'system' || !window.matchMedia) return;
-        const mq = window.matchMedia('(prefers-color-scheme: dark)');
-        const onChange = () => {
-            const key = mq.matches ? 'dark' : 'light';
-            const p = PALETTES.find(x => x.key === key)!;
-            applyPalette(p);
-        };
-        onChange();
-        mq.addEventListener('change', onChange);
-        return () => mq.removeEventListener('change', onChange);
-    }, [mode]);
-
-    // apply on change
-    React.useEffect(() => {
-        const root = document.documentElement;
-        root.classList.toggle('theme-dark', (mode === 'dark') || (mode === 'system' && systemIsDark()));
-        root.classList.toggle('theme-light', (mode === 'light') || (mode === 'system' && !systemIsDark()));
-        try {
-            localStorage.setItem('6ix:themeMode', mode);
-            localStorage.setItem('6ix:palette', paletteKey);
-            localStorage.setItem('6ix:anim', anim);
-        } catch { }
-
-        const p = mode === 'system'
-            ? PALETTES.find(x => x.key === (systemIsDark() ? 'dark' : 'light'))!
-            : (PALETTES.find(x => x.key === paletteKey) || PALETTES[0]);
-
-        applyPalette(p);
-        applyAnim(anim);
-    }, [mode, paletteKey, anim]);
-
-    return {
-        mode, setMode,
-        paletteKey, setPaletteKey,
-        anim, setAnim,
-        PALETTES, FREE_KEYS, ALL_ANIMS,
-
-    } as const;
-}
-// --- end THEME + ANIM ---
 
 
 function AvatarCard({
@@ -932,26 +661,6 @@ function AvatarCard({
                     <input ref={fileRef} type="file" accept="image/*" hidden onChange={onFile} />
                 </div>
 
-                {/* theme (mobile-only) */}
-                <div className="p-3 border-t border-white/10 md:hidden">
-                    <div className="text-[12px] opacity-70 mb-1">Theme</div>
-                    <div className="flex gap-2">
-                        <label className={`btn btn-water ${mode === 'system' ? 'ring-1 ring-white/40' : ''}`}>
-                            <input hidden type="radio" name="theme" checked={mode === 'system'} onChange={() => setMode('system')} />
-                            system
-                        </label>
-                        <label className={`btn btn-water ${mode === 'light' ? 'ring-1 ring-white/40' : ''}`}>
-                            <input hidden type="radio" name="theme" checked={mode === 'light'} onChange={() => setMode('light')} />
-                            light
-                        </label>
-                        <label className={`btn btn-water ${mode === 'dark' ? 'ring-1 ring-white/40' : ''}`}>
-                            <input hidden type="radio" name="theme" checked={mode === 'dark'} onChange={() => setMode('dark')} />
-                            dark
-                        </label>
-                    </div>
-                </div>
-
-
                 <div className="p-3 pt-0 flex justify-end">
                     <button className="btn btn-water" onClick={onClose}>Close</button>
                 </div>
@@ -960,30 +669,7 @@ function AvatarCard({
     );
 }
 
-function IntroOrb({
-    orbOffset = { x: 0, y: 0 },
 
-}: {
-    orbOffset?: { x: number; y: number };
-    textOffset?: { x: number; y: number };
-}) {
-    return (
-        <div className="intro-orb-wrap" aria-hidden>
-            <div
-                className="intro-orb"
-                style={{ transform: `translate(${orbOffset.x}px, ${orbOffset.y}px)` }}
-            >
-                <div className="intro-orb__ring" />
-                <span
-                    className="btn btn-water intro-orb__label"
-                    style={{ background: 'var(--btn-bg)', color: 'var(--btn-fg)', border: '1px solid var(--th-border)' }}
-                >
-                    6IX&nbsp;AI
-                </span>
-            </div>
-        </div>
-    );
-}
 function usePrefersDark() {
     const [prefersDark, setPrefersDark] = React.useState(false);
     React.useEffect(() => {
@@ -1005,27 +691,43 @@ export default function AIPage() {
     const prefersDark = usePrefersDark();
     const [mounted, setMounted] = React.useState(false);
     React.useEffect(() => { setMounted(true); }, []);
+    // open from anywhere: window.dispatchEvent(new CustomEvent('helpkit:open'))
+
     const [prefs, setPrefs] = useState<UserPrefs>(() => loadUserPrefs());
     useEffect(() => { saveUserPrefs(prefs); }, [prefs]);
     /* plan/model/speed; plan comes from server only (indicator, not selectable) */
     const [plan, setPlan] = useState<Plan>('free');
     const [model, setModel] = useState<UiModelId>('free-core');
     const [speed, setSpeed] = useState<SpeedMode>('auto');
-
+    const search = useSearchParams();
+    const showHistory = search?.get('overlay') === 'history';
     // theme state (from the new useTheme)
-    const { mode, setMode, paletteKey, setPaletteKey, anim, setAnim, PALETTES, ALL_ANIMS } = useTheme();
+    const { mode } = useTheme();
 
     const themeBtnRef = useRef<HTMLButtonElement | null>(null);
     const [themeOpen, setThemeOpen] = useState(false);
     const isDarkNow = mode === 'dark' || (mode === 'system' && prefersDark);
     // AIPage() — replace your messages state initializer:
-    const [messages, setMessages] = useState<ChatMessage[]>(() => []);
+    const [messages, setMessages] = React.useState<ChatMessage[]>([]);
+    const [booted, setBooted] = React.useState(false);
 
+    const [hydrating, setHydrating] = React.useState(true);
+    React.useEffect(() => {
+        let alive = true;
+        (async () => {
+            const restored = await restoreChat(); // your helper already reads localStorage
+            if (!alive) return;
+            if (restored?.length) setMessages(restored as any);
+            setBooted(true);
+        })();
+        return () => { alive = false; };
+    }, []);
     const [input, setInput] = useState('');
     const [attachments, setAttachments] = useState<Attachment[]>([]); // ← NEW
     const fileInputRef = useRef<HTMLInputElement | null>(null); // ← NEW
     const [streaming, setStreaming] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [helpOpen, setHelpOpen] = React.useState(false);
 
     // --- Voice state (minimal; HTTPS required on iOS) ---
     const [recState, setRecState] = useState<'idle' | 'recording'>('idle');
@@ -1114,9 +816,6 @@ export default function AIPage() {
     }
 
 
-    // Optional: theme state if your new page needs the theme row
-    const [themeChoice, setThemeChoice] = useState<'system' | 'light' | 'dark'>('system');
-    const onThemeSelect = (t: 'system' | 'light' | 'dark') => setThemeChoice(t);
 
     /* ui layout + streaming control */
     const listRef = useRef<HTMLDivElement | null>(null);
@@ -1278,6 +977,16 @@ export default function AIPage() {
         return () => vv.removeEventListener('resize', onResize);
     }, []);
 
+    React.useEffect(() => {
+        const open = () => setHelpOpen(true);
+        const close = () => setHelpOpen(false);
+        window.addEventListener('help:open', open);
+        window.addEventListener('help:close', close);
+        return () => {
+            window.removeEventListener('help:open', open);
+            window.removeEventListener('help:close', close);
+        };
+    }, []);
 
 
     // don't persist/restore/merge while busy
@@ -1487,6 +1196,23 @@ export default function AIPage() {
         }
         action();
     };
+
+    function startNewChat() {
+        try {
+            // 1) Save the current transcript to History (only if there’s something meaningful)
+            const nonSystem = messages.filter(m => m.role !== 'system');
+            if (nonSystem.length >= 2) {
+                saveChatToHistory(nonSystem, plan);
+            }
+            // 2) Clear only the working chat (refresh should NOT clear)
+            localStorage.removeItem('6ixai:chat:v3');
+        } catch { }
+
+        setMessages([]);
+        lastAssistantRef.current = '';
+        chatKeyRef.current = safeUUID();
+        scrollToBottom(false);
+    }
 
     const [sharingIndex, setSharingIndex] = useState<number | null>(null);
     const [lightbox, setLightbox] = useState<{ open: boolean, url: string; prompt: string }>({ open: false, url: '', prompt: '' });
@@ -2070,11 +1796,20 @@ export default function AIPage() {
         [hasFiles, attachments, plan, phase, userTyped]
     );
 
-    /* ---------- RENDER ---------- */
+    /* ---------- RENDER 1st return ---------- */
     return (
-        <div className="min-h-svh flex flex-col" style={{ background: 'var(--page-bg, var(--th-bg, #000))', color: 'var(--th-text, #fff)' }} suppressHydrationWarning>
-            <BackStopper />
 
+        <div
+            className="min-h-svh flex flex-col"
+            style={{
+                background: 'var(--page-bg, var(--th-bg, #000))',
+                color: 'var(--th-text, #fff)',
+                visibility: booted ? 'visible' : 'hidden', // <— add this
+            }}
+            suppressHydrationWarning
+        >
+            <BackStopper />
+            <LiveWallpaper />
             {/* HEADER */}
             <div ref={headerRef} className="app-header sticky top-0 z-30 bg-black/75 backdrop-blur-xl border-b border-white/10">
                 <div className="mx-auto px-3 py-2 flex items-center gap-2 max-w-[min(1100px,92vw)]">
@@ -2138,23 +1873,23 @@ export default function AIPage() {
                             className={`avatar-trigger h-9 w-9 rounded-full overflow-hidden border border-white/20 bg-white/5 grid place-items-center ${menuOpen ? 'is-open' : ''}`}
                             aria-label="Account menu"
                         >
-                            <div className="relative h-9 w-9">
+                            <div className="relative h-10 w-10">
                                 <AvatarThumb url={profile.avatarUrl} name={profile.displayName || undefined} plan={plan} />
                             </div>
                         </button>
 
-                        <button
-                            ref={(el) => { (themeBtnRef as any).current = el; }}
-                            onClick={() => setThemeOpen(v => !v)}
-                            className="theme-btn hidden md:grid p-0"
-                            aria-label="Theme"
-                            title="Theme"
-                            style={{ color: 'var(--icon-fg)', background: 'transparent', border: 'none' }}
-                        >
-                            <CrescentIcon size={18} />
-                        </button>
-                    </div>
 
+                    </div>
+                    <button
+                        ref={(el) => { (themeBtnRef as any).current = el; }}
+                        onClick={() => setThemeOpen(v => !v)}
+                        className="theme-btn hidden md:grid p-0"
+                        aria-label="Theme"
+                        title="Theme"
+                        style={{ color: 'var(--icon-fg)', background: 'transparent', border: 'none' }}
+                    >
+                        <CrescentIcon size={18} />
+                    </button>
                 </div>
 
                 {/* MOBILE keeps the old row under the pill */}
@@ -2180,7 +1915,7 @@ export default function AIPage() {
             </div>
 
             {/* EMPTY STATE — tagline above orb */}
-            {messages.length === 0 && !streaming && (
+            {booted && messages.length === 0 && !streaming && (
                 <section className="intro-orb__stage relative mx-auto max-w-[900px] pt-8 pb-8">
                     {/* Tagline FIRST so it's always on top and never hidden */}
                     <div className="intro-orb__title z-20 mt-0 mb-0">
@@ -2189,7 +1924,7 @@ export default function AIPage() {
                     </div>
 
                     {/* Orb */}
-                    <IntroOrb orbOffset={{ x: 0, y: 0 }} />
+                    <LandingOrb />
                 </section>
             )}
 
@@ -2199,32 +1934,40 @@ export default function AIPage() {
                 profile={profile}
                 plan={plan}
                 onClose={() => setMenuOpen(false)}
-                onStartNew={() => { /* reset chat */ }}
+                onStartNew={startNewChat}
                 onPremium={() => window.open('/premium', '_blank', 'noopener,noreferrer')}
                 onHelp={() => { try { window.dispatchEvent(new CustomEvent('help:open')); } catch { } }}
                 onSignout={signOutNow}
-                onHistory={() => { /* setHistoryOpen(true) */ }}
-                theme={themeChoice}
-                onThemeSelect={onThemeSelect}
+                onHistory={() => router.push('/ai?overlay=history', { scroll: false })}
+
             />
 
             <ThemePanel
                 open={themeOpen}
                 anchorRef={themeBtnRef}
-                plan={plan}
-                displayName={profile.displayName}
-                mode={mode}
-                setMode={setMode}
-                paletteKey={paletteKey}
-                setPaletteKey={setPaletteKey}
-                palettes={PALETTES}
-                freeKeys={FREE_KEYS}
-                anim={anim}
-                setAnim={setAnim}
-                ALL_ANIMS={ALL_ANIMS}
                 onClose={() => setThemeOpen(false)}
-                onUpgrade={() => setPremiumModal({ open: true, required: 'pro' })}
             />
+            <button
+                type="button"
+                className="six-menu__item"
+                onClick={() => window.dispatchEvent(new CustomEvent('helpkit:open'))}
+            >
+            </button>
+
+
+            {showHistory && (
+                <HistoryOverlay
+                    onClose={() => router.replace('/ai', { scroll: false })}
+                    onPick={(item) => {
+                        const msgs = (item.messages as any[]) as ChatMessage[];
+                        setMessages(msgs);
+                        void persistChat(msgs as any); // keep localStorage in sync
+                        router.replace('/ai', { scroll: false }); // close overlay
+                    }}
+                />
+            )}
+
+            {helpOpen && <HelpOverlay onClose={() => setHelpOpen(false)} />}
             {/* LIST */}
             <div
                 ref={listRef}
@@ -2292,7 +2035,7 @@ max-w-[min(900px,92vw)]
                                         className={[
                                             'inline-block px-3 py-[7px] text-[15px] leading-[1.35] border rounded-2xl',
                                             'msg-body',
-                                            isAssistant ? 'bg-white/6 border-white/12' : 'bg-white/10 border-white/15',
+                                            'bg-white/10 border-white/15', // same fill for assistant + user
                                         ].join(' ')}
                                     >
                                         {visible ? (
@@ -2545,230 +2288,12 @@ md:grid-cols-[auto_1fr_auto_auto] md:grid-rows-1 md:items-center
                 onGoPremium={() => { setPremiumModal({ ...premiumModal, open: false }); router.push('/premium'); }}
             />
         </div>
+
     );
 }
 
 
-function HScrollRow({
-    children,
-    showControls = 'auto', // 'auto' | 'always'
-}: {
-    children: React.ReactNode;
-    showControls?: 'auto' | 'always';
-}) {
-    const wrapRef = React.useRef<HTMLDivElement | null>(null);
-    const [showBar, setShowBar] = React.useState(showControls === 'always');
-    const [value, setValue] = React.useState(0);
 
-    React.useLayoutEffect(() => {
-        const el = wrapRef.current;
-        if (!el) return;
-        const check = () => {
-            const over = el.scrollWidth > el.clientWidth + 2;
-            setShowBar(showControls === 'always' ? true : over);
-        };
-        check();
-        const ro = new ResizeObserver(check);
-        ro.observe(el);
-        return () => ro.disconnect();
-    }, [showControls]);
-    React.useEffect(() => {
-        const el = wrapRef.current; if (!el) return;
-        const onWheel = (e: WheelEvent) => {
-            // Convert vertical wheel to horizontal scroll when needed
-            if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
-                e.preventDefault();
-                el.scrollBy({ left: e.deltaY, behavior: 'auto' });
-            }
-        };
-        el.addEventListener('wheel', onWheel, { passive: false });
-        return () => el.removeEventListener('wheel', onWheel as any);
-    }, []);
-    const syncFromEl = () => {
-        const el = wrapRef.current!;
-        const max = Math.max(1, el.scrollWidth - el.clientWidth);
-        setValue(Math.round((el.scrollLeft / max) * 100));
-    };
-
-    const onRange = (v: number) => {
-        const el = wrapRef.current!;
-        setValue(v);
-        const max = Math.max(1, el.scrollWidth - el.clientWidth);
-        el.scrollLeft = Math.round((v / 100) * max);
-    };
-
-    const nudge = (dx: number) => {
-        const el = wrapRef.current!;
-        el.scrollBy({ left: dx, behavior: 'smooth' });
-        setTimeout(syncFromEl, 120);
-    };
-
-    return (
-        <div className="hscroll-row">
-            <div ref={wrapRef} className="hscroll-wrap" onScroll={syncFromEl}>
-                {children}
-            </div>
-            {showBar && (
-                <div className="hscroll-bar">
-                    <button className="hs-arrow" onClick={() => nudge(-220)} aria-label="Scroll left">◂</button>
-                    <input type="range" min={0} max={100} value={value} onChange={(e) => onRange(Number(e.target.value))} />
-                    <button className="hs-arrow" onClick={() => nudge(220)} aria-label="Scroll right">▸</button>
-                </div>
-            )}
-        </div>
-    );
-}
-
-
-// ==== THEME PANEL (drop-in replacement) ====
-function ThemePanel({
-    open, anchorRef, plan, displayName,
-    mode, setMode, paletteKey, setPaletteKey,
-    palettes, freeKeys, anim, setAnim,
-    ALL_ANIMS, // <-- keep as prop
-    onClose, onUpgrade
-}: {
-    open: boolean;
-    anchorRef: MutableRefObject<HTMLElement | null>;
-    plan: Plan;
-    displayName?: string | null;
-    mode: 'system' | 'light' | 'dark';
-    setMode: (m: 'system' | 'light' | 'dark') => void;
-    paletteKey: PaletteKey;
-    setPaletteKey: (k: PaletteKey) => void;
-    palettes: Palette[];
-    freeKeys: PaletteKey[];
-    anim: AnimKey;
-    setAnim: (k: AnimKey) => void;
-    ALL_ANIMS: AnimDef[]; // <-- IMPORTANT: uses new AnimDef
-    onClose: () => void;
-    onUpgrade: () => void;
-}) {
-
-    const panelRef = React.useRef<HTMLDivElement | null>(null);
-    const [pos, setPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
-
-    useLayoutEffect(() => {
-        if (!open) return;
-        const el = anchorRef.current; if (!el) return;
-        const r = el.getBoundingClientRect();
-        setPos({ top: Math.max(56, r.bottom + 8), left: Math.min(window.innerWidth - 360, r.right - 340) });
-    }, [open, anchorRef]);
-
-    useEffect(() => {
-        if (!open) return;
-        const onDoc = (e: MouseEvent) => {
-            const t = e.target as Node;
-            if (!panelRef.current?.contains(t)) onClose();
-        };
-        document.addEventListener('mousedown', onDoc);
-        return () => document.removeEventListener('mousedown', onDoc);
-    }, [open, onClose]);
-
-    if (!open) return null;
-
-    // test mode → unlock everything
-    const gatingEnabled = false;
-
-    const pick = (k: PaletteKey) => {
-        const allowed = !gatingEnabled || plan !== 'free' || freeKeys.includes(k);
-        if (!allowed) { onUpgrade(); return; }
-        setPaletteKey(k);
-    };
-
-    const rows: { title: string; keys: PaletteKey[] }[] = [
-        { title: 'Basics', keys: ['light', 'dark', 'black', 'white', 'gray'] },
-        { title: 'Primary', keys: ['red', 'green', 'yellow', 'blue', 'orange', 'brown', 'purple', 'pink'] },
-        { title: 'Blues', keys: ['navy', 'sky', 'powder', 'cobalt', 'azure', 'cerulean', 'arctic', 'royal', 'electric'] },
-        { title: 'Reds', keys: ['rose', 'scarlet', 'ruby', 'brick', 'vermilion', 'coral'] },
-        { title: 'Mints & Butter', keys: ['mint-pastel', 'mint-blue', 'mint-cool', 'mint-seafoam', 'mint-deep', 'mint-aqua', 'mint-creme', 'butter', 'butter-deep'] },
-    ].filter(Boolean as any);
-
-    return createPortal(
-        <>
-            <div className="theme-backdrop" />
-            <div className="theme-panel" ref={panelRef} style={{ top: pos.top, left: pos.left }}>
-                <div className="theme-head">
-                    <div className="theme-title">Theme</div>
-                    <div className="ml-auto flex gap-2 items-center">
-                        {(['system', 'light', 'dark'] as const).map(m => (
-                            <label key={m} className={`btn btn-water btn-xs ${mode === m ? 'ring-1 ring-white/40' : ''}`}>
-                                <input hidden type="radio" name="th" checked={mode === m} onChange={() => setMode(m)} />
-                                {m}
-                            </label>
-                        ))}
-                    </div>
-                </div>
-
-                {/* Live animated preview row */}
-                <div className="theme-sub">Live animations</div>
-                <HScrollRow>
-                    <div className="anim-row" role="listbox">
-                        {ALL_ANIMS.map(a => (
-                            <button
-                                key={a.key}
-                                type="button"
-                                role="option"
-                                aria-selected={anim === a.key}
-                                className={`anim-card ${anim === a.key ? 'is-active' : ''}`}
-                                title={a.label}
-                                onClick={() => setAnim(a.key)}
-                                style={!a.video && a.preview ? { background: a.preview } : undefined}
-                            >
-                                {a.video ? (
-                                    <video
-                                        src={a.video.src}
-                                        poster={a.video.poster}
-                                        muted
-                                        loop
-                                        playsInline
-                                        autoPlay
-                                        preload="metadata"
-                                        aria-hidden="true"
-                                    />
-                                ) : null}
-                                <span>{a.label}</span>
-                            </button>
-                        ))}
-                    </div>
-
-
-                </HScrollRow>
-
-                {/* Palettes */}
-                {rows.map((row) => (
-                    <section key={row.title} className="th-section">
-                        <div className="theme-sub">{row.title}</div>
-                        <HScrollRow>
-                            <div className="swatch-row">
-                                {row.keys.map((k) => {
-                                    const p = palettes.find(x => x.key === k)!;
-                                    const selected = paletteKey === k;
-                                    const locked = false; // gating disabled in your code
-
-                                    return (
-                                        <button
-                                            key={k}
-                                            type="button"
-                                            className={`swatch swatch-sm ${selected ? 'is-active' : ''}`}
-                                            title={p.label}
-                                            onClick={() => setPaletteKey(k)}
-                                            style={{ background: p.bg, color: (p.isDark ? '#fff' : '#000') }}
-                                        >
-                                            <span>{p.label}{locked ? ' 🔒' : ''}</span>
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        </HScrollRow>
-                    </section>
-                ))}
-
-            </div>
-        </>,
-        document.body
-    );
-}
 
 function UserMenuPortal({
     open,
@@ -2781,8 +2306,7 @@ function UserMenuPortal({
     onHelp,
     onSignout,
     onHistory,
-    theme,
-    onThemeSelect,
+
 }: {
     open: boolean;
     anchorRef: MutableRefObject<HTMLElement | null>;
@@ -2794,8 +2318,7 @@ function UserMenuPortal({
     onHelp: () => void;
     onSignout: () => void;
     onHistory: () => void;
-    theme: 'system' | 'light' | 'dark';
-    onThemeSelect: (t: 'system' | 'light' | 'dark') => void;
+
 }) {
     const [pos, setPos] = useState<{ top: number; left: number; width: number }>({ top: 0, left: 0, width: 240 });
 
@@ -2851,26 +2374,19 @@ function UserMenuPortal({
                     <li className="sheet-item" role="menuitem" onClick={() => { onHistory(); onClose(); }}>
                         History
                     </li>
-
-                    <div className="menu-link flex items-center justify-between md:hidden">
-                        <span>Theme</span>
-                        <select
-                            value={theme}
-                            onChange={(e) => onThemeSelect(e.target.value as 'system' | 'light' | 'dark')}
-                            className="bg-transparent outline-none text-[12px] border border-white/15 rounded-md px-2 py-[2px]"
-                            aria-label="Choose theme"
-                        >
-                            <option value="system">System (default)</option>
-                            <option value="light">Light</option>
-                            <option value="dark">Dark</option>
-                        </select>
-                    </div>
-
                     <li className="sheet-item" role="menuitem" onClick={() => { onPremium(); onClose(); }}>
                         Get Premium + Verified
                     </li>
-                    <li className="sheet-item" role="menuitem" onClick={() => { onHelp(); onClose(); }}>
-                        Need help?
+                    <li>
+                        <button
+                            type="button"
+                            className="six-menu__item"
+                            onClick={() => {
+                                window.dispatchEvent(new CustomEvent('help:open'));
+                            }}
+                        >
+                            Need help?
+                        </button>
                     </li>
                     <li className="sheet-item sheet-item--destructive" role="menuitem" onClick={() => { onSignout(); onClose(); }}>
                         Sign out
@@ -2880,4 +2396,15 @@ function UserMenuPortal({
         </>,
         document.body
     );
+}
+
+// keep your signature
+function saveChatToHistory(nonSystem: ChatMessage[], plan: Plan) {
+    if (!nonSystem || nonSystem.length < 2) return;
+
+    // annotate to help TS and cast only for the param type
+    const { item } =
+        saveFromMessages(nonSystem as unknown as HistMsg[], plan);
+
+    if (item) void upsertCloudItem(item);
 }

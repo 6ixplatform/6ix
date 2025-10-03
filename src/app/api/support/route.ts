@@ -1,26 +1,24 @@
 // app/api/support/route.ts
-import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
 
 export const runtime = 'nodejs';
 
 export async function POST(req: Request) {
-    const supabase = getSupabaseAdmin();
     const { firstName, lastName, location, reason, email } = await req.json().catch(() => ({}));
 
     const resendKey = process.env.RESEND_API_KEY;
     if (!resendKey) return NextResponse.json({ error: 'Email service not configured' }, { status: 500 });
 
     const resend = new Resend(resendKey);
-    const subject = `Signup help — ${email ?? 'unknown email'}`;
+    const subject = `Support request — ${email || 'unknown email'}`;
     const text = [
-        `Name: ${[firstName, lastName].filter(Boolean).join(' ') || '—'}`,
-        `Email: ${email || '—'}`,
-        `Location: ${location || '—'}`,
+        `Name: ${[firstName, lastName].filter(Boolean).join(' ') || '--'}`,
+        `Email: ${email || '--'}`,
+        `Location: ${location || '--'}`,
         '',
         'Reason:',
-        (reason || '—')
+        reason || '--',
     ].join('\n');
 
     try {
@@ -29,7 +27,7 @@ export async function POST(req: Request) {
             to: process.env.SUPPORT_TO || 'support@6ixapp.com',
             replyTo: email || undefined,
             subject,
-            text
+            text,
         });
         return NextResponse.json({ ok: true });
     } catch (e: any) {

@@ -38,7 +38,11 @@ export default function HelpKit({
 
     useEffect(() => setMounted(true), []);
     useEffect(() => setEmail(presetEmail || ''), [presetEmail]);
-
+    useEffect(() => {
+        const openHandler = () => setOpen(true);
+        window.addEventListener('help:open', openHandler);
+        return () => window.removeEventListener('help:open', openHandler);
+    }, []);
     // Esc closes
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
