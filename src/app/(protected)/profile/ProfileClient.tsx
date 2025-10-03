@@ -313,9 +313,35 @@ export default function ProfileSetupProfileClient() {
             // 5) local flag to avoid loops
             try { localStorage.setItem('6ix_onboarded', '1'); } catch { }
 
-            // 6) Navigate home (make sure session is visible, then single hop)
-            await waitForSessionFast(supabase, 800);
-            r.replace('/ai'); // single navigation is enough
+            // 5.5) Fire-and-forget onboarding "welcome" ping (won't block nav)
+            try {
+                const welcomeBody = JSON.stringify({
+                    userId: me.id,
+                    email: payload.email,
+                    username: payload.username,
+                    // add any other fields your /api/onboarding/welcome expects
+                    src: 'profile_finish'
+                });
+
+                if ('sendBeacon' in navigator) {
+                    const blob = new Blob([welcomeBody], { type: 'application/json' });
+                    (navigator as any).sendBeacon('/api/onboarding/welcome', blob);
+                } else {
+                    fetch('/api/onboarding/welcome', {
+                        method: 'POST',
+                        headers: { 'content-type': 'application/json' },
+                        body: welcomeBody,
+                        cache: 'no-store',
+                        keepalive: true,
+                        credentials: 'include',
+                    }).catch(() => { });
+                }
+            } catch { /* ignore */ }
+
+            // 6) Navigate home
+            r.replace('/ai');
+            try { r.refresh(); } catch { }
+            setTimeout(() => { try { window.location.assign('/ai'); } catch { } }, 40);
 
         } catch (e: any) {
             setErr(e?.message || 'Failed to save profile');
