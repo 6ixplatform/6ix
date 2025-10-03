@@ -8,6 +8,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import BackStopper from '@/components/BackStopper';
 import HelpKit from '@/components/HelpKit';
 import NoBack from '@/components/NoBack';
+import { supabaseBrowser } from '@/lib/supabaseBrowser';
 
 type LastUser = {
     handle?: string;
@@ -26,7 +27,7 @@ const REDIRECT_TO_SIGNUP_SEC = 6;
 export default function SignInClient() {
     const router = useRouter();
     const search = useSearchParams();
-
+    const supabase = useMemo(() => supabaseBrowser(), []);
     const [email, setEmail] = useState('');
     const [agree, setAgree] = useState(false);
     const [loading, setLoading] = useState(false); // sending sign-in code
@@ -35,6 +36,20 @@ export default function SignInClient() {
 
 
     const [lastUser, setLastUser] = useState<LastUser | null>(null);
+    const [hintVerified, setHintVerified] = useState(false);
+
+    useEffect(() => {
+        let cancel = false;
+        (async () => {
+            const candidate = (email || lastUser?.email || '').trim().toLowerCase();
+            if (!candidate) { setHintVerified(false); return; }
+            const ok = await checkEmailExists(candidate);
+            if (cancel) return;
+            setHintVerified(ok);
+            if (!ok) setLastUser(null); // make sure no avatar/email hint remains
+        })();
+        return () => { cancel = true; };
+    }, [email, lastUser?.email]);
 
     // auto-redirect for new emails → signup (effect-based countdown)
     const [counting, setCounting] = useState(false);
@@ -45,19 +60,38 @@ export default function SignInClient() {
         const q = (search.get('email') || '').trim().toLowerCase();
         if (q) setEmail(q);
     }, [search]);
-
-    // load last-user hint (set by your SignOutButton.rememberLastUser)
+    // load last user, then verify with backend; if gone → clear it.
+    // also start a realtime watcher so future deletes/changes get reflected.
     useEffect(() => {
-        try {
-            const raw = localStorage.getItem('6ix:last_user');
-            if (raw) {
+        let unsub: (() => void) | null = null;
+        (async () => {
+            try {
+                const raw = localStorage.getItem('6ix:last_user');
+                if (!raw) return;
                 const u: LastUser = JSON.parse(raw);
+                if (!u?.email) return;
+
+                // prefill UI while we verify
                 setLastUser(u);
-                if (u.email && !email) setEmail(u.email);
-            }
-        } catch { /* ignore */ }
+                if (!email) setEmail(u.email);
+
+                // 1) verify against server
+                const exists = await checkEmailExists(u.email);
+                if (!exists) {
+                    clearRememberedIfMatches(u.email);
+                    setLastUser(null);
+                    if (email.trim().toLowerCase() === u.email.toLowerCase()) setEmail('');
+                    return;
+                }
+
+                // 2) keep it in sync via realtime (profiles table)
+                unsub = watchProfileEmail(u.email);
+            } catch { /* ignore */ }
+        })();
+        return () => { if (unsub) unsub(); };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
+
 
     // Fallback: if only the email was remembered
     useEffect(() => {
@@ -70,17 +104,18 @@ export default function SignInClient() {
 
     // Fallback: reuse AI profile’s avatar if present
     useEffect(() => {
+        if (!hintVerified || !lastUser?.email) return;
         try {
             const raw = localStorage.getItem('6ixai:profile');
             if (!raw) return;
             const p = JSON.parse(raw) as { displayName?: string; avatarUrl?: string };
-            setLastUser(u => ({
-                ...(u || {}),
-                display_name: u?.display_name ?? p?.displayName ?? undefined,
-                avatar_url: u?.avatar_url ?? p?.avatarUrl ?? undefined,
+            setLastUser(u => !u?.email ? u : ({
+                ...u,
+                display_name: u.display_name || p?.displayName,
+                avatar_url: u.avatar_url || p?.avatarUrl,
             }));
         } catch { }
-    }, []);
+    }, [hintVerified, lastUser?.email]);
 
 
     const emailOk = useMemo(() => /\S+@\S+\.\S+/.test(email), [email]);
@@ -169,6 +204,75 @@ export default function SignInClient() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [canSend]);
 
+    async function checkEmailExists(e: string): Promise<boolean> {
+        const clean = (e || '').trim().toLowerCase();
+        if (!clean) return false;
+        try {
+            const r = await fetch('/api/auth/check-email', {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({ email: clean }),
+                cache: 'no-store',
+                credentials: 'same-origin',
+            });
+            const j = await r.json().catch(() => ({} as any));
+            return Boolean(j?.ok) && (j.exists === true || j.existing === true);
+        } catch {
+            // If the check fails, be conservative and do NOT show stale memory.
+            return false;
+        }
+    }
+
+    function clearRememberedIfMatches(emailToClear: string) {
+        try {
+            const match = (s?: string | null) => (s || '').trim().toLowerCase() === emailToClear.trim().toLowerCase();
+            const lu = localStorage.getItem('6ix:last_user');
+            if (lu) {
+                const u = JSON.parse(lu) as LastUser;
+                if (match(u?.email)) localStorage.removeItem('6ix:last_user');
+            }
+            const le = localStorage.getItem('6ix:last_email');
+            if (match(le)) localStorage.removeItem('6ix:last_email');
+        } catch { /* ignore */ }
+    }
+
+    /** Subscribe to profiles changes for this email; clears memory if the row disappears. */
+    function watchProfileEmail(emailToWatch: string) {
+        try {
+            const addr = emailToWatch.trim().toLowerCase();
+            // any DELETE for this email → clear; UPDATE could change the email → re-check
+            const ch = supabase
+                .channel(`profiles_email_${addr}`)
+                .on(
+                    'postgres_changes',
+                    { event: 'DELETE', schema: 'public', table: 'profiles', filter: `email=eq.${addr}` },
+                    () => {
+                        clearRememberedIfMatches(addr);
+                        setLastUser(null);
+                        if (email.trim().toLowerCase() === addr) setEmail('');
+                    }
+                )
+                .on(
+                    'postgres_changes',
+                    { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `email=eq.${addr}` },
+                    async () => {
+                        const still = await checkEmailExists(addr);
+                        if (!still) {
+                            clearRememberedIfMatches(addr);
+                            setLastUser(null);
+                            if (email.trim().toLowerCase() === addr) setEmail('');
+                        }
+                    }
+                )
+                .subscribe();
+
+            return () => { supabase.removeChannel(ch); };
+        } catch {
+            return () => { };
+        }
+    }
+
+
     return (
         <>
             <BackStopper />
@@ -204,9 +308,9 @@ export default function SignInClient() {
                             )}
 
                             {/* Avatar on the right (desktop only, bigger) */}
-                            {lastUser?.avatar_url && (
-                                <div className="absolute right-6 top-0 w-[116px] h-[116px] rounded-full overflow-hidden signin-avatar">
-                                    <Image src={lastUser.avatar_url} alt="" fill sizes="116px" className="object-cover" />
+                            {hintVerified && lastUser?.avatar_url && (
+                                <div className="absolute right-0 top-1/2 -translate-y-1/2 w-20 h-20 md:w-24 md:h-24 rounded-full overflow-hidden border border-white/15">
+                                    <Image src={lastUser.avatar_url} alt="" width={96} height={96} className="w-full h-full object-cover" />
                                 </div>
                             )}
 

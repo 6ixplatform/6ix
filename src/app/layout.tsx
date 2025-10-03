@@ -5,6 +5,7 @@ import type { Metadata, Viewport } from 'next';
 import ClientRoot from './ClientRoot';
 import ThemeBoot from './ThemeBoot'; // <-- inline boot script (runs only in browser)
 import NoFlashTheme from '@/components/NoFlashTheme';
+import VideoWarmup from '@/components/VideoWarmup';
 
 
 /** Resolve a safe absolute URL for metadataBase */
@@ -62,18 +63,24 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <NoFlashTheme/>
+        <NoFlashTheme />
         <meta name="color-scheme" content="dark light" />
         <meta id="theme-color" name="theme-color" content="#000000" />
       </head>
       <body>
         {/* run ASAP in the browser to set initial theme classes/vars (no flash), no SSR localStorage access */}
         <ThemeBoot />
-
+        <ThemeBoot />
+        <VideoWarmup urls={[
+          '/media/posters/hero.avif',
+          '/media/posters/live1.avif',
+          '/media/videos/intro.mp4',
+          '/media/videos/live-trailer.mp4',
+        ]} />
         {/* single render of the app; ThemeProvider is the only client wrapper */}
-        
-          <ClientRoot>{children}</ClientRoot>
-        
+
+        <ClientRoot>{children}</ClientRoot>
+
       </body>
     </html>
   );

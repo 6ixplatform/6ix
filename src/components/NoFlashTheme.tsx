@@ -2,44 +2,66 @@
 import Script from 'next/script';
 
 export default function NoFlashTheme() {
-    const code = `(function () {
-try {
-var KEY='6ix:themeMode';
-var saved = localStorage.getItem(KEY) || 'system';
-var palette = localStorage.getItem('6ix:palette'); // optional override
-var sysDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const code = `(function(){
+try{
+var ls = window.localStorage;
 
-var dark = (saved === 'dark') || (saved === 'system' && sysDark);
-if (palette === 'dark' || palette === 'black') dark = true;
-if (palette === 'light') dark = false;
+// Detect "has Supabase session" without network:
+// - sb-* auth cookies (helpers)
+// - or localStorage 'sb-<ref>-auth-token'
+function hasSession(){
+try{
+var ck = document.cookie || '';
+if (/\\bsb-[^=]+=/.test(ck) || /supabase/i.test(ck)) return true;
+// localStorage token used by supabase-js v2
+for (var i=0;i<ls.length;i++){
+var k = ls.key(i)||'';
+if (/^sb-.*-auth-token$/.test(k)) return true;
+}
+}catch(e){}
+return false;
+}
 
-var d = document.documentElement;
-d.classList.toggle('theme-dark', dark);
-d.classList.toggle('theme-light', !dark);
-d.style.colorScheme = dark ? 'dark' : 'light';
+var signedIn = hasSession();
 
-var bg = dark ? '#0b0b0b' : '#ffffff';
-var text = dark ? '#ffffff' : '#0b0c10';
+// If NOT signed in: wipe any remembered theme from previous user
+if(!signedIn){
+try{
+ls.removeItem('6ix:themeMode');
+ls.removeItem('6ix:paletteHex');
+ls.removeItem('6ix:paletteDark');
+ls.removeItem('6ix:palette');
+ls.removeItem('6ix:anim');
+}catch(e){}
+}
 
-// minimal tokens used by your pages & spinners/icons
-d.style.setProperty('--th-bg', bg);
-d.style.setProperty('--th-text', text);
-d.style.setProperty('--spinner-stroke', dark ? 'rgba(255,255,255,.72)' : 'rgba(0,0,0,.72)');
+var mode = (ls.getItem('6ix:themeMode')||'system');
+var hex = ls.getItem('6ix:paletteHex') || (matchMedia('(prefers-color-scheme: dark)').matches ? '#0b0b0b' : '#ffffff');
+var darkPref = ls.getItem('6ix:paletteDark') === 'true';
 
-// keep browser UI in sync
-var meta = document.querySelector('meta[name="theme-color"]');
-if (meta) meta.setAttribute('content', bg);
+// When signed OUT, always use system
+var sysDark = matchMedia('(prefers-color-scheme: dark)').matches;
+var isDark = !signedIn
+? sysDark
+: (mode==='dark') || (mode==='system' && sysDark) || darkPref;
 
-// prevent first-paint flash
+var bg = isDark ? (hex || '#0b0b0b') : '#ffffff';
+var fg = isDark ? '#ffffff' : '#000000';
+
+var root = document.documentElement;
+root.classList.toggle('theme-dark', isDark);
+root.classList.toggle('theme-light', !isDark);
+root.style.setProperty('--th-bg', bg);
+root.style.setProperty('--th-text', fg);
+root.style.setProperty('--page-bg', bg);
+
+// Force correct colors for first paint (eliminates flash)
 var s = document.createElement('style');
-s.id = '__no_flash_theme__';
-s.textContent = 'html,body{background:'+bg+'!important;color:'+text+'!important}';
+s.id='__no_flash_theme__';
+s.textContent='html,body{background:'+bg+'!important;color:'+fg+'!important}';
 document.head.appendChild(s);
-} catch(_) {}
+}catch(e){}
 })();`;
 
-    return (
-        <Script id="no-flash-theme" strategy="beforeInteractive"
-            dangerouslySetInnerHTML={{ __html: code }} />
-    );
+    return <Script id="no-flash-theme" strategy="beforeInteractive" dangerouslySetInnerHTML={{ __html: code }} />;
 }

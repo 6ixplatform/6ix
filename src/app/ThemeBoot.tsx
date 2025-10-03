@@ -1,82 +1,64 @@
 // app/ThemeBoot.tsx
 'use client';
-import { useEffect } from 'react';
+import * as React from 'react';
+import { supabaseBrowser } from '@/lib/supabaseBrowser';
+
+function systemDark() { return typeof window !== 'undefined' && matchMedia('(prefers-color-scheme: dark)').matches; }
+function clearStoredTheme() {
+    try {
+        localStorage.removeItem('6ix:themeMode');
+        localStorage.removeItem('6ix:paletteHex');
+        localStorage.removeItem('6ix:paletteDark');
+        localStorage.removeItem('6ix:palette');
+        localStorage.removeItem('6ix:anim');
+    } catch { }
+}
+function applyThemeFromStorage(orSystem = false) {
+    const mode = localStorage.getItem('6ix:themeMode') || (orSystem ? 'system' : 'system');
+    const hex = localStorage.getItem('6ix:paletteHex') || (systemDark() ? '#0b0b0b' : '#ffffff');
+    const darkPref = localStorage.getItem('6ix:paletteDark') === 'true';
+    const isDark = (mode === 'dark') || (mode === 'system' && systemDark()) || darkPref;
+
+    document.documentElement.classList.toggle('theme-dark', isDark);
+    document.documentElement.classList.toggle('theme-light', !isDark);
+    document.documentElement.style.setProperty('--th-bg', hex);
+    document.documentElement.style.setProperty('--th-text', isDark ? '#ffffff' : '#000000');
+    document.documentElement.style.setProperty('--th-btn-bg', isDark ? 'rgba(255,255,255,.08)' : 'rgba(0,0,0,.08)');
+    document.documentElement.style.setProperty('--th-btn-bd', isDark ? 'rgba(255,255,255,.18)' : 'rgba(0,0,0,.18)');
+}
+function applySystemTheme() {
+    const isDark = systemDark();
+    document.documentElement.classList.toggle('theme-dark', isDark);
+    document.documentElement.classList.toggle('theme-light', !isDark);
+    document.documentElement.style.setProperty('--th-bg', isDark ? '#0b0b0b' : '#ffffff');
+    document.documentElement.style.setProperty('--th-text', isDark ? '#ffffff' : '#000000');
+    document.documentElement.style.setProperty('--th-btn-bg', isDark ? 'rgba(255,255,255,.08)' : 'rgba(0,0,0,.08)');
+    document.documentElement.style.setProperty('--th-btn-bd', isDark ? 'rgba(255,255,255,.18)' : 'rgba(0,0,0,.18)');
+}
 
 export default function ThemeBoot() {
-    useEffect(() => {
-        const mq = window.matchMedia?.('(prefers-color-scheme: dark)');
+    React.useEffect(() => {
+        // 1) First paint after NoFlashTheme: keep things consistent
+        applyThemeFromStorage(true);
 
-        const apply = () => {
-            try {
-                // persisted settings
-                const mode = localStorage.getItem('6ix:themeMode') || 'system'; // 'dark' | 'light' | 'system'
-                const anim = localStorage.getItem('6ix:anim') || 'none';
-                const hexPref = localStorage.getItem('6ix:paletteHex'); // optional user palette bg
-                const palette = localStorage.getItem('6ix:palette'); // 'dark' | 'light' | 'black' | etc.
-
-                // system
-                const sysDark = !!mq?.matches;
-
-                // final dark decision (matches NoFlashTheme)
-                const isDark =
-                    mode === 'dark' ||
-                    (mode === 'system' && sysDark) ||
-                    palette === 'dark' ||
-                    palette === 'black';
-
-                // surfaces
-                const bg = hexPref || (isDark ? '#0b0b0b' : '#ffffff');
-                const fg = isDark ? '#ffffff' : '#000000';
-                const btnBG = isDark ? 'rgba(255,255,255,.08)' : 'rgba(0,0,0,.08)';
-                const btnBD = isDark ? 'rgba(255,255,255,.18)' : 'rgba(0,0,0,.18)';
-
-                const root = document.documentElement;
-                root.classList.toggle('theme-dark', isDark);
-                root.classList.toggle('theme-light', !isDark);
-                root.setAttribute('data-theme', isDark ? 'dark' : 'light'); // optional, handy in CSS
-
-                // css vars that your pages already read
-                root.style.setProperty('--th-bg', bg);
-                root.style.setProperty('--th-text', fg);
-                root.style.setProperty('--th-btn-bg', btnBG);
-                root.style.setProperty('--th-btn-bd', btnBD);
-
-                // let CSS use the right UA color-scheme
-                (root.style as any).colorScheme = isDark ? 'dark' : 'light';
-
-                // mobile status bar
-                const meta = document.querySelector('meta[name="theme-color"]');
-                if (meta) meta.setAttribute('content', bg);
-
-                // misc flag you already set
-                (document.body as any).dataset.anim = anim;
-            } catch { }
-        };
-
-        // initial apply (after NoFlashTheme did first paint)
-        apply();
-
-        // react to OS switches when in system mode
+        // 2) React to system scheme changes (when mode === 'system')
+        const mq = matchMedia('(prefers-color-scheme: dark)');
         const onSys = () => {
-            if ((localStorage.getItem('6ix:themeMode') || 'system') === 'system') apply();
+            const mode = localStorage.getItem('6ix:themeMode') || 'system';
+            if (mode === 'system') (document.cookie, applySystemTheme());
         };
-        mq?.addEventListener?.('change', onSys);
+        mq.addEventListener?.('change', onSys);
 
-        // react to user changes (e.g., pressing your theme button in another tab)
-        const onStorage = (e: StorageEvent) => {
-            if (!e.key) return; // Safari
-            if (
-                e.key === '6ix:themeMode' ||
-                e.key === '6ix:palette' ||
-                e.key === '6ix:paletteHex' ||
-                e.key === '6ix:anim'
-            ) apply();
-        };
-        window.addEventListener('storage', onStorage);
+        // 3) React to auth changes: clear theme when signed OUT, restore when signed IN
+        const sb = supabaseBrowser();
+        const sub = sb.auth.onAuthStateChange((_evt, session) => {
+            if (!session) { clearStoredTheme(); applySystemTheme(); }
+            else { applyThemeFromStorage(true); }
+        });
 
         return () => {
-            mq?.removeEventListener?.('change', onSys);
-            window.removeEventListener('storage', onStorage);
+            mq.removeEventListener?.('change', onSys);
+            sub.data?.subscription?.unsubscribe?.();
         };
     }, []);
 
