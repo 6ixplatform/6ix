@@ -3,7 +3,7 @@
 
 export const dynamic = 'force-dynamic';
 import { loadUserPrefs, saveUserPrefs, parseUserDirective, mergePrefs, type UserPrefs } from '@/lib/prefs'
-import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, Suspense , useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { MutableRefObject } from 'react';
 import Image from 'next/image';
@@ -49,6 +49,16 @@ import { saveFromMessages, type ChatMessage as HistMsg } from '@/lib/history';
 import HistoryOverlay from '@/components/HistoryOverlay';
 import NextDynamic from 'next/dynamic';
 const HelpOverlay = NextDynamic(() => import('@/components/HelpOverlay'), { ssr: false });
+
+
+export default function Page() {
+    return (
+        <Suspense fallback={null}>
+            <AIPageInner />
+        </Suspense>
+    );
+}
+
 
 /* ---------- types ---------- */
 type Role = 'user' | 'assistant' | 'system';
@@ -686,7 +696,7 @@ function usePrefersDark() {
 }
 
 /* ---------- PAGE ---------- */
-export default function AIPage() {
+ function AIPageInner() {
     const router = useRouter();
     const prefersDark = usePrefersDark();
     const [mounted, setMounted] = React.useState(false);
