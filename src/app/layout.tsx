@@ -4,6 +4,7 @@ import '@/styles/6ix.css';
 import type { Metadata, Viewport } from 'next';
 import ClientRoot from './ClientRoot';
 import ThemeBoot from './ThemeBoot'; // <-- inline boot script (runs only in browser)
+import NoFlashTheme from '@/components/NoFlashTheme';
 
 
 /** Resolve a safe absolute URL for metadataBase */
@@ -61,6 +62,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <NoFlashTheme/>
         <meta name="color-scheme" content="dark light" />
         <meta id="theme-color" name="theme-color" content="#000000" />
       </head>

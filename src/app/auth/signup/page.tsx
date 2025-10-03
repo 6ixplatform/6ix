@@ -252,8 +252,8 @@ export default function SignUpPage() {
 
     return (
         <>
-        <BackStopper/>
-        <NoBack/>
+            <BackStopper />
+            <NoBack />
             {/* SEO JSON-LD for the auth page */}
             <Script id="ld-signup" type="application/ld+json"
                 dangerouslySetInnerHTML={{
@@ -298,7 +298,7 @@ export default function SignUpPage() {
                     </aside>
 
                     <section className="relative signup-card rounded-2x1 px-8 lg:px-12 pt-30 pb-12 overflow-visible">
-                       <HelpKit side="left" />
+                        <HelpKit side="left" />
                         <header>
                             <h1 className="text-4xl lg:text-5xl font-semibold leading-tight">Sign up to 6ix today</h1>
                             <p className="mt-3 text-zinc-300 max-w-2xl">
@@ -401,6 +401,11 @@ background: conic-gradient(from 0deg,
 rgba(0,0,0,.12), rgba(0,0,0,.08), rgba(0,0,0,.12));
 filter:none;
 }
+
+/* OK (✓) icon color: emerald in dark, black in light */
+.auth-scope .ok-icon { color: #34d399; } /* dark/default */
+html.theme-light .auth-scope .ok-icon { color: #000; } /* light → black */
+
 /* moving glint */
 .sr-ring::after{
 background: conic-gradient(from var(--sr-sweep),
@@ -665,9 +670,9 @@ function SignUpCard({
                         {emailStatus === 'checking' && <Spinner />}
 
                         {emailStatus === 'new' && (
-                            <svg viewBox="0 0 20 20" className="h-5 w-5">
-                                <circle cx="10" cy="10" r="8.5" fill="none" className="stroke-emerald-400" strokeWidth="1.8" />
-                                <path d="M6 10.5l2.2 2.2L14 7.8" className="stroke-emerald-400" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                            <svg viewBox="0 0 20 20" className="h-5 w-5 ok-icon" aria-hidden="true">
+                                <circle cx="10" cy="10" r="8.5" fill="none" stroke="currentColor" strokeWidth="1.8" />
+                                <path d="M6 10.5l2.2 2.2L14 7.8" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
                             </svg>
                         )}
 
