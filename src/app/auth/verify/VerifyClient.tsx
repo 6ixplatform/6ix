@@ -333,6 +333,19 @@ export default function VerifyClient() {
 
 @property --sr-sweep { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
 
+/* Spinner theme-aware */
+.verify-scope .six-spin{
+display:inline-block; width:1rem; height:1rem; border-radius:9999px;
+border:2px solid #9ca3af; /* dark/default */
+border-top-color: transparent;
+animation: six-spin .8s linear infinite;
+}
+html.theme-light .verify-scope .six-spin{
+border-color:#000; /* black in light mode */
+border-top-color:transparent;
+}
+@keyframes six-spin { to { transform: rotate(360deg); } }
+
 .sr-ring{
 position: relative; isolation: isolate; border-radius: inherit; overflow: visible;
 }
@@ -564,7 +577,7 @@ ${inputsDisabled ? 'opacity-60 cursor-not-allowed' : ''}`}
 
 function Spinner() {
     return (
-        <span className="inline-block h-4 w-4 rounded-full border-2 border-zinc-700 border-t-transparent animate-spin" aria-hidden="true" />
+        <span className="six-spin" aria-hidden="true" />
     );
 }
 

@@ -99,15 +99,40 @@ export default function ProfileSetupProfileClient() {
     useEffect(() => { r.prefetch('/ai'); }, [r]);
 
     // Prefill from auth + profiles
+    // helper: tiny wait + fast session poll (place this above or inside the component)
+    const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+    async function waitForSessionFast(supabase: ReturnType<typeof supabaseBrowser>, maxMs = 1200) {
+        const t0 = performance.now();
+        while (performance.now() - t0 < maxMs) {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) return true;
+            await sleep(40);
+        }
+        return false;
+    }
+
+    // Prefill from auth + profiles (wait for session before deciding)
     useEffect(() => {
+        let alive = true;
         (async () => {
+            // wait briefly for auth cookie to hydrate into the client
+            await waitForSessionFast(supabase, 1200);
+
             const { data: { user } } = await supabase.auth.getUser();
-            if (!user) { r.replace('/auth/signin?next=/setup/profile'); return; }
+            if (!alive) return;
+
+            // If still no user after hydration, only then go to signin.
+            if (!user) { r.replace('/auth/signin?next=/profile'); return; }
+
             setMe({ id: user.id, email: user.email ?? null });
 
-            const { data } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle();
-            const safe = (v: any) => (v == null ? '' : String(v));
+            const { data } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', user.id)
+                .maybeSingle();
 
+            const safe = (v: any) => (v == null ? '' : String(v));
             const rawAvatarPath = data?.avatar_url ?? null;
             const previewUrl = rawAvatarPath ? toPublicUrl(rawAvatarPath) : '';
 
@@ -128,16 +153,17 @@ export default function ProfileSetupProfileClient() {
                 country_code: safe(data?.country_code),
                 bio: safe(data?.bio),
                 tagline: safe(data?.tagline),
-                // ⬇️ preview vs storage path
                 avatar_url: previewUrl || '',
                 avatar_storage_path: rawAvatarPath,
             }));
 
-
             setLoading(false);
         })();
+
+        return () => { alive = false; };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
+
 
     /* ---------- username check (unique) ---------- */
     useEffect(() => {
@@ -287,10 +313,10 @@ export default function ProfileSetupProfileClient() {
             // 5) local flag to avoid loops
             try { localStorage.setItem('6ix_onboarded', '1'); } catch { }
 
-            // 6) Navigate home
-            r.replace('/ai');
-            try { r.refresh(); } catch { }
-            setTimeout(() => { try { window.location.assign('/ai'); } catch { } }, 40);
+            // 6) Navigate home (make sure session is visible, then single hop)
+            await waitForSessionFast(supabase, 800);
+            r.replace('/ai'); // single navigation is enough
+
         } catch (e: any) {
             setErr(e?.message || 'Failed to save profile');
             setStep(1);
@@ -324,7 +350,7 @@ export default function ProfileSetupProfileClient() {
 
                         <div className="max-w-[900px] mx-auto">
                             <Stepper step={step} total={TOTAL_STEPS} />
-                            <div className="profile-card sr-ring sr-20 mt-4 w-full rounded-2xl border border-white/10 bg-white/6 backdrop-blur-xl shadow-[0_10px_60px_-10px_rgba(0,0,0,.6)] p-6 sm:p-8">
+                            <div className="profile-card  mt-4 w-full rounded-2xl border border-white/10 bg-white/6 backdrop-blur-xl shadow-[0_10px_60px_-10px_rgba(0,0,0,.6)] p-6 sm:p-8">
                                 {step === 1 && (
                                     <Step1Identity
                                         form={form}
@@ -452,7 +478,7 @@ export default function ProfileSetupProfileClient() {
             {/* DOB modal */}
             {dobOpen && (
                 <div className="fixed inset-0 z-[100] grid place-items-center bg-black/70 backdrop-blur-sm p-4">
-                    <div className="profile-modal sr-ring sr-20 relative w-[min(92vw,640px)] rounded-2xl border border-white/12 bg-white/10 backdrop-blur-xl p-6 sm:p-7 shadow-[0_20px_120px_-20px_rgba(0,0,0,.85)]">
+                    <div className="profile-modal relative w-[min(92vw,640px)] rounded-2xl border border-white/12 bg-white/10 backdrop-blur-xl p-6 sm:p-7 shadow-[0_20px_120px_-20px_rgba(0,0,0,.85)]">
                         <button
                             onClick={() => setDobOpen(false)}
                             aria-label="Close"

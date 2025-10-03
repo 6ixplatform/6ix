@@ -62,6 +62,10 @@ const isSkippablePath = (p: string) =>
 
 const isPublicPath = (p: string) => PUBLIC_ALLOW.some(base => p === base || p.startsWith(base + '/'));
 
+// allow /auth/verify even if the user is signed-in
+const isAuthVerifyPath = (p: string) =>
+    p === '/auth/verify' || p.startsWith('/auth/verify/');
+
 // Treat these as onboarding/setup screens
 const isSetupPath = (p: string) =>
     p === '/profile' || p.startsWith('/profile/') ||
@@ -226,7 +230,8 @@ export async function middleware(req: NextRequest) {
 
     const onboarded = Boolean(profile?.onboarding_completed);
 
-    // Not onboarded → force into onboarding
+    // Not onboarded → force into onboarding,
+    // but ALWAYS allow /auth/verify so the OTP screen can load.
     if (!onboarded) {
         if (path.startsWith('/api/')) {
             const allowed = API_ALLOW_DURING_ONBOARD.some(b => path === b || path.startsWith(b + '/'));
@@ -235,6 +240,12 @@ export async function middleware(req: NextRequest) {
                 NextResponse.json({ error: 'onboarding_required' }, { status: 428, headers: res.headers })
             );
         }
+
+        // ← carve-out for the verify page
+        if (isAuthVerifyPath(path)) {
+            return addSecurityHeaders(res);
+        }
+
         if (!isSetupPath(path)) {
             const to = new URL(RESUME_DEFAULT, req.url);
             return addSecurityHeaders(NextResponse.redirect(to, { headers: res.headers }));
@@ -242,9 +253,10 @@ export async function middleware(req: NextRequest) {
         return addSecurityHeaders(res);
     }
 
+
     // Already onboarded:
     // Keep users OUT of onboarding/public entry pages forever (Facebook-like)
-    if (isOnboardingPublic(path) || isSetupPath(path)) {
+    if ((isOnboardingPublic(path) && !isAuthVerifyPath(path)) || isSetupPath(path)) {
         const to = new URL(APP_HOME, req.url);
         // 307 keeps method and avoids cache; also makes back-button "do nothing"
         return addSecurityHeaders(NextResponse.redirect(to, 307));

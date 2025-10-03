@@ -172,7 +172,7 @@ export default function SignInClient() {
     return (
         <>
             <BackStopper />
-            <NoBack/>
+            <NoBack />
 
             <main className="auth-screen auth-scope min-h-dvh bg-black text-white" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
 
@@ -203,10 +203,10 @@ export default function SignInClient() {
                                 </div>
                             )}
 
-                            {/* Avatar on the right */}
+                            {/* Avatar on the right (desktop only, bigger) */}
                             {lastUser?.avatar_url && (
-                                <div className="absolute right-0 top-1/2 -translate-y-1/2 w-16 h-16 rounded-full overflow-hidden border border-white/15">
-                                    <Image src={lastUser.avatar_url} alt="" width={64} height={64} className="w-full h-full object-cover" />
+                                <div className="absolute right-6 top-0 w-[116px] h-[116px] rounded-full overflow-hidden signin-avatar">
+                                    <Image src={lastUser.avatar_url} alt="" fill sizes="116px" className="object-cover" />
                                 </div>
                             )}
 
@@ -320,6 +320,21 @@ background: conic-gradient(from 0deg,
 rgba(0,0,0,.12), rgba(0,0,0,.08), rgba(0,0,0,.12));
 filter:none;
 }
+
+/* Desktop sign-in avatar frame */
+.signin-avatar{
+border:1px solid rgba(255,255,255,.15);
+box-shadow:0 14px 50px rgba(0,0,0,.35);
+}
+html.theme-light .signin-avatar{
+border-color:rgba(0,0,0,.12);
+box-shadow:0 14px 40px rgba(0,0,0,.18);
+}
+
+/* Theme-aware spinner: white in dark, black in light */
+.spin-neutral{ border-color:rgba(255,255,255,.72); border-top-color:transparent; }
+html.theme-light .spin-neutral{ border-color:rgba(0,0,0,.72); border-top-color:transparent; }
+
 /* moving glint */
 .sr-ring::after{
 background: conic-gradient(from var(--sr-sweep),
@@ -611,7 +626,7 @@ function SignInCard({
     function Spinner() {
         return (
             <span
-                className="inline-block h-4 w-4 rounded-full border-2 border-zinc-700 border-t-transparent animate-spin"
+                className="inline-block h-4 w-4 rounded-full border-2 animate-spin spin-neutral"
                 aria-hidden="true"
             />
         );

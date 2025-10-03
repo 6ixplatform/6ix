@@ -2615,3 +2615,73 @@ a, .link {
 .theme-btn:hover {
   background: transparent;
 }
+
+/* ---------- Global theme tokens ---------- */
+:root {
+  --th-bg: #0b0b0b;
+  /* will be overridden by the init script */
+  --th-text: #f6f7fb;
+  --th-muted: rgba(255, 255, 255, .62);
+  --th-border: rgba(255, 255, 255, .18);
+  --th-surface: rgba(255, 255, 255, .06);
+  --btn-bg: #ffffff;
+  --btn-fg: #000000;
+  --icon-fg: var(--th-text);
+}
+
+/* Base */
+html, body {
+  background: var(--th-bg);
+  color: var(--th-text);
+}
+
+/* Neutral surface helpers you can reuse anywhere */
+.surface {
+  background: var(--th-surface);
+}
+
+.muted {
+  color: var(--th-muted);
+}
+
+.hairline {
+  border: 1px solid var(--th-border);
+}
+
+/* Buttons that follow tokens automatically */
+.btn-neutral {
+  background: var(--btn-bg);
+  color: var(--btn-fg);
+  border: 1px solid var(--th-border);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--th-text);
+  border: 1px solid var(--th-border);
+}
+
+/* Spinners & strokes that need to flip automatically */
+.spin-neutral {
+  border: 2px solid rgba(255, 255, 255, .72);
+  border-top-color: transparent;
+}
+
+html.theme-light .spin-neutral {
+  border-color: rgba(0, 0, 0, .72);
+  border-top-color: transparent;
+}
+
+/* Icon tint */
+.icon-neutral {
+  color: var(--icon-fg);
+  fill: currentColor;
+  stroke: currentColor;
+}
+
+/* Optional: inputs get better native theming */
+:root {
+  color-scheme: light dark;
+}
+
+/* the init script sets it precisely at runtime */
