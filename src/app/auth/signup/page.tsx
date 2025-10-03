@@ -401,10 +401,19 @@ background: conic-gradient(from 0deg,
 rgba(0,0,0,.12), rgba(0,0,0,.08), rgba(0,0,0,.12));
 filter:none;
 }
-
 /* OK (✓) icon color: emerald in dark, black in light */
 .auth-scope .ok-icon { color: #34d399; } /* dark/default */
 html.theme-light .auth-scope .ok-icon { color: #000; } /* light → black */
+
+/* Spinner follows text color: black in light, light in dark */
+.auth-scope .spin{
+display:inline-block;
+width:1rem; height:1rem; border-radius:9999px;
+border:2px solid currentColor; /* use parent color */
+border-top-color: transparent; /* “gap” for spinner */
+animation: spin .8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
 
 /* moving glint */
 .sr-ring::after{
@@ -754,7 +763,7 @@ function SignUpCard({
 }
 
 function Spinner() {
-    return <span className="inline-block h-4 w-4 rounded-full border-2 border-zinc-600 border-t-transparent animate-spin" aria-hidden="true" />;
+    return <span className="spin" aria-hidden="true" />;
 }
 
 
