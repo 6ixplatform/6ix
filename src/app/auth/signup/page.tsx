@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import Script from 'next/script';
 import BackStopper from '@/components/BackStopper';
 import HelpKit from '@/components/HelpKit';
+import NoBack from '@/components/NoBack';
 
 const EMAIL_DOMAINS = [
     'gmail.com', 'icloud.com', 'yahoo.com', 'hotmail.com', 'outlook.com',
@@ -251,6 +252,8 @@ export default function SignUpPage() {
 
     return (
         <>
+        <BackStopper/>
+        <NoBack/>
             {/* SEO JSON-LD for the auth page */}
             <Script id="ld-signup" type="application/ld+json"
                 dangerouslySetInnerHTML={{

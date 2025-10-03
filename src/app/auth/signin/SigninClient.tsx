@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import BackStopper from '@/components/BackStopper';
 import HelpKit from '@/components/HelpKit';
+import NoBack from '@/components/NoBack';
 
 type LastUser = {
     handle?: string;
@@ -171,6 +172,7 @@ export default function SignInClient() {
     return (
         <>
             <BackStopper />
+            <NoBack/>
 
             <main className="auth-screen auth-scope min-h-dvh bg-black text-white" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
 

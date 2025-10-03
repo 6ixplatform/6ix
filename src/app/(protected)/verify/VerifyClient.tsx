@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { supabaseBrowser } from '@/lib/supabaseBrowser';
 import BackStopper from '@/components/BackStopper';
 import HelpKit from '@/components/HelpKit';
+import NoBack from '@/components/NoBack';
 
 const DIGITS = 6;
 const RESEND_COOLDOWN_SEC = 30;
@@ -232,6 +233,7 @@ export default function VerifyClient() {
         <main className="auth-screen verify-scope min-h-dvh" style={{ paddingTop: 'env(safe-area-inset-top,0px)' }}>
             
             <BackStopper/>
+            <NoBack/>
            <HelpKit side="left" />
             {/* HELP (mirror Sign-up) */}
            

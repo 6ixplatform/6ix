@@ -6,6 +6,7 @@ import BackStopper from '@/components/BackStopper';
 import { supabaseBrowser } from '@/lib/supabaseBrowser';
 import { uploadAvatar } from '@/lib/avatar';
 import HelpKit from '@/components/HelpKit';
+import NoBack from '@/components/NoBack';
 
 type Gender = 'male' | 'female' | 'nonbinary' | 'other' | 'prefer_not_to_say' | '';
 
@@ -302,7 +303,7 @@ export default function ProfileSetupProfileClient() {
     return (
         <>
             <BackStopper />
-
+            <NoBack />
 
             <main className="profile-scope min-h-dvh bg-black text-zinc-100" style={{ paddingTop: 'env(safe-area-inset-top,0px)' }}>
                 <HelpKit side="left" />

@@ -4,7 +4,7 @@ import '@/styles/6ix.css';
 import type { Metadata, Viewport } from 'next';
 import ClientRoot from './ClientRoot';
 import ThemeBoot from './ThemeBoot'; // <-- inline boot script (runs only in browser)
-import { ThemeProvider } from '@/theme/ThemeProvider';
+
 
 /** Resolve a safe absolute URL for metadataBase */
 function safeURL(input?: string): URL {
@@ -69,9 +69,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeBoot />
 
         {/* single render of the app; ThemeProvider is the only client wrapper */}
-        <ThemeProvider>
+        
           <ClientRoot>{children}</ClientRoot>
-        </ThemeProvider>
+        
       </body>
     </html>
   );

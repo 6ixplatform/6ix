@@ -158,7 +158,7 @@ export default function HelpKit({
                 aria-expanded={open}
                 aria-controls="hk-panel"
             >
-                {label}
+                <span className="hk-chip__text">{label}</span>
             </button>
 
             {/* PANEL (portal + fixed dropdown; never pushes layout) */}
@@ -196,6 +196,7 @@ export default function HelpKit({
 
             {/* Styles (scoped) */}
             <style jsx>{`
+            
 :root{
 /* 🔧 move the chip without code changes */
 --hk-chip-top: 6px;
@@ -208,8 +209,12 @@ export default function HelpKit({
 --hk-panel-gap: 8px;
 }
 
-.hk-root { position: relative; z-index: 40; display: block; width: 100%; }
 
+/* target the global html.theme-light using styled-jsx's :global() */
+:global(html.theme-light) .hk-chip__text { color: #111 !important; }
+.hk-root { position: relative; z-index: 40; display: block; width: 100%; }
+.hk-chip__text{ color:#fff !important; }
+html.theme-light .hk-chip__text{ color:#111 !important; }
 /* ---------- Chip (fixed) ---------- */
 .hk-chip{
 position: fixed mt-0;
@@ -232,10 +237,17 @@ cursor:pointer;
 }
 .hk-right .hk-chip{ right: calc(env(safe-area-inset-right) + var(--hk-chip-right)); }
 .hk-left .hk-chip{ left: calc(env(safe-area-inset-left) + var(--hk-chip-left)); }
-.hk-chip:active{ transform:scale(.98); }
+/* --- Force readable text on the Help chip --- */
+.hk-chip{
+/* dark/default */
+color: #fff !important;
+-webkit-text-fill-color: currentColor !important;
+}
+
 html.theme-light .hk-chip{
-background:rgba(0,0,0,.06); border-color:rgba(0,0,0,.18); color:#000;
-box-shadow: inset 0 1px 0 rgba(255,255,255,.15), 0 4px 12px rgba(0,0,0,.12);
+/* light mode = black text */
+color: #111 !important;
+-webkit-text-fill-color: currentColor !important;
 }
 
 /* ---------- Panel (overlay dropdown) ---------- */
@@ -331,7 +343,29 @@ margin-top:10px;
 }
 .hk-btn.is-disabled{ opacity:.6; cursor:not-allowed; }
 .hk-primary{ background:#fff; color:#000; }
-html.theme-light .hk-primary{ background:#000; color:#fff; }
+
+html.theme-light .hk-chip,
+html.light .hk-chip,
+html[data-theme="light"] .hk-chip{
+background: rgba(0,0,0,.06);
+border-color: rgba(0,0,0,.18);
+color: #000 !important;
+-webkit-text-fill-color: #000; /* Safari/iOS */
+text-shadow: none;
+opacity: 1;
+}
+
+/* And replace your mini-chip light rule with this */
+html.theme-light .hk-chip-mini,
+html.light .hk-chip-mini,
+html[data-theme="light"] .hk-chip-mini{
+background: rgba(0,0,0,.06);
+border-color: rgba(0,0,0,.18);
+color: #000 !important;
+-webkit-text-fill-color: #000;
+opacity: 1;
+}
+
 `}</style>
         </div>
     );
