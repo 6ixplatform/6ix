@@ -70,7 +70,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         {/* run ASAP in the browser to set initial theme classes/vars (no flash), no SSR localStorage access */}
         <ThemeBoot />
-        <ThemeBoot />
         <VideoWarmup urls={[
           '/media/posters/hero.avif',
           '/media/posters/live1.avif',
