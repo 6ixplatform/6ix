@@ -32,7 +32,7 @@ export default function VerifyClient() {
     const [resending, setResending] = useState(false);
     const [cooldown, setCooldown] = useState(0);
     const [err, setErr] = useState<string | null>(null);
-    
+
 
     // ---- NEW: strict one-shot guards to stop double verify
     const verifyingRef = useRef(false); // blocks concurrent verify
@@ -102,10 +102,11 @@ export default function VerifyClient() {
     // ---------- actions
 
     // Verify via API; on success go straight to /profile (no loader flicker)
+    // Verify via API; bind server cookie; then go to /profile
     const verify = async () => {
         if (!email || !ready) return;
-        if (verifyingRef.current) return; // hard gate against double calls
-        verifyingRef.current = true; // lock immediately
+        if (verifyingRef.current) return;
+        verifyingRef.current = true;
         setVerifying(true);
         setErr(null);
 
@@ -115,31 +116,42 @@ export default function VerifyClient() {
                 headers: { 'content-type': 'application/json' },
                 body: JSON.stringify({ email, code: joined, redirect: redirectTo }),
                 cache: 'no-store',
-                credentials: 'same-origin', // ensure auth cookies persist
+                credentials: 'same-origin',
             });
             const data = await r.json();
             if (!r.ok || !data?.ok) throw new Error(data?.error || 'Invalid or expired code');
+
+            // Set client session for the JS SDK
             if (data?.session?.access_token && data?.session?.refresh_token) {
                 await supabase.auth.setSession({
                     access_token: data.session.access_token,
                     refresh_token: data.session.refresh_token,
                 });
+
+                // IMPORTANT: bind the session cookie for middleware/SSR
+                await fetch('/api/auth/callback', {
+                    method: 'POST',
+                    headers: { 'content-type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ event: 'SIGNED_IN', session: data.session }),
+                });
             }
-            // Wait briefly so the browser sees the session cookie, but don't stall long
-            await waitForSessionFast(600); // ~0.6s cap (faster than before)
+
+            // Small wait so middleware can read cookie
+            await waitForSessionFast(1000);
 
             const to = String(data.redirect || redirectTo || fallbackRedirect);
-            router.replace(to); // quicker, single navigation
-            // Do not reset verifying; navigation will take the UI away
+            router.replace(to);
         } catch (e: any) {
             setErr(e?.message || 'Invalid or expired code. Try again or resend.');
             setCode(Array(DIGITS).fill(''));
             inputsRef.current[0]?.focus();
             setVerifying(false);
-            verifyingRef.current = false; // unlock on error
-            autoAttemptedRef.current = false; // allow a clean retry
+            verifyingRef.current = false;
+            autoAttemptedRef.current = false;
         }
     };
+
 
     // ===== OTP handlers: auto-advance, smart backspace, paste fill =====
     const focusAt = (idx: number) => inputsRef.current[idx]?.focus();
@@ -231,12 +243,12 @@ export default function VerifyClient() {
 
     return (
         <main className="auth-screen verify-scope min-h-dvh" style={{ paddingTop: 'env(safe-area-inset-top,0px)' }}>
-            
-            <BackStopper/>
-            <NoBack/>
-           <HelpKit side="left" />
+
+            <BackStopper />
+            <NoBack />
+            <HelpKit side="right" />
             {/* HELP (mirror Sign-up) */}
-           
+
             {/* Desktop */}
             <div className="hidden md:grid grid-cols-2 min-h-dvh">
                 <aside className="relative overflow-hidden">
@@ -248,7 +260,7 @@ export default function VerifyClient() {
                 </aside>
 
                 <section className="relative px-8 lg:px-12 pt-50 pb-12 overflow-y-auto">
-                    
+
                     <header>
                         <h1 className="text-4xl lg:text-5xl font-semibold leading-tight">Verify your code</h1>
                         <p className="mt-3 text-zinc-300">
@@ -278,7 +290,7 @@ export default function VerifyClient() {
 
             {/* Mobile */}
             <div className="md:hidden pb-20">
-                
+
                 <div className="verify-card  pt-6 grid place-items-center">
                     <Image src="/splash.png" alt="6ix" width={120} height={120} priority className="rounded-xl object-cover" />
                     <h1 className="mt-4 text-3xl font-semibold text-center px-6">Verify your code</h1>

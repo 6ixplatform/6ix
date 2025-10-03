@@ -444,13 +444,24 @@ export function ThemePanel({
         const r = el.getBoundingClientRect();
         setPos({ top: Math.max(56, r.bottom + 8), left: Math.min(window.innerWidth - 360, r.right - 340) });
     }, [open, anchorRef, isMobile]);
-
+    // close panel + be sure to clear upgrade modal, even on outside-click
     useEffect(() => {
         if (!open || typeof document === 'undefined') return;
-        const onDoc = (e: MouseEvent) => { const t = e.target as Node; if (!panelRef.current?.contains(t)) onClose(); };
+        const onDoc = (e: MouseEvent) => {
+            const t = e.target as Node;
+            if (!panelRef.current?.contains(t)) {
+                setShowUp(false); // <-- reset upgrade modal
+                onClose();
+            }
+        };
         document.addEventListener('mousedown', onDoc);
         return () => document.removeEventListener('mousedown', onDoc);
     }, [open, onClose]);
+
+    // if the panel is closed by any means, ensure upgrade modal is reset
+    useEffect(() => {
+        if (!open) setShowUp(false);
+    }, [open]);
 
     if (!open) return null;
 

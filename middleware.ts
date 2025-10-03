@@ -16,6 +16,7 @@ const UNAUTH_REDIRECT = '/'; // where unauth’d users land
 // add near top
 const PUBLIC_API_ALLOW = [
     '/api/auth/check-email',
+    '/api/auth/callback',
     '/api/support',
 ];
 
