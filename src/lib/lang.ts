@@ -1,4 +1,6 @@
 // /lib/lang.ts
+import { lookupNameLang } from '@/lib/nameLangTable';
+
 export type Plan = 'free' | 'pro' | 'max';
 
 export type LangCode =
@@ -19,7 +21,13 @@ const NAME_HINTS: Record<LangCode, RegExp[]> = {
     en: [], es: [], fr: [], de: [], pt: [], it: [], tr: [], ru: [], ar: [], hi: [], bn: [], zh: [], ja: [], ko: [], fa: [], ur: [], vi: [], id: [], th: []
 };
 
+// Replace only this function in /lib/lang.ts
 export function nameLangHint(displayName = ''): LangCode | null {
+    // 1) Deterministic table hit (authoritative)
+    const hit = lookupNameLang(displayName);
+    if (hit) return hit as LangCode;
+
+    // 2) Fallback to your existing regex hints (kept as a safety net)
     const n = displayName.trim().toLowerCase();
     if (!n) return null;
     for (const [code, arr] of Object.entries(NAME_HINTS) as [LangCode, RegExp[]][]) {
@@ -27,7 +35,6 @@ export function nameLangHint(displayName = ''): LangCode | null {
     }
     return null;
 }
-
 export function detectLanguage(text: string, fallback = 'en'): LangCode {
     const t = (text || '').trim();
     if (!t) return fallback as LangCode;
@@ -87,10 +94,12 @@ export function LANGUAGE_RULES(plan: Plan, langHint?: string): string {
             `Language: default to English.`,
             loc ? `If the user hints ${loc.name}, add a short greeting or 1–2 comfort words (${loc.sprinkle.join(', ')}) then continue in English.` : '',
             `If the user explicitly asks for a *full* non-English chat, ask for confirmation and state that full ${loc?.name || code} chat is a Pro feature; continue in English.`,
+            'Write in native orthography with correct diacritics; do not transliterate or mix English unless needed.',
         ].filter(Boolean).join('\n');
     }
     return [
         `Language: when user hints preference, reply fully in ${code.toUpperCase()} until they switch back.`,
+        'Write in native orthography with correct diacritics; do not transliterate or mix English unless needed.',
         loc ? `In sensitive moments, open with a brief reassurance in ${loc.name} (${loc.sprinkle.join(', ')}) before the main guidance.` : ''
     ].filter(Boolean).join('\n');
 }

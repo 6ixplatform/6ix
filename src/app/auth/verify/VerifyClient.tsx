@@ -138,7 +138,7 @@ export default function VerifyClient() {
             }
 
             // Small wait so middleware can read cookie
-            await waitForSessionFast(1000);
+            await waitForSessionFast(1200);
 
             const to = String(data.redirect || redirectTo || fallbackRedirect);
             router.replace(to);

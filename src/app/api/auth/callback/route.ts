@@ -1,24 +1,22 @@
-// /src/app/api/auth/callback/route.ts
+// app/api/auth/callback/route.ts
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 
-export async function POST(req: Request) {
-    try {
-        const { event, session } = await req.json();
-        const supabase = createRouteHandlerClient({ cookies });
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
-        // When the client signs in/refreshes, persist the session cookie for middleware/SSR
-        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-            if (session?.access_token && session?.refresh_token) {
-                await supabase.auth.setSession({
-                    access_token: session.access_token,
-                    refresh_token: session.refresh_token,
-                });
-            }
-        }
-        return NextResponse.json({ ok: true });
-    } catch (e: any) {
-        return NextResponse.json({ ok: false, error: e?.message || 'callback_failed' }, { status: 400 });
+export async function GET(req: Request) {
+    const url = new URL(req.url);
+    const code = url.searchParams.get('code');
+
+    // ✅ give Supabase a function that returns the cookies PROMISE
+    const supabase = createRouteHandlerClient({ cookies: () => cookies() });
+
+    if (code) {
+        await supabase.auth.exchangeCodeForSession(code); // this sets sb-* cookies for you
     }
+
+    const redirectTo = url.searchParams.get('next') ?? '/ai';
+    return NextResponse.redirect(new URL(redirectTo, url.origin));
 }

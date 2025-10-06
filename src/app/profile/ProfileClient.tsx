@@ -271,20 +271,23 @@ export default function ProfileSetupProfileClient() {
             };
 
             // 3) Save via API
-            const { data: { session } } = await supabase.auth.getSession();
-            const token = session?.access_token;
 
-            const res = await fetch('/api/profile', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-                },
-                body: JSON.stringify(payload),
-                credentials: 'include',
-            });
-            const j = await res.json().catch(() => ({}));
-            if (!res.ok) throw new Error(j?.error || 'save_failed');
+
+            // 3) Save profile DIRECTLY via Supabase (bypass API during onboarding)
+            const { error: upErr } = await supabase
+                .from('profiles')
+                .upsert(
+                    {
+                        id: me.id, // <- satisfies WITH CHECK (auth.uid() = id)
+                        ...payload,
+                        updated_at: new Date().toISOString(),
+                    },
+                    { onConflict: 'id' } // upsert my own row
+                )
+                .select('id') // force PostgREST to execute/return one row
+                .single();
+
+            if (upErr) throw new Error(upErr.message);
 
             // 4) Seed the AI page avatar immediately
             const publicAvatar = toPublicUrl(avatar_storage_path);
@@ -309,10 +312,11 @@ export default function ProfileSetupProfileClient() {
                 localStorage.setItem('6ix:last_email', payload.email.toLowerCase());
             } catch { }
 
-
-            // 5) local flag to avoid loops
-            try { localStorage.setItem('6ix_onboarded', '1'); } catch { }
-
+            // 5) short-lived cookie visible to middleware (10 min is plenty)
+            try {
+                document.cookie = '6ix_onboarded=1; Max-Age=600; Path=/; SameSite=Lax';
+                localStorage.setItem('6ix_onboarded', '1'); // keep your local hint too
+            } catch { /* no-op */ }
             // 5.5) Fire-and-forget onboarding "welcome" ping (won't block nav)
             try {
                 const welcomeBody = JSON.stringify({
@@ -338,10 +342,10 @@ export default function ProfileSetupProfileClient() {
                 }
             } catch { /* ignore */ }
 
-            // 6) Navigate home
+            // 6) Navigate home (single navigation is enough)
             r.replace('/ai');
-            try { r.refresh(); } catch { }
-            setTimeout(() => { try { window.location.assign('/ai'); } catch { } }, 40);
+            // tiny delay as a belt-and-suspenders fallback, but one nav is normally fine
+            setTimeout(() => { try { window.location.replace('/ai'); } catch { } }, 50);
 
         } catch (e: any) {
             setErr(e?.message || 'Failed to save profile');
@@ -370,7 +374,7 @@ export default function ProfileSetupProfileClient() {
                     </aside>
 
                     <section className="relative px-8 lg:px-12 pt-12 pb-16 overflow-visible">
-                        <header className="mb-6">
+                        <header className="-mb-2">
                             <h1 className="text-4xl lg:text-5xl font-semibold leading-tight">Profile setup</h1>
                         </header>
 

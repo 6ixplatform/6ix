@@ -2,27 +2,36 @@
 'use client';
 import React, { useEffect, useMemo, useState } from 'react';
 
-type Props = {
+type ImageMsgProps = {
     url?: string; // falsy => generating or not ready
     prompt: string;
     displayName?: string | null; // personalize status
+    busy?: boolean; // ← parent-controlled "working" (describe/tts)
     onOpen: () => void;
     onDescribe: () => void;
     onRecreate: () => void;
     onShare: () => void;
 };
 
-const Btn = ({ title, onClick, children }:
-    { title: string; onClick: () => void; children: React.ReactNode }) => (
+const Btn = ({
+    title, onClick, children, disabled,
+}: {
+    title: string;
+    onClick: () => void;
+    children: React.ReactNode;
+    disabled?: boolean; // ← NEW
+}) => (
     <button
         className="icon-btn inline-flex items-center justify-center h-7 w-7 rounded-md active:scale-95 transition disabled:opacity-40 disabled:pointer-events-none"
         title={title}
         aria-label={title}
         onClick={onClick}
+        disabled={disabled} // ← NEW
     >
         {children}
     </button>
 );
+
 const Icon = {
     Volume: () => (
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -49,8 +58,8 @@ const Icon = {
 };
 
 export default function ImageMsg({
-    url, prompt, displayName, onOpen, onDescribe, onRecreate, onShare
-}: Props) {
+    url, prompt, displayName, busy, onOpen, onDescribe, onRecreate, onShare
+}: ImageMsgProps) {
     // status machine: we never mount <img> unless status === 'ready'
     const [status, setStatus] = useState<'idle' | 'pending' | 'ready' | 'error'>(() => (url ? 'pending' : 'idle'));
     const [displayUrl, setDisplayUrl] = useState<string | null>(null);
@@ -107,13 +116,14 @@ export default function ImageMsg({
 
     const isLoading = status !== 'ready';
     const hasError = status === 'error';
+    const isWorking = !!busy || isLoading; // ← spinner if loading OR parent says busy
 
     return (
         <div className="space-y-1">
             <div
                 className="relative overflow-hidden rounded-2xl border border-white/12 bg-white/5"
                 style={{ width: 'min(92vw, 620px)' }}
-                aria-busy={isLoading}
+                aria-busy={isWorking} // ← reflect busy state
             >
                 {/* Skeleton (shown for pending & error) */}
                 {isLoading && (
@@ -154,35 +164,41 @@ export default function ImageMsg({
                 )}
             </div>
 
-            {/* Actions: disabled until ready */}
+            {/* Actions */}
             <div className="image-actions flex items-center gap-2">
                 {isLoading ? (
                     <Icon.Spinner />
                 ) : (
                     <>
-                        <Btn title="Listen (describe)" onClick={onDescribe}><Icon.Volume /></Btn>
-                        <Btn title="Recreate" onClick={onRecreate}><Icon.Refresh /></Btn>
-                        <Btn title="Share" onClick={onShare}><Icon.Share /></Btn>
+                        {/* Listen shows spinner while parent marks this card busy */}
+                        <Btn
+                            title={busy ? 'Working…' : 'Listen (describe)'}
+                            onClick={busy ? () => { } : onDescribe}
+                            disabled={!!busy}
+                        >
+                            {busy ? <Icon.Spinner /> : <Icon.Volume />}
+                        </Btn>
+
+                        <Btn title="Recreate" onClick={onRecreate} disabled={!!busy}>
+                            <Icon.Refresh />
+                        </Btn>
+
+                        <Btn title="Share" onClick={onShare} disabled={!!busy}>
+                            <Icon.Share />
+                        </Btn>
                     </>
                 )}
             </div>
+
             <style jsx>{`
 @keyframes pingpong {
 0% { transform: translateX(0); }
 50% { transform: translateX(10px); }
 100% { transform: translateX(0); }
 }
-
-@keyframes pingpong {
-0% { transform: translateX(0); }
-50% { transform: translateX(10px); }
-100% { transform: translateX(0); }
-}
-
 .image-actions { color: var(--icon-fg); } /* icons = currentColor */
 .icon-btn { color: inherit; background: transparent; }
 .icon-btn:hover { background: var(--th-surface); } /* readable on both themes */
-
 `}</style>
         </div>
     );

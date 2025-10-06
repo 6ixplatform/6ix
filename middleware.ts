@@ -1,4 +1,4 @@
-// middleware.ts
+// src/middleware.ts
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs';
@@ -11,16 +11,15 @@ const CANONICAL_HOST = SITE_URL ? new URL(SITE_URL).host : '';
 
 const APP_HOME = '/ai'; // main app page after onboarding
 const RESUME_DEFAULT = '/profile'; // onboarding entry page (profile setup)
-const UNAUTH_REDIRECT = '/'; // where unauth’d users land
 
-// add near top
+// Public API (no auth)
 const PUBLIC_API_ALLOW = [
     '/api/auth/check-email',
     '/api/auth/callback',
     '/api/support',
 ];
 
-// Public (no auth required) pages
+// Public pages (no auth)
 const PUBLIC_ALLOW = [
     '/',
     '/get-started',
@@ -38,7 +37,7 @@ const PUBLIC_ALLOW = [
 // OTP endpoints (rate-limited separately)
 const OTP_ENDPOINTS = ['/api/auth/send-otp', '/api/auth/verify-otp'];
 
-// APIs that must be available while user is still onboarding
+// APIs allowed during onboarding
 const API_ALLOW_DURING_ONBOARD = [
     '/api/profile',
     '/api/profile/check-username',
@@ -52,6 +51,7 @@ Helpers
 function isLocalHost(host: string) {
     return host === 'localhost' || host === '127.0.0.1' || /^\d+\.\d+\.\d+\.\d+$/.test(host);
 }
+
 const isSkippablePath = (p: string) =>
     p.startsWith('/_next') ||
     p.startsWith('/assets') ||
@@ -61,18 +61,21 @@ const isSkippablePath = (p: string) =>
     /\.[A-Za-z0-9]+$/.test(p);
 
 const isPublicPath = (p: string) => PUBLIC_ALLOW.some(base => p === base || p.startsWith(base + '/'));
-
-// allow /auth/verify even if the user is signed-in
-const isAuthVerifyPath = (p: string) =>
-    p === '/auth/verify' || p.startsWith('/auth/verify/');
-
-// Treat these as onboarding/setup screens
+const isAuthVerifyPath = (p: string) => p === '/auth/verify' || p.startsWith('/auth/verify/');
 const isSetupPath = (p: string) =>
     p === '/profile' || p.startsWith('/profile/') ||
     p === '/onboarding' || p.startsWith('/onboarding/');
-
-// Public/onboarding **entry** pages we never want onboarded users to see
 const isOnboardingPublic = (p: string) => p === '/' || p === '/get-started' || p.startsWith('/auth');
+
+/** detect the presence of Supabase auth cookies (host-bound) */
+function hasSupabaseAuthCookies(req: NextRequest) {
+    const names = req.cookies.getAll().map(c => c.name);
+    // Supabase v2 helpers name cookies like: sb-<project-ref>-auth-token / -refresh-token
+    return names.some(n =>
+        (n.startsWith('sb-') && (n.endsWith('-auth-token') || n.endsWith('-refresh-token')))
+        || n === 'supabase-auth-token' // legacy safety
+    );
+}
 
 /* ────────────────────────────────────────────────────────────────────────────
 Security headers
@@ -106,6 +109,11 @@ function addSecurityHeaders(res: NextResponse, dev = false) {
     return res;
 }
 
+/** forward any cookies Supabase wrote onto `out` */
+function forward(from: NextResponse, out: NextResponse, dev = false) {
+    for (const c of from.cookies.getAll()) out.cookies.set(c);
+    return addSecurityHeaders(out, dev);
+}
 
 /* ────────────────────────────────────────────────────────────────────────────
 (Optional) Upstash REST rate limit
@@ -146,124 +154,114 @@ export async function middleware(req: NextRequest) {
     const path = nextUrl.pathname;
     const dev = isLocalHost(nextUrl.host);
 
-    // Canonical host + HTTPS (prod only)
-    const host = nextUrl.host;
-    const prodCanonical = SITE_URL && CANONICAL_HOST && !isLocalHost(host);
-    if (
-        prodCanonical &&
-        (host !== CANONICAL_HOST ||
-            (headers.get('x-forwarded-proto') !== 'https' && nextUrl.protocol !== 'https:'))
-    ) {
-        const url = new URL(nextUrl);
-        url.host = CANONICAL_HOST;
-        url.protocol = 'https:';
-        return addSecurityHeaders(NextResponse.next(), dev);
-
-    }
-
     // Skip static/assets
-    if (isSkippablePath(path)) return addSecurityHeaders(NextResponse.next());
+    if (isSkippablePath(path)) return addSecurityHeaders(NextResponse.next(), dev);
 
-    // Rate-limit OTP endpoints
+    // Pre-rate-limit OTP endpoints
     if (OTP_ENDPOINTS.includes(path)) {
         const { allowed } = await rateLimit(req, path, 5, 60);
         if (!allowed) {
             return addSecurityHeaders(
-                NextResponse.json({ error: 'Too many requests. Please wait a minute and try again.' }, { status: 429 })
+                NextResponse.json({ error: 'Too many requests. Please wait a minute and try again.' }, { status: 429 }),
+                dev
             );
         }
     }
 
     // CORS preflight
     if (method === 'OPTIONS' && path.startsWith('/api/')) {
-        return addSecurityHeaders(new NextResponse(null, { status: 204 }));
+        return addSecurityHeaders(new NextResponse(null, { status: 204 }), dev);
     }
 
     // CSRF-ish guard for non-GET app APIs (excluding OTP)
     if (method !== 'GET' && path.startsWith('/api/') && !OTP_ENDPOINTS.includes(path)) {
         const origin = headers.get('origin') || '';
         const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
-            .split(',')
-            .map(s => s.trim())
-            .filter(Boolean);
-        const sameHost = (() => {
-            try { return origin && new URL(origin).host === nextUrl.host; } catch { return false; }
-        })();
+            .split(',').map(s => s.trim()).filter(Boolean);
+        const sameHost = (() => { try { return origin && new URL(origin).host === nextUrl.host; } catch { return false; } })();
         if (!sameHost && SITE_URL && origin !== SITE_URL && !allowedOrigins.includes(origin)) {
-            return addSecurityHeaders(NextResponse.json({ error: 'Forbidden' }, { status: 403 }));
+            return addSecurityHeaders(NextResponse.json({ error: 'Forbidden' }, { status: 403 }), dev);
         }
     }
 
-    // Auth session
+    // Prepare a base response that Supabase can write cookies onto
     let res = NextResponse.next();
+
+    // Canonical host + HTTPS (prod only)
+    const host = nextUrl.host;
+    const prodCanonical =
+        SITE_URL && CANONICAL_HOST &&
+        process.env.VERCEL_ENV === 'production' && // ← add this guard
+        !isLocalHost(host);
+
+    if (prodCanonical &&
+        (host !== CANONICAL_HOST ||
+            (headers.get('x-forwarded-proto') !== 'https' && nextUrl.protocol !== 'https:'))
+    ) {
+        const url = new URL(nextUrl);
+        url.host = CANONICAL_HOST;
+        url.protocol = 'https:';
+        return forward(res, NextResponse.redirect(url, 308), dev);
+    }
+
+    // Get (and possibly refresh) session — may write cookies onto `res`
     const supabase = createMiddlewareClient({ req, res });
     const { data: { session } } = await supabase.auth.getSession();
 
-    /* ── Unauthenticated users ─────────────────────────────────────────────── */
+    /* ── Unauthenticated (soft) ─────────────────────────────────────────────── */
     if (!session) {
+        // APIs stay strict: require auth unless explicitly allowed
         if (path.startsWith('/api/')) {
-            const allowed =
-                OTP_ENDPOINTS.includes(path) || PUBLIC_API_ALLOW.includes(path);
-            if (!allowed) {
-                return addSecurityHeaders(
-                    NextResponse.json({ error: 'auth_required' }, { status: 401, headers: res.headers })
-                );
-            }
-            return addSecurityHeaders(res);
+            const allowed = OTP_ENDPOINTS.includes(path) || PUBLIC_API_ALLOW.includes(path);
+            if (!allowed) return forward(res, NextResponse.json({ error: 'auth_required' }, { status: 401 }), dev);
+            return addSecurityHeaders(res, dev);
         }
-        // Pages: allow only public; any other path → send to UNAUTH_REDIRECT
+
+        // Pages: if Supabase cookies exist, allow one pass so the client can hydrate/refresh
         if (!isPublicPath(path)) {
-            const to = new URL(UNAUTH_REDIRECT, req.url);
+            if (hasSupabaseAuthCookies(req)) {
+                return addSecurityHeaders(res, dev); // let through; prevents bounce to /auth/signin
+            }
+            const to = new URL('/auth/signin', req.url);
             to.searchParams.set('next', path);
-            return addSecurityHeaders(NextResponse.redirect(to, { headers: res.headers }));
+            return forward(res, NextResponse.redirect(to, 307), dev);
         }
-        return addSecurityHeaders(res);
+        return addSecurityHeaders(res, dev);
     }
 
-    /* ── Signed-in users ───────────────────────────────────────────────────── */
-    // Check onboarding flag
+    /* ── Signed-in ──────────────────────────────────────────────────────────── */
     const { data: profile } = await supabase
         .from('profiles')
         .select('onboarding_completed')
         .eq('id', session.user.id)
         .maybeSingle();
 
-    const onboarded = Boolean(profile?.onboarding_completed);
+    // allow “bounced-back-in” even if DB write hasn’t landed yet
+    const cookieOnboarded = req.cookies.get('6ix_onboarded')?.value === '1';
+    const onboarded = Boolean(profile?.onboarding_completed) || cookieOnboarded;
 
-    // Not onboarded → force into onboarding,
-    // but ALWAYS allow /auth/verify so the OTP screen can load.
+    // Not onboarded → force into onboarding, but ALWAYS allow /auth/verify
     if (!onboarded) {
         if (path.startsWith('/api/')) {
             const allowed = API_ALLOW_DURING_ONBOARD.some(b => path === b || path.startsWith(b + '/'));
-            if (allowed) return addSecurityHeaders(res);
-            return addSecurityHeaders(
-                NextResponse.json({ error: 'onboarding_required' }, { status: 428, headers: res.headers })
-            );
+            if (allowed) return addSecurityHeaders(res, dev);
+            return forward(res, NextResponse.json({ error: 'onboarding_required' }, { status: 428 }), dev);
         }
-
-        // ← carve-out for the verify page
-        if (isAuthVerifyPath(path)) {
-            return addSecurityHeaders(res);
-        }
-
+        if (isAuthVerifyPath(path)) return addSecurityHeaders(res, dev);
         if (!isSetupPath(path)) {
             const to = new URL(RESUME_DEFAULT, req.url);
-            return addSecurityHeaders(NextResponse.redirect(to, { headers: res.headers }));
+            return forward(res, NextResponse.redirect(to, 307), dev);
         }
-        return addSecurityHeaders(res);
+        return addSecurityHeaders(res, dev);
     }
 
-
-    // Already onboarded:
-    // Keep users OUT of onboarding/public entry pages forever (Facebook-like)
+    // Already onboarded → keep users OUT of onboarding/public entry pages forever
     if ((isOnboardingPublic(path) && !isAuthVerifyPath(path)) || isSetupPath(path)) {
         const to = new URL(APP_HOME, req.url);
-        // 307 keeps method and avoids cache; also makes back-button "do nothing"
-        return addSecurityHeaders(NextResponse.redirect(to, 307));
+        return forward(res, NextResponse.redirect(to, 307), dev);
     }
 
-    // Everything else allowed
-    return addSecurityHeaders(res);
+    return addSecurityHeaders(res, dev);
 }
 
 /* ────────────────────────────────────────────────────────────────────────────

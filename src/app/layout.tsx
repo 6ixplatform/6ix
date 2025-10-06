@@ -70,13 +70,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         {/* run ASAP in the browser to set initial theme classes/vars (no flash), no SSR localStorage access */}
         <ThemeBoot />
-        <VideoWarmup urls={[
-          '/media/posters/hero.avif',
-          '/media/posters/live1.avif',
-          '/media/videos/intro.mp4',
-          '/media/videos/live-trailer.mp4',
-        ]} />
-        {/* single render of the app; ThemeProvider is the only client wrapper */}
 
         <ClientRoot>{children}</ClientRoot>
 

@@ -10,8 +10,10 @@ import React, {
     useState,
 } from 'react';
 import { createPortal } from 'react-dom';
+import type { MutableRefObject } from 'react';
+import { supabaseBrowser } from '@/lib/supabaseBrowser';
 
-/* ========= TOKENS ========= */
+/* ========= TYPES ========= */
 
 export type ThemeMode = 'system' | 'light' | 'dark';
 export type Plan = 'free' | 'pro' | 'max';
@@ -31,7 +33,7 @@ export type AnimKey =
     | 'water' | 'crypto-grid' | 'trading-ticks' | 'runway'
     | 'stars' | 'plasma' | 'waves' | 'radial-sun'
     | 'camo-woodland' | 'camo-desert' | 'camo-urban' | 'camo-navy'
-    // videos (derived from /public/wallpapers/*)
+    // live videos (from /public/wallpapers/*)
     | 'vid-aiskate' | 'vid-anime' | 'vid-bitcoin' | 'vid-bull' | 'vid-candle'
     | 'vid-cartoon' | 'vid-cat' | 'vid-chelsea' | 'vid-china'
     | 'vid-dancerfree' | 'vid-dancer1free' | 'vid-dancer2free' | 'vid-dancerboyfree' | 'vid-doodledancerfree' | 'vid-dancinggirl'
@@ -45,7 +47,23 @@ export type AnimKey =
     | 'vid-supereagle' | 'vid-tiger' | 'vid-trading' | 'vid-wave' | 'vid-weed';
 
 type Palette = { key: PaletteKey; label: string; bg: string; isDark?: boolean };
-type AnimDef = { key: AnimKey; label: string; preview?: string; video?: { src: string; poster?: string } };
+
+/** For videos we store the basename only. We resolve the working URL at runtime. */
+type AnimDef = { key: AnimKey; label: string; preview?: string; videoName?: string };
+
+/* ========= CONSTANTS ========= */
+
+const VIDEO_EXTS = ['mp4', 'webm', 'mov', 'm4v'] as const;
+
+/** Prefer MOV for these (you said Chelsea and FC1–FC5 are .mov). */
+const PREFERRED_EXT: Record<string, (typeof VIDEO_EXTS)[number]> = {
+    chelsea: 'mov',
+    fc1: 'mov',
+    fc2: 'mov',
+    fc3: 'mov',
+    fc4: 'mov',
+    fc5: 'mov',
+};
 
 export const PALETTES: Palette[] = [
     { key: 'light', label: 'Light', bg: '#ffffff', isDark: false },
@@ -87,16 +105,14 @@ export const PALETTES: Palette[] = [
     { key: 'butter-deep', label: 'Deep Butter', bg: '#ffca28', isDark: true },
 ];
 
-/* Always-free palettes (names with “free” in your assets don’t apply; palettes use this list) */
-export const FREE_KEYS: PaletteKey[] = [
-    'light', 'dark', 'sky', 'powder', 'mint-pastel', 'mint-blue'
-];
+/** Always-free color palettes */
+export const FREE_KEYS: PaletteKey[] = ['light', 'dark', 'sky', 'powder', 'mint-pastel', 'mint-blue'];
 
-/* Build video anim defs from /public/wallpapers */
+/* Build anim defs from /public/wallpapers (videoName only; no JPG poster) */
 const V = (name: string, label?: string): AnimDef => ({
     key: ('vid-' + name) as AnimKey,
     label: label ?? name.replace(/-/g, ' ').replace(/\b\w/g, s => s.toUpperCase()),
-    video: { src: `/wallpapers/${name}.mp4`, poster: `/wallpapers/${name}.jpg` }
+    videoName: name,
 });
 
 export const ALL_ANIMS: AnimDef[] = [
@@ -118,7 +134,7 @@ export const ALL_ANIMS: AnimDef[] = [
     { key: 'camo-urban', label: 'Camo Urban', preview: 'repeating-radial-gradient(#777,#666,#444 20%)' },
     { key: 'camo-navy', label: 'Camo Navy', preview: 'repeating-radial-gradient(#113,#224,#335 20%)' },
 
-    // videos from your folder (free = names containing "free")
+    // videos from your /public/wallpapers (no posters)
     V('aiskate', 'AI Skate'),
     V('anime', 'Anime'),
     V('bitcoin', 'Bitcoin'),
@@ -192,6 +208,55 @@ const applyPalette = (p: Palette) => {
     root.style.setProperty('--orb-fg', fg === '#000' ? '#fff' : '#fff');
 };
 
+/* ---------- Video source resolution & prewarm ---------- */
+
+const bestSrcCache = new Map<string, string>(); // name -> working URL
+
+const candidateUrls = (name: string) => {
+    const preferred = PREFERRED_EXT[name];
+    const order = preferred ? [preferred, ...VIDEO_EXTS.filter(e => e !== preferred)] : [...VIDEO_EXTS];
+    return order.map(ext => `/wallpapers/${name}.${ext}`);
+};
+
+async function headOK(url: string): Promise<boolean> {
+    try {
+        const r = await fetch(url, { method: 'HEAD', cache: 'no-store' });
+        return r.ok;
+    } catch {
+        return false;
+    }
+}
+
+async function resolveBestSrc(name: string): Promise<string> {
+    if (bestSrcCache.has(name)) return bestSrcCache.get(name)!;
+    const urls = candidateUrls(name);
+    for (const u of urls) {
+        if (await headOK(u)) {
+            bestSrcCache.set(name, u);
+            // Preload for instant play
+            try {
+                const link = document.createElement('link');
+                link.rel = 'preload';
+                link.as = 'video';
+                link.href = u;
+                document.head.appendChild(link);
+            } catch { }
+            return u;
+        }
+    }
+    // fallback (to avoid empty src even if HEAD blocked)
+    const fallback = urls[0];
+    bestSrcCache.set(name, fallback);
+    return fallback;
+}
+
+/** Prewarm all known video themes once. */
+// ★ Start immediately on mount (not gated by "ready")
+async function prewarmAllVideos() {
+    const names = ALL_ANIMS.map(a => a.videoName).filter(Boolean) as string[];
+    await Promise.allSettled(names.map(n => resolveBestSrc(n)));
+}
+
 function prepVideo(el: HTMLVideoElement) {
     el.muted = true;
     el.setAttribute('muted', '');
@@ -202,14 +267,14 @@ function prepVideo(el: HTMLVideoElement) {
     el.preload = 'auto';
 }
 
-const applyAnim = (a: AnimKey) => {
+async function applyAnim(a: AnimKey) {
     const root = document.documentElement;
     const def = ALL_ANIMS.find(x => x.key === a);
     const VID_ID = '__six_bg_video__';
     let el = document.getElementById(VID_ID) as HTMLVideoElement | null;
 
     // non-video / none → clean up
-    if (!def?.video || a === 'none') {
+    if (!def?.videoName || a === 'none') {
         if (el) {
             try { el.pause(); el.removeAttribute('src'); el.load?.(); el.remove(); } catch { }
         }
@@ -223,7 +288,7 @@ const applyAnim = (a: AnimKey) => {
         return;
     }
 
-    // create or reuse the bg <video>
+    // ensure video element
     if (!el) {
         el = document.createElement('video');
         el.id = VID_ID;
@@ -235,15 +300,16 @@ const applyAnim = (a: AnimKey) => {
         document.body.appendChild(el);
     }
 
-    // set poster if any
-    def.video.poster ? (el.poster = def.video.poster) : el.removeAttribute('poster');
-
-    // (re)load and start
-    if (el.src !== def.video.src) {
+    // pick a working source (HEAD-checked)
+    const src = await resolveBestSrc(def.videoName);
+    if (el.getAttribute('data-src') !== src) {
         el.pause();
-        el.src = def.video.src;
+        el.removeAttribute('src'); // clear old
+        el.setAttribute('data-src', src);
+        el.src = src;
         el.load();
     }
+
     const kick = () => { void el!.play().catch(() => { }); };
     if (el.readyState >= 2) kick();
     else {
@@ -258,39 +324,113 @@ const applyAnim = (a: AnimKey) => {
 
     root.setAttribute('data-anim', a);
     root.style.setProperty('--page-bg', 'transparent');
-};
+}
 
-/* ========= CONTEXT/Hooks ========= */
+/* ========= CONTEXT / HOOK ========= */
 
 type ThemeCtx = {
     mode: ThemeMode; setMode: (m: ThemeMode) => void;
     paletteKey: PaletteKey; setPaletteKey: (k: PaletteKey) => void;
     anim: AnimKey; setAnim: (k: AnimKey) => void;
     PALETTES: typeof PALETTES; ALL_ANIMS: typeof ALL_ANIMS; FREE_KEYS: PaletteKey[];
+    bestVideoSrcFor: (name: string) => string | undefined;
+
+    // ★ account gates
+    plan: Plan;
+    themeTrialUsed: boolean;
+    markThemeTrialUsed: (choice: { kind: 'palette' | 'anim'; key: string }) => Promise<void>;
 };
 
 const Ctx = createContext<ThemeCtx | null>(null);
 export const useTheme = () => useContext(Ctx)!;
 
-/* ========= Provider (SSR-safe) ========= */
+/* ========= PERSISTENCE (Supabase + localStorage) ========= */
 
-export function ThemeProvider({ children }: { children: React.ReactNode }) {
+async function loadThemeFromSupabase() {
+    try {
+        const supa = supabaseBrowser();
+        const { data: { user } } = await supa.auth.getUser();
+        if (!user) return null;
+        const { data } = await supa
+            .from('profiles')
+            .select('theme_mode, palette_key, anim_key, theme_trial_used')
+            .eq('id', user.id)
+            .single();
+        if (!data) return null;
+        return {
+            mode: (data.theme_mode as ThemeMode) || null,
+            paletteKey: (data.palette_key as PaletteKey) || null,
+            anim: (data.anim_key as AnimKey) || null,
+            themeTrialUsed: !!data.theme_trial_used,
+        };
+    } catch { return null; }
+}
+
+let saveTimer: any = null;
+async function saveThemeToSupabase(mode: ThemeMode, paletteKey: PaletteKey, anim: AnimKey) {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(async () => {
+        try {
+            const supa = supabaseBrowser();
+            const { data: { user } } = await supa.auth.getUser();
+            if (!user) return;
+            await supa.from('profiles').update({
+                theme_mode: mode,
+                palette_key: paletteKey,
+                anim_key: anim,
+            }).eq('id', user.id);
+        } catch { /* ignore */ }
+    }, 200);
+}
+
+async function markTrialUsedInSupabase(choice: { kind: 'palette' | 'anim'; key: string }) {
+    try {
+        const supa = supabaseBrowser();
+        const { data: { user } } = await supa.auth.getUser();
+        if (!user) return;
+        await supa.from('profiles').update({
+            theme_trial_used: true,
+            theme_trial_used_at: new Date().toISOString(),
+            theme_trial_choice: `${choice.kind}:${choice.key}`,
+        }).eq('id', user.id);
+    } catch { /* ignore */ }
+}
+
+/* ========= Provider ========= */
+export function ThemeProvider({ children, plan }: { children: React.ReactNode; plan?: Plan }) {
+    const effPlan: Plan = plan ?? 'free';
+
     const [mode, setMode] = useState<ThemeMode>('system');
     const [paletteKey, setPaletteKey] = useState<PaletteKey>('light');
     const [anim, setAnim] = useState<AnimKey>('none');
+    const [ready, setReady] = useState(false);
 
+    const [themeTrialUsed, setThemeTrialUsed] = useState(false);
+
+    // Prewarm videos once
+    useEffect(() => { prewarmAllVideos(); }, []);
+
+    // Hydrate (Supabase → localStorage fallback)
     useEffect(() => {
-        if (typeof window === 'undefined') return;
-        try {
-            const m = (localStorage.getItem('6ix:themeMode') as ThemeMode) || 'system';
-            const p =
-                (localStorage.getItem('6ix:palette') as PaletteKey) ||
-                (systemIsDark() ? 'dark' : 'light');
-            const a = (localStorage.getItem('6ix:anim') as AnimKey) || 'none';
-            setMode(m); setPaletteKey(p); setAnim(a);
-        } catch { }
+        (async () => {
+            let loaded = await loadThemeFromSupabase();
+            if (!loaded) {
+                try {
+                    const m = (localStorage.getItem('6ix:themeMode') as ThemeMode) || 'system';
+                    const p = (localStorage.getItem('6ix:palette') as PaletteKey) || (systemIsDark() ? 'dark' : 'light');
+                    const a = (localStorage.getItem('6ix:anim') as AnimKey) || 'none';
+                    loaded = { mode: m, paletteKey: p, anim: a, themeTrialUsed: false };
+                } catch { /* ignore */ }
+            }
+            if (loaded?.mode) setMode(loaded.mode);
+            if (loaded?.paletteKey) setPaletteKey(loaded.paletteKey);
+            if (loaded?.anim) setAnim(loaded.anim);
+            setThemeTrialUsed(!!loaded?.themeTrialUsed);
+            setReady(true);
+        })();
     }, []);
 
+    // React to system scheme when mode === 'system'
     useEffect(() => {
         if (typeof window === 'undefined' || mode !== 'system' || !window.matchMedia) return;
         const mq = window.matchMedia('(prefers-color-scheme: dark)');
@@ -300,37 +440,64 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         return () => mq.removeEventListener('change', onChange);
     }, [mode]);
 
+    const isPremiumPalette = (k: PaletteKey) => !FREE_KEYS.includes(k);
+    const isVideoPremium = (a: AnimKey) => {
+        const def = ALL_ANIMS.find(x => x.key === a);
+        return !!def?.videoName && !/free/i.test(def.videoName || '');
+    };
+
+    // Apply & persist changes
     useEffect(() => {
-        if (typeof window === 'undefined') return;
+        if (!ready) return;
 
-        const root = document.documentElement;
         const sysDark = systemIsDark();
-
-        root.classList.toggle('theme-dark', (mode === 'dark') || (mode === 'system' && sysDark));
-        root.classList.toggle('theme-light', (mode === 'light') || (mode === 'system' && !sysDark));
-
-        try {
-            localStorage.setItem('6ix:themeMode', mode);
-            localStorage.setItem('6ix:palette', paletteKey);
-            localStorage.setItem('6ix:anim', anim);
-        } catch { }
+        document.documentElement.classList.toggle('theme-dark', (mode === 'dark') || (mode === 'system' && sysDark));
+        document.documentElement.classList.toggle('theme-light', (mode === 'light') || (mode === 'system' && !sysDark));
 
         const p = mode === 'system'
             ? PALETTES.find(x => x.key === (sysDark ? 'dark' : 'light'))!
             : (PALETTES.find(x => x.key === paletteKey) || PALETTES[0]);
 
         applyPalette(p);
-        applyAnim(anim);
-    }, [mode, paletteKey, anim]);
+        void applyAnim(anim);
+
+        try {
+            localStorage.setItem('6ix:themeMode', mode);
+            localStorage.setItem('6ix:palette', paletteKey);
+            localStorage.setItem('6ix:anim', anim);
+        } catch { /* ignore */ }
+
+        // Provider no longer needs plan; ThemePanel handles gating.
+        // Still avoid persisting premium picks for free users when possible.
+        const freeOK = !isPremiumPalette(paletteKey) && !isVideoPremium(anim);
+        const canPersist = effPlan !== 'free' || freeOK;
+        if (canPersist) void saveThemeToSupabase(mode, paletteKey, anim);
+    }, [mode, paletteKey, anim, ready, effPlan]);
+
+    const markThemeTrialUsed = async (choice: { kind: 'palette' | 'anim'; key: string }) => {
+        if (themeTrialUsed) return;
+        setThemeTrialUsed(true);
+        await markTrialUsedInSupabase(choice);
+    };
+
+    const bestVideoSrcFor = (name: string) => bestSrcCache.get(name);
 
     const v = useMemo<ThemeCtx>(() => ({
-        mode, setMode, paletteKey, setPaletteKey, anim, setAnim, PALETTES, ALL_ANIMS, FREE_KEYS
-    }), [mode, paletteKey, anim]);
+        mode, setMode,
+        paletteKey, setPaletteKey,
+        anim, setAnim,
+        PALETTES, ALL_ANIMS, FREE_KEYS,
+        bestVideoSrcFor,
+        plan: effPlan,
+        themeTrialUsed,
+        markThemeTrialUsed,
+    }), [mode, paletteKey, anim, effPlan, themeTrialUsed]);
 
     return <Ctx.Provider value={v}>{children}</Ctx.Provider>;
 }
 
-/* ========= Panel ========= */
+
+/* ========= PANEL ========= */
 
 function useIsMobile() {
     const [m, setM] = useState(false);
@@ -343,10 +510,9 @@ function useIsMobile() {
 }
 
 function HScrollRow({ children }: { children: React.ReactNode }) {
-    const wrapRef = useRef<HTMLDivElement | null>(null);
     return (
         <div className="six-theme__hscroll">
-            <div ref={wrapRef} className="six-theme__hwrap">{children}</div>
+            <div className="six-theme__hwrap">{children}</div>
             <style jsx>{`
 .six-theme__hscroll{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
 .six-theme__hwrap{ display:flex; gap:10px; padding:8px 2px; }
@@ -390,7 +556,8 @@ p{ margin:0 0 12px; font-size:13px; opacity:.8; }
     );
 }
 
-/* simple persistent map helpers */
+// ★ We keep the local per-item maps to allow a single "click-through preview" UX if you still want it,
+// but the *real gate* is account-scoped themeTrialUsed below.
 const LS_TRIAL_P = '6ix:trial:palettes:v1';
 const LS_TRIAL_A = '6ix:trial:anims:v1';
 function readMap(key: string): Record<string, boolean> {
@@ -399,15 +566,10 @@ function readMap(key: string): Record<string, boolean> {
 function writeMap(key: string, val: Record<string, boolean>) {
     try { localStorage.setItem(key, JSON.stringify(val)); } catch { }
 }
-
-/* label helper */
 const pretty = (s: string) => s.replace(/-/g, ' ').replace(/\b\w/g, m => m.toUpperCase());
+const isFreeVideo = (def: AnimDef) => !!def.videoName && /free/i.test(def.videoName);
 
-/* check if a video anim is free by filename */
-const isFreeVideo = (def: AnimDef) =>
-    !!def.video && /free/i.test(def.video.src || def.key);
-
-/* ========= Theme Panel (with gating) ========= */
+/* ========= Theme Panel ========= */
 
 export function ThemePanel({
     open,
@@ -417,17 +579,25 @@ export function ThemePanel({
     onUpgrade,
 }: {
     open: boolean;
-    anchorRef: React.MutableRefObject<HTMLElement | null>;
+    anchorRef: MutableRefObject<HTMLElement | null>;
     onClose: () => void;
     plan?: Plan;
     onUpgrade?: () => void;
 }) {
     const isMobile = useIsMobile();
-    const { mode, setMode, paletteKey, setPaletteKey, anim, setAnim, PALETTES, FREE_KEYS, ALL_ANIMS } = useTheme();
+
+    // ★ pull gates from provider so panel and provider are consistent
+    const {
+        mode, setMode,
+        paletteKey, setPaletteKey,
+        anim, setAnim,
+        PALETTES, FREE_KEYS, ALL_ANIMS, bestVideoSrcFor,
+        themeTrialUsed, markThemeTrialUsed,
+    } = useTheme();
+
     const panelRef = useRef<HTMLDivElement | null>(null);
     const [pos, setPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
 
-    // track trials used (local)
     const [palTrials, setPalTrials] = useState<Record<string, boolean>>({});
     const [animTrials, setAnimTrials] = useState<Record<string, boolean>>({});
     const [showUp, setShowUp] = useState(false);
@@ -444,70 +614,70 @@ export function ThemePanel({
         const r = el.getBoundingClientRect();
         setPos({ top: Math.max(56, r.bottom + 8), left: Math.min(window.innerWidth - 360, r.right - 340) });
     }, [open, anchorRef, isMobile]);
-    // close panel + be sure to clear upgrade modal, even on outside-click
+
     useEffect(() => {
         if (!open || typeof document === 'undefined') return;
         const onDoc = (e: MouseEvent) => {
             const t = e.target as Node;
-            if (!panelRef.current?.contains(t)) {
-                setShowUp(false); // <-- reset upgrade modal
-                onClose();
-            }
+            if (!panelRef.current?.contains(t)) { setShowUp(false); onClose(); }
         };
         document.addEventListener('mousedown', onDoc);
         return () => document.removeEventListener('mousedown', onDoc);
     }, [open, onClose]);
 
-    // if the panel is closed by any means, ensure upgrade modal is reset
-    useEffect(() => {
-        if (!open) setShowUp(false);
-    }, [open]);
+    useEffect(() => { if (!open) setShowUp(false); }, [open]);
 
     if (!open) return null;
 
-    /* gating logic — palette */
-    const canUsePalette = (k: PaletteKey): { ok: boolean; locked: boolean; reason?: 'plan' | 'trial' } => {
-        if (plan !== 'free') return { ok: true, locked: false };
-        if (FREE_KEYS.includes(k)) return { ok: true, locked: false };
-        if (!palTrials[k]) return { ok: true, locked: false }; // first free use
-        return { ok: false, locked: true, reason: 'trial' };
+    const isPremiumPalette = (k: PaletteKey) => !FREE_KEYS.includes(k);
+    const isPremiumAnim = (a: AnimKey) => {
+        const def = ALL_ANIMS.find(x => x.key === a);
+        return !!def?.videoName && !isFreeVideo(def);
     };
 
-    /* gating logic — video anim */
-    const canUseAnim = (a: AnimKey): { ok: boolean; locked: boolean } => {
+    // ★ Gate rules: free+trial-used → block premium; free+trial-not-used → allow once and flip gate
+    const canUsePalette = (k: PaletteKey): { ok: boolean; locked: boolean } => {
         if (plan !== 'free') return { ok: true, locked: false };
-        const def = ALL_ANIMS.find(x => x.key === a);
-        if (!def?.video) return { ok: true, locked: false }; // non-video backdrops are free
-        if (isFreeVideo(def)) return { ok: true, locked: false }; // filenames with “free”
-        if (!animTrials[a]) return { ok: true, locked: false }; // first free try per item
+        if (!isPremiumPalette(k)) return { ok: true, locked: false };
+        if (!themeTrialUsed) return { ok: true, locked: false }; // one lifetime try
         return { ok: false, locked: true };
     };
 
-    const pickPalette = (k: PaletteKey) => {
+    const canUseAnim = (a: AnimKey): { ok: boolean; locked: boolean } => {
+        if (plan !== 'free') return { ok: true, locked: false };
+        if (!isPremiumAnim(a)) return { ok: true, locked: false };
+        if (!themeTrialUsed) return { ok: true, locked: false }; // one lifetime try
+        return { ok: false, locked: true };
+    };
+
+    const pickPalette = async (k: PaletteKey) => {
         const g = canUsePalette(k);
         if (!g.ok) { setShowUp(true); return; }
-        // mark trial if free plan & not in FREE_KEYS
-        if (plan === 'free' && !FREE_KEYS.includes(k) && !palTrials[k]) {
+
+        // lifetime flip if premium and not yet used
+        if (plan === 'free' && isPremiumPalette(k) && !themeTrialUsed) {
+            await markThemeTrialUsed({ kind: 'palette', key: k });
+            // optional: local visual "preview unlocked" without saving to server
             const nx = { ...palTrials, [k]: true };
             setPalTrials(nx); writeMap(LS_TRIAL_P, nx);
         }
+
         setPaletteKey(k);
     };
 
-    const pickAnim = (a: AnimKey) => {
+    const pickAnim = async (a: AnimKey) => {
         const g = canUseAnim(a);
         if (!g.ok) { setShowUp(true); return; }
-        if (plan === 'free') {
-            const def = ALL_ANIMS.find(x => x.key === a);
-            if (def?.video && !isFreeVideo(def) && !animTrials[a]) {
-                const nx = { ...animTrials, [a]: true };
-                setAnimTrials(nx); writeMap(LS_TRIAL_A, nx);
-            }
+
+        if (plan === 'free' && isPremiumAnim(a) && !themeTrialUsed) {
+            await markThemeTrialUsed({ kind: 'anim', key: a });
+            const nx = { ...animTrials, [a]: true };
+            setAnimTrials(nx); writeMap(LS_TRIAL_A, nx);
         }
+
         setAnim(a);
     };
 
-    // positioning via portal
     return createPortal(
         <>
             <div className="six-theme__backdrop" />
@@ -536,7 +706,8 @@ export function ThemePanel({
                         {ALL_ANIMS.map(a => {
                             const selected = anim === a.key;
                             const gated = !canUseAnim(a.key).ok;
-                            const isVid = !!a.video;
+                            const isVid = !!a.videoName;
+                            const src = a.videoName ? (bestVideoSrcFor(a.videoName) ?? `/wallpapers/${a.videoName}.${PREFERRED_EXT[a.videoName] ?? 'mp4'}`) : undefined;
                             return (
                                 <button
                                     key={a.key}
@@ -545,21 +716,19 @@ export function ThemePanel({
                                     aria-selected={selected}
                                     className={`six-theme__animCard ${selected ? 'is-active' : ''}`}
                                     title={a.label}
-                                    onClick={() => pickAnim(a.key)}
-                                    style={!a.video && a.preview ? { background: a.preview } : undefined}
+                                    onClick={() => void pickAnim(a.key)}
+                                    style={!isVid && a.preview ? { background: a.preview } : undefined}
                                 >
                                     {isVid ? (
                                         <video
-                                            src={a.video!.src}
-                                            poster={a.video!.poster}
+                                            key={src}
+                                            src={src}
                                             muted loop playsInline autoPlay preload="metadata"
                                             aria-hidden="true"
                                         />
                                     ) : null}
                                     {gated && (
-                                        <span className="six-theme__lock">
-                                            <LockBadge fg="#fff" />
-                                        </span>
+                                        <span className="six-theme__lock"><LockBadge fg="#fff" /></span>
                                     )}
                                     <span className="six-theme__chip">{a.label}</span>
                                 </button>
@@ -582,8 +751,7 @@ export function ThemePanel({
                                 {row.keys.map((k) => {
                                     const p = PALETTES.find(x => x.key === k)!;
                                     const selected = paletteKey === k;
-                                    const gate = canUsePalette(k);
-                                    const locked = !gate.ok;
+                                    const locked = !canUsePalette(k).ok;
                                     const fg = p.isDark ? '#fff' : '#000';
                                     return (
                                         <button
@@ -591,14 +759,12 @@ export function ThemePanel({
                                             type="button"
                                             className={`six-theme__swatch ${selected ? 'is-active' : ''}`}
                                             style={{ background: p.bg, color: fg }}
-                                            onClick={() => pickPalette(k)}
+                                            onClick={() => void pickPalette(k)}
                                             title={p.label}
                                         >
                                             <span className="six-theme__swLabel">{p.label}</span>
                                             {locked && (
-                                                <span className="six-theme__lock">
-                                                    <LockBadge fg={contrastOn(p.bg)} />
-                                                </span>
+                                                <span className="six-theme__lock"><LockBadge fg={contrastOn(p.bg)} /></span>
                                             )}
                                         </button>
                                     );

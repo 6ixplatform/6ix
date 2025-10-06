@@ -1,39 +1,51 @@
 // app/api/profile/check-username/route.ts
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@supabase/supabase-js';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+const URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
 const sanitize = (raw: string) =>
-    String(raw || '')
-        .trim()
-        .toLowerCase()
-        .replace(/[^a-z0-9_.]/g, '')
-        .slice(0, 32);
+    String(raw || '').trim().toLowerCase().replace(/[^a-z0-9_.]/g, '').slice(0, 32);
+
+function getJWT(req: Request) {
+    const a = req.headers.get('authorization') || '';
+    return a.toLowerCase().startsWith('bearer ') ? a.slice(7).trim() : '';
+}
 
 export async function POST(req: Request) {
-    const supabase = getSupabaseAdmin();
     try {
-        const { username } = await req.json();
-        const value = sanitize(username);
+        const body = await req.json().catch(() => ({}));
+        const value = sanitize(body?.username);
 
-        if (value.length < 3) {
+        if (!value || value.length < 3) {
             return NextResponse.json({ ok: true, available: false, reason: 'invalid' });
         }
 
-        // ✅ Type-safe Supabase client here too
-        const supabase = createRouteHandlerClient({ cookies });
-        const { data: { user } } = await supabase.auth.getUser();
+        // Identify caller via Authorization: Bearer <supabase access token>
+        // (optional; only used to exclude the user's own row)
+        let callerId: string | null = null;
+        const jwt = getJWT(req);
+        if (jwt) {
+            try {
+                const supa = createClient(URL, ANON, { auth: { persistSession: false } });
+                const { data: { user } } = await supa.auth.getUser(jwt);
+                callerId = user?.id ?? null;
+            } catch { /* ignore */ }
+        }
 
-        const q = getSupabaseAdmin()
+        // Admin query (no cookies)
+        const admin = getSupabaseAdmin();
+        const q = admin
             .from('profiles')
             .select('id', { count: 'exact', head: true })
-            .ilike('username', value);
+            .ilike('username', value); // case-insensitive match
 
-        if (user?.id) q.neq('id', user.id);
+        if (callerId) q.neq('id', callerId);
 
         const { count, error } = await q;
         if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 400 });
