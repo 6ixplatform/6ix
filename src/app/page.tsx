@@ -272,7 +272,7 @@ export default function Home() {
 
                 {/* Footer */}
                 <footer className="row-start-3 container py-6 text-center" style={{ color: 'var(--muted)' }}>
-                    A 6clement Joshua service · © {new Date().getFullYear()} 6ix
+                     6CLEMENT JOSHUA NIG LTD · © {new Date().getFullYear()} 6ix
                 </footer>
 
                 {/* Page-scoped theme tokens & UI polish */}

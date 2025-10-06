@@ -150,7 +150,7 @@ style="width:100%;background:#0f1113;border:1px solid #1f2328;border-radius:14px
 <a href="${SITE}/legal/creator-earnings" style="color:#9aa3ad;text-decoration:underline">Creator earnings</a> ·
 <a href="${SITE}/legal/copyright" style="color:#9aa3ad;text-decoration:underline">Copyright / DMCA</a> ·
 <a href="${SITE}/faq" style="color:#9aa3ad;text-decoration:underline">FAQ</a>
-<br>© ${new Date().getFullYear()} 6ix · A 6clement Joshua Service
+<br>© ${new Date().getFullYear()} 6ix · 6CLEMENT JOSHUA NIG LTD
 </div>
 </td></tr>
 </table>

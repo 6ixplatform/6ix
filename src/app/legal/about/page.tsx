@@ -370,6 +370,15 @@ export default function AboutPage() {
                 {/* 16) CONTACT */}
                 <Section id="contact" title="16) Contact">
                     <div className="grid gap-4 lg:grid-cols-3">
+                        <Card title="Address">
+                            <span>4 IKOT ENNA EOBONG 8MILES CALABAR CROS</span>
+                        </Card>
+                        <Card title="Phone Number">
+                            <span>+2347062332979</span>
+                        </Card>
+                        <Card title="Parent Company contact Email">
+                            <p><a className="underline" href="mailto:press@6ixapp.com">6clementjoshua@gmail.com</a></p>
+                        </Card>
                         <Card title="Press & partnerships">
                             <p><a className="underline" href="mailto:press@6ixapp.com">press@6ixapp.com</a></p>
                         </Card>

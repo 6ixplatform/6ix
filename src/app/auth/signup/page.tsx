@@ -331,7 +331,7 @@ export default function SignUpPage() {
 
                     {/* Desktop bottom trademark (fixed) */}
                     <footer className="hidden md:block fixed bottom-0 left-0 right-0 pb-[calc(env(safe-area-inset-bottom)+12px)] pt-2 text-center text-sm text-zinc-500 select-none bg-gradient-to-t from-black/40 to-transparent">
-                        A 6clement Joshua service · © {new Date().getFullYear()} 6ix
+                        6CLEMENT JOSHUA NIG LTD · © {new Date().getFullYear()} 6ix
                     </footer>
                 </div>
 
@@ -368,7 +368,7 @@ export default function SignUpPage() {
 
                     {/* Mobile footer pinned absolute bottom */}
                     <footer className="md:hidden fixed left-0 right-0 bottom-0 pb-[calc(env(safe-area-inset-bottom)+10px)] pt-2 text-center text-zinc-500 text-sm bg-gradient-to-t from-black/40 to-transparent">
-                        A 6clement Joshua service · © {new Date().getFullYear()} 6ix
+                       6CLEMENT JOSHUA NIG LTD · © {new Date().getFullYear()} 6ix
                     </footer>
                 </div>
 

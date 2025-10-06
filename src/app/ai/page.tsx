@@ -9,6 +9,7 @@ import type { MutableRefObject } from 'react';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import '@/styles/6ix.css';
+import '@/styles/live-video-override.css';
 import { build6IXSystem, ProfileHints } from '@/prompts/6ixai-prompts';
 import BackStopper from '@/components/BackStopper';
 import BottomNav from '@/components/BottomNav';
@@ -43,9 +44,8 @@ import TTSLimitModal from '@/components/TTSLimitModal';
 import { persistChat, restoreChat } from '@/lib/chatPersist';
 import { buildStopReply } from '@/lib/stopReply';
 import FeedbackTicker, { buildFeedback } from '@/components/FeedbackTicker';
-import CrescentIcon from '@/components/CrescentIcon';
 import LandingOrb from '@/components/LandingOrb';
-import { ThemePanel, ThemeProvider, useTheme } from '@/theme/ThemeProvider';
+import { ThemeProvider, useTheme } from '@/theme/ThemeProvider';
 import LiveWallpaper from '@/components/live/LiveWallpaper';
 import { upsertCloudItem } from '@/lib/historyCloud';
 import { saveFromMessages, type ChatMessage as HistMsg } from '@/lib/history';
@@ -57,6 +57,7 @@ import { updateProfileAvatar } from '@/lib/profileAvatar';
 import AvatarEditorModal from '@/components/AvatarEditorModal';
 import UserMenuPortal from '@/components/UserMenuPortal';
 import AppHeader from '@/components/AppHeader';
+import ThemePanel from '@/theme/ThemePanel';
 
 const HelpOverlay = NextDynamic(() => import('@/components/HelpOverlay'), { ssr: false });
 
@@ -683,6 +684,7 @@ function AIPageInner() {
     const [authChecked, setAuthChecked] = useState(false);
     const [turnLabel, setTurnLabel] = React.useState<string>('');
     const [status, setStatus] = useState<string | null>(null);
+    const portalRoot = typeof window !== 'undefined' ? document.body : null;
 
 
     React.useEffect(() => { setMounted(true); }, []);
@@ -2475,13 +2477,13 @@ function AIPageInner() {
                         onSubmit={handleAvatarSubmit}
                     />
                 )}
+                {portalRoot && createPortal(
                 <ThemePanel
                     open={themeOpen}
                     anchorRef={themeBtnRef}
                     onClose={() => setThemeOpen(false)}
-                    plan={effPlan}
-                    onUpgrade={() => { router.push('/premium'); }}
-                />
+                />,
+                portalRoot)}
                 <button
                     type="button"
                     className="six-menu__item"

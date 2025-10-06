@@ -46,7 +46,7 @@ export function PageShell({
                 </div>
 
                 <footer className="px-5 sm:px-8 lg:px-12 py-6 border-t border-white/10 text-sm text-zinc-400">
-                    © {new Date().getFullYear()} 6ix · A 6clement Joshua service
+                    © {new Date().getFullYear()} 6ix · 6CLEMENT JOSHUA NIG LTD
                 </footer>
             </article>
 

@@ -341,7 +341,7 @@ export default function SignInClient() {
                     </section>
 
                     <footer className="hidden md:block fixed bottom-6 left-1/2 -translate-x-1/2 text-sm text-zinc-500 select-none">
-                        A 6clement Joshua service · © {new Date().getFullYear()} 6ix
+                       6CLEMENT JOSHUA NIG LTD · © {new Date().getFullYear()} 6ix
                     </footer>
                 </div>
 
@@ -389,7 +389,7 @@ export default function SignInClient() {
                     </div>
 
                     <footer className="md:hidden fixed left-0 right-0 bottom-0 pb-[calc(env(safe-area-inset-bottom)+10px)] pt-2 text-center text-zinc-500 text-sm bg-gradient-to-t from-black/40 to-transparent">
-                        A 6clement Joshua service · © {new Date().getFullYear()} 6ix
+                       6CLEMENT JOSHUA NIG LTD · © {new Date().getFullYear()} 6ix
                     </footer>
                 </div>
 

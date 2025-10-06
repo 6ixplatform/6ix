@@ -443,7 +443,7 @@ export default function ProfileSetupProfileClient() {
                         </div>
 
                         <footer className="hidden md:block fixed bottom-6 left-1/2 -translate-x-1/2 text-sm text-zinc-500 select-none">
-                            A 6clement Joshua service · © {new Date().getFullYear()} 6ix
+                            6CLEMENT JOSHUA NIG LTD · © {new Date().getFullYear()} 6ix
                         </footer>
                     </section>
                 </div>
@@ -499,7 +499,7 @@ export default function ProfileSetupProfileClient() {
                         </div>
 
                         <footer className="mt-10 mb-2 text-center text-zinc-500 text-sm">
-                            A 6clement Joshua service · © {new Date().getFullYear()} 6ix
+                           6CLEMENT JOSHUA NIG LTD · © {new Date().getFullYear()} 6ix
                         </footer>
                     </div>
                 </div>

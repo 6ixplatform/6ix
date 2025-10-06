@@ -2685,3 +2685,14 @@ html.theme-light .spin-neutral {
 }
 
 /* the init script sets it precisely at runtime */
+:root {
+  --th-bg: #000;
+  /* safe default to avoid flash */
+  --th-text: #fff;
+  --page-bg: var(--th-bg);
+}
+
+html, body {
+  background: var(--page-bg);
+  color: var(--th-text);
+}

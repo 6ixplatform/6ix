@@ -323,7 +323,7 @@ export default function VerifyClient() {
                 className="verify-tm fixed left-1/2 -translate-x-1/2 text-sm"
                 style={{ bottom: 'calc(env(safe-area-inset-bottom,12px) + 12px)' }}
             >
-                A 6clement Joshua service · © {new Date().getFullYear()} 6ix
+               6CLEMENT JOSHUA NIG LTD · © {new Date().getFullYear()} 6ix
             </footer>
 
             {/* Minimal global styles (keep your UI) */}

@@ -44,7 +44,7 @@ body{margin:0;background:#000}
 <a href="${SITE}/legal/terms">Terms</a> •
 <a href="mailto:support@6ixapp.com">Contact</a>
 </div>
-<div style="margin-top:6px">A 6clement Joshua service · © 6ix</div>
+<div style="margin-top:6px">6CLEMENT JOSHUA NIG LTD · © 6ix</div>
 </div>
 </div>
 </body></html>`;
