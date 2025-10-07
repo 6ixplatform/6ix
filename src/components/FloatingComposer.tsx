@@ -170,25 +170,27 @@ export default function FloatingComposer({
     /* (does not replace your recorder; it's just for visualization)*/
     /* ──────────────────────────────────────────────────────────── */
     const [vu, setVu] = useState(0); // 0..1
-
-    const rafRef = React.useRef<number>(0);
-    const ctxRef = React.useRef<AudioContext | null>(null);
+    // ---- VU refs (never nullable) ----
+    // ---- VU refs (float-based, avoids Uint8Array typing issues) ----
+    const rafRef = React.useRef<number | null>(null);
+    const audioCtxRef = React.useRef<AudioContext | null>(null);
     const analyserRef = React.useRef<AnalyserNode | null>(null);
-    // Always a Uint8Array; use empty buffer when idle to avoid null unions
-    const bufRef = React.useRef<Uint8Array>(new Uint8Array(0));
+    const floatBufRef = React.useRef<Float32Array>(new Float32Array(0)); // ← Float buffer
     const streamRef = React.useRef<MediaStream | null>(null);
+
 
     const stopVu = React.useCallback(() => {
         if (rafRef.current) cancelAnimationFrame(rafRef.current);
-        rafRef.current = 0;
+        rafRef.current = null;
         try { streamRef.current?.getTracks().forEach(t => t.stop()); } catch { }
-        try { ctxRef.current?.close(); } catch { }
-        ctxRef.current = null;
+        try { audioCtxRef.current?.close(); } catch { }
+        audioCtxRef.current = null;
         analyserRef.current = null;
-        bufRef.current = new Uint8Array(0); // reset to empty, not null
+        floatBufRef.current = new Float32Array(0);
         streamRef.current = null;
         setVu(0);
     }, []);
+
 
     useEffect(() => {
         if (recState !== 'recording') { stopVu(); return; }
@@ -196,46 +198,48 @@ export default function FloatingComposer({
         let cancelled = false;
         (async () => {
             try {
-                const ms = await navigator.mediaDevices.getUserMedia({ audio: true });
-                if (cancelled) { ms.getTracks().forEach(t => t.stop()); return; }
-                streamRef.current = ms;
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                if (cancelled) { stream.getTracks().forEach(t => t.stop()); return; }
+                streamRef.current = stream;
 
                 const Ctx = (window.AudioContext || (window as any).webkitAudioContext) as typeof AudioContext;
                 const ctx = new Ctx();
                 const analyser = ctx.createAnalyser();
-                analyser.fftSize = 512;
+                analyser.fftSize = 1024; // smoother bars
 
-                const src = ctx.createMediaStreamSource(ms);
+                const src = ctx.createMediaStreamSource(stream);
                 src.connect(analyser);
 
-                ctxRef.current = ctx;
+                audioCtxRef.current = ctx;
                 analyserRef.current = analyser;
-                bufRef.current = new Uint8Array(analyser.fftSize); // correct size for time-domain
+
+                // Float buffer (avoids the Uint8Array type headaches entirely)
+                floatBufRef.current = new Float32Array(analyser.fftSize);
 
                 const tick = () => {
-                    const a = analyserRef.current!;
-                    const b = bufRef.current; // always a Uint8Array
-                    if (!a || b.length === 0) {
+                    const a = analyserRef.current;
+                    const f = floatBufRef.current;
+
+                    if (!(a instanceof AnalyserNode) || f.length === 0) {
                         rafRef.current = requestAnimationFrame(tick);
                         return;
                     }
 
-                     // expects Uint8Array
-
+                    // Make a view backed by an ArrayBuffer (what the DOM lib expects)
+                    const view = new Float32Array(f.buffer as ArrayBuffer, f.byteOffset, f.length);
+                    a.getFloatTimeDomainData(view);
+                    // ← Float32Array API
                     let sum = 0;
-                    for (let i = 0; i < b.length; i++) {
-                        const v = (b[i] - 128) / 128; // center to [-1, 1]
-                        sum += v * v;
-                    }
-                    const rms = Math.sqrt(sum / b.length);
-                    setVu(Math.min(1, Math.max(0, rms * 2)));
+                    for (let i = 0; i < f.length; i++) sum += f[i] * f[i];
+                    const rms = Math.sqrt(sum / f.length);
+                    setVu(Math.min(1, Math.max(0, rms * 1.8)));
 
                     rafRef.current = requestAnimationFrame(tick);
                 };
 
                 tick();
             } catch {
-                // Permissions denied or unsupported → subtle idle animation
+                // mic denied/unsupported → subtle idle animation
                 setVu(0.25);
             }
         })();
