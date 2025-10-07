@@ -33,7 +33,7 @@ export default function Splash({
             </div>
 
             <div className="splash-foot">
-                A 6clement Joshua service · © {new Date().getFullYear()} 6ix
+                6CLEMENT JOSHUA NIG LTD · © {new Date().getFullYear()} 6ix
             </div>
 
             {/* Component-scoped styles with light/dark auto theming */}

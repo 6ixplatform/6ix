@@ -364,5 +364,5 @@ border-color: var(--hairline);
 `}</style>
             </main>
         </>
-    );
+    )
 }

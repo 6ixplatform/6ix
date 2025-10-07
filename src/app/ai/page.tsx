@@ -150,6 +150,78 @@ function SwatchGrid({
     );
 }
 
+function ModelSpeedPicker({
+    plan,
+    model,
+    speed,
+    onPickModel,
+    onPickSpeed,
+    openUpsell,
+}: {
+    plan: Plan;
+    model: UiModelId;
+    speed: SpeedMode;
+    onPickModel: (m: UiModelId) => void;
+    onPickSpeed: (s: SpeedMode) => void;
+    openUpsell: (need: Plan) => void;
+}) {
+    // If UI_MODEL_IDS is an array, use it; if it’s a record, use its values.
+    const MODELS: UiModelId[] = Array.isArray(UI_MODEL_IDS)
+        ? (UI_MODEL_IDS as UiModelId[])
+        : (Object.values(UI_MODEL_IDS) as UiModelId[]);
+
+    const SPEEDS: SpeedMode[] = ['auto', 'instant', 'thinking'];
+    const nice = (s: string) => s.replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+
+    return (
+        <div className="rounded-2xl border border-white/12 bg-white/5 p-3 space-y-3">
+            {/* Models */}
+            <div>
+                <div className="text-[12px] opacity-70 mb-1">Models</div>
+                <div className="flex flex-wrap gap-2">
+                    {MODELS.map((m) => {
+                        const allowed = isModelAllowed(m, plan);
+                        const need = modelRequiredPlan(m);
+                        return (
+                            <button
+                                key={m}
+                                type="button"
+                                className={`btn btn-water btn-xs ${model === m ? 'ring-1 ring-white/40' : ''} ${!allowed ? 'opacity-60' : ''}`}
+                                onClick={() => (allowed ? onPickModel(m) : openUpsell(need))}
+                                title={allowed ? `Use ${nice(m)}` : `Requires ${nice(need)}`}
+                            >
+                                {nice(m)}
+                            </button>
+                        );
+                    })}
+                </div>
+            </div>
+
+            {/* Speed */}
+            <div>
+                <div className="text-[12px] opacity-70 mb-1">Speed</div>
+                <div className="flex flex-wrap gap-2">
+                    {SPEEDS.map((s) => {
+                        const need = speedRequiredPlan(s);
+                        const allowed = isAllowedPlan(plan, need);
+                        return (
+                            <button
+                                key={s}
+                                type="button"
+                                className={`btn btn-water btn-xs ${speed === s ? 'ring-1 ring-white/40' : ''} ${!allowed ? 'opacity-60' : ''}`}
+                                onClick={() => (allowed ? onPickSpeed(s) : openUpsell(need))}
+                                title={allowed ? `Speed: ${nice(s)}` : `Requires ${nice(need)}`}
+                            >
+                                {nice(s)}
+                            </button>
+                        );
+                    })}
+                </div>
+            </div>
+        </div>
+    );
+}
+
 export default function Page() {
     return (
         <Suspense fallback={null}>
@@ -719,7 +791,7 @@ function AIPageInner() {
     const theme = useTheme();
     const mode = theme?.mode ?? 'system';
 
-    const themeBtnRef = useRef<HTMLButtonElement | null>(null);
+    const themeBtnRef = useRef<HTMLButtonElement | null>(null) as MutableRefObject<HTMLButtonElement | null>;
     const [themeOpen, setThemeOpen] = useState(false);
     const isDarkNow = mode === 'dark' || (mode === 'system' && prefersDark);
     // AIPage() — replace your messages state initializer:
@@ -828,7 +900,7 @@ function AIPageInner() {
     chatKeyRef.current ||= safeUUID();
 
 
-    const avatarBtnRef = useRef<HTMLButtonElement | null>(null);
+    const avatarBtnRef = useRef<HTMLButtonElement | null>(null) as MutableRefObject<HTMLButtonElement | null>;
     const toolFiredRef = useRef(false); // put at component top (once)
 
     const [followups, setFollowups] = useState<FollowUp[]>([]);
@@ -2439,7 +2511,16 @@ function AIPageInner() {
                     scrollToBottom={scrollToBottom}
                     avatarFallback={AVATAR_FALLBACK}
                 />
-
+                <div className="mx-auto w-full max-w-[min(900px,92vw)] px-3 mt-2">
+                    <ModelSpeedPicker
+                        plan={effPlan}
+                        model={model}
+                        speed={speed}
+                        onPickModel={(m) => setModel(m)}
+                        onPickSpeed={(s) => setSpeed(s)}
+                        openUpsell={(need) => setPremiumModal({ open: true, required: need })}
+                    />
+                </div>
                 {/* EMPTY STATE — tagline above orb */}
                 {booted && messages.length === 0 && !streaming && (
                     <section className="intro-orb__stage relative mx-auto max-w-[900px] pt-8 pb-8">
@@ -2478,12 +2559,12 @@ function AIPageInner() {
                     />
                 )}
                 {portalRoot && createPortal(
-                <ThemePanel
-                    open={themeOpen}
-                    anchorRef={themeBtnRef}
-                    onClose={() => setThemeOpen(false)}
-                />,
-                portalRoot)}
+                    <ThemePanel
+                        open={themeOpen}
+                        anchorRef={themeBtnRef}
+                        onClose={() => setThemeOpen(false)}
+                    />,
+                    portalRoot)}
                 <button
                     type="button"
                     className="six-menu__item"
@@ -2568,9 +2649,9 @@ max-w-[min(900px,92vw)]
                                                         <div key={a.id} className="rounded-lg border border-white/15 bg-white/5 px-2 py-1 flex items-center gap-2">
                                                             {thumb ? (
                                                                 a.kind === 'image'
-                                                                    ? <img src={thumb} className="h-10 w-10 rounded object-cover" />
+                                                                    ? <Image src={thumb} alt={a.name} width={40} height={40} className="h-10 w-10 rounded object-cover" unoptimized />
                                                                     : a.kind === 'video'
-                                                                        ? <video src={thumb} className="h-10 w-10 rounded object-cover" muted />
+                                                                        ? <video src={thumb} className="h-10 w-10 rounded object-cover" />
                                                                         : <span className="text-[10px] opacity-70">{a.kind}</span>
                                                             ) : <span className="text-[10px] opacity-70">FILE</span>}
                                                             <div className="text-[12px] max-w-[200px] truncate">{a.name}</div>
@@ -2666,12 +2747,19 @@ If a message is still streaming and it's the last one, hide until it finishes. *
                     <div ref={endRef} />
                 </div>
 
-                {lightbox.open && (
+                {lightbox.open && portalRoot && createPortal(
                     <div className="fixed inset-0 z-50 bg-black/80 grid place-items-center"
                         onClick={() => setLightbox({ open: false, url: '', prompt: '' })}>
-                        <img src={lightbox.url} alt={lightbox.prompt}
-                            className="max-w-[92vw] max-h-[85vh] rounded-2xl" />
-                    </div>
+                        <Image
+                            src={lightbox.url}
+                            alt={lightbox.prompt || 'Image'}
+                            fill
+                            className="object-contain rounded-2xl"
+                            sizes="(max-width: 900px) 92vw, 900px"
+                            unoptimized
+                        />
+                    </div>,
+                    portalRoot
                 )}
 
                 {/* COMPOSER (Floating ChatGPT-style) */}
