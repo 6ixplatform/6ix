@@ -49,6 +49,49 @@ type Props = {
     handleStop: () => void;
 };
 
+/* ──────────────────────────────────────────────────────────── */
+/* Tiny waveform used inside mic chip (theme-adaptive) */
+/* ──────────────────────────────────────────────────────────── */
+function MicWave({ active, level }: { active: boolean; level: number }) {
+    const bars = Array.from({ length: 14 });
+    return (
+        <>
+            <div className={`mic-wave ${active ? 'is-on' : ''}`} style={{ ['--amp' as any]: String(level || 0.15) }}>
+                {bars.map((_, i) => (
+                    <i key={i} style={{ ['--d' as any]: `${(i % 7) * 40}ms` }} />
+                ))}
+            </div>
+            <style jsx>{`
+.mic-wave {
+display: inline-flex;
+height: 16px;
+align-items: flex-end;
+gap: 2px;
+color: var(--btn-fg, #fff);
+opacity: 0.55;
+}
+.mic-wave.is-on { opacity: 0.95; }
+.mic-wave i {
+width: 2px;
+background: currentColor;
+border-radius: 2px;
+transform-origin: bottom center;
+animation: micbar 800ms ease-in-out infinite;
+animation-delay: var(--d, 0ms);
+height: 22%;
+}
+@keyframes micbar {
+0%, 100% { transform: scaleY(calc(.35 + var(--amp) * .35)); }
+50% { transform: scaleY(calc(.6 + var(--amp) * 1.2)); }
+}
+@media (prefers-color-scheme: light) {
+.mic-wave { color: var(--btn-fg, #111); }
+}
+`}</style>
+        </>
+    );
+}
+
 export default function FloatingComposer({
     input, setInput,
     attachments, onRemoveAttachment, onOpenFiles, onFilesChosen,
@@ -84,7 +127,6 @@ export default function FloatingComposer({
     // Helper: robust IME/composition detection (TS-safe)
     const isIMEComposing = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         const ne = e.nativeEvent as { isComposing?: boolean; keyCode?: number } | undefined;
-        // Chrome/Safari set nativeEvent.isComposing; some IMEs emit key "Process" or keyCode 229
         return Boolean(ne?.isComposing) || e.key === 'Process' || ne?.keyCode === 229;
     };
 
@@ -92,10 +134,7 @@ export default function FloatingComposer({
         // Enter → send (no modifiers, no IME)
         if (
             e.key === 'Enter' &&
-            !e.shiftKey &&
-            !e.altKey &&
-            !e.ctrlKey &&
-            !e.metaKey &&
+            !e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey &&
             !isIMEComposing(e)
         ) {
             e.preventDefault();
@@ -125,6 +164,88 @@ export default function FloatingComposer({
 
     // use theme variables set by ThemeProvider → ensures dark icons on light themes
     const chipStyle: React.CSSProperties = { background: 'var(--btn-bg)', color: 'var(--btn-fg)' };
+
+    /* ──────────────────────────────────────────────────────────── */
+    /* Local VU meter: listens ONLY while recState === 'recording' */
+    /* (does not replace your recorder; it's just for visualization)*/
+    /* ──────────────────────────────────────────────────────────── */
+    const [vu, setVu] = useState(0); // 0..1
+
+    const rafRef = React.useRef<number>(0);
+    const ctxRef = React.useRef<AudioContext | null>(null);
+    const analyserRef = React.useRef<AnalyserNode | null>(null);
+    // Always a Uint8Array; use empty buffer when idle to avoid null unions
+    const bufRef = React.useRef<Uint8Array>(new Uint8Array(0));
+    const streamRef = React.useRef<MediaStream | null>(null);
+
+    const stopVu = React.useCallback(() => {
+        if (rafRef.current) cancelAnimationFrame(rafRef.current);
+        rafRef.current = 0;
+        try { streamRef.current?.getTracks().forEach(t => t.stop()); } catch { }
+        try { ctxRef.current?.close(); } catch { }
+        ctxRef.current = null;
+        analyserRef.current = null;
+        bufRef.current = new Uint8Array(0); // reset to empty, not null
+        streamRef.current = null;
+        setVu(0);
+    }, []);
+
+    useEffect(() => {
+        if (recState !== 'recording') { stopVu(); return; }
+
+        let cancelled = false;
+        (async () => {
+            try {
+                const ms = await navigator.mediaDevices.getUserMedia({ audio: true });
+                if (cancelled) { ms.getTracks().forEach(t => t.stop()); return; }
+                streamRef.current = ms;
+
+                const Ctx = (window.AudioContext || (window as any).webkitAudioContext) as typeof AudioContext;
+                const ctx = new Ctx();
+                const analyser = ctx.createAnalyser();
+                analyser.fftSize = 512;
+
+                const src = ctx.createMediaStreamSource(ms);
+                src.connect(analyser);
+
+                ctxRef.current = ctx;
+                analyserRef.current = analyser;
+                bufRef.current = new Uint8Array(analyser.fftSize); // correct size for time-domain
+
+                const tick = () => {
+                    const a = analyserRef.current!;
+                    const b = bufRef.current; // always a Uint8Array
+                    if (!a || b.length === 0) {
+                        rafRef.current = requestAnimationFrame(tick);
+                        return;
+                    }
+
+                     // expects Uint8Array
+
+                    let sum = 0;
+                    for (let i = 0; i < b.length; i++) {
+                        const v = (b[i] - 128) / 128; // center to [-1, 1]
+                        sum += v * v;
+                    }
+                    const rms = Math.sqrt(sum / b.length);
+                    setVu(Math.min(1, Math.max(0, rms * 2)));
+
+                    rafRef.current = requestAnimationFrame(tick);
+                };
+
+                tick();
+            } catch {
+                // Permissions denied or unsupported → subtle idle animation
+                setVu(0.25);
+            }
+        })();
+
+        return () => { cancelled = true; stopVu(); };
+    }, [recState, stopVu]);
+
+    // When transcription begins, hide the live bars immediately
+    useEffect(() => { if (transcribing) stopVu(); }, [transcribing, stopVu]);
+
 
     return (
         <>
@@ -264,10 +385,10 @@ resize-none rounded-[9999px]
 
                     {/* right chip controls */}
                     <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
-                        {/* mic */}
+                        {/* mic (toggles to stop; shows live bars while rec) */}
                         <button
                             type="button"
-                            className="h-8 w-8 rounded-full grid place-items-center active:scale-95"
+                            className={`h-8 rounded-full active:scale-95 flex items-center gap-2 px-2 ${recState === 'recording' ? 'min-w-[72px]' : 'w-8 justify-center'}`}
                             title={recState === 'recording' ? 'Stop recording' : 'Record voice'}
                             aria-label="Record voice"
                             onClick={recState === 'recording' ? stopRecording : startRecording}
@@ -275,9 +396,10 @@ resize-none rounded-[9999px]
                             style={chipStyle}
                         >
                             {recState === 'recording' ? (
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                                    <rect x="6" y="6" width="12" height="12" rx="2" />
-                                </svg>
+                                <>
+                                    <span className="inline-block h-[9px] w-[9px] rounded-full bg-red-500" />
+                                    <MicWave active level={vu} />
+                                </>
                             ) : (
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                     <path d="M12 1a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V4a3 3 0 0 1 3-3z" />
@@ -287,6 +409,19 @@ resize-none rounded-[9999px]
                                 </svg>
                             )}
                         </button>
+
+                        {/* transcribing pill */}
+                        {transcribing && (
+                            <span
+                                className="h-8 px-3 rounded-full border border-white/15 bg-white/5 text-[12px] inline-flex items-center gap-2"
+                                style={chipStyle}
+                            >
+                                <svg width="14" height="14" viewBox="0 0 24 24" className="animate-spin opacity-80" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M12 2a10 10 0 1 1-7.07 2.93" />
+                                </svg>
+                                Transcribing…
+                            </span>
+                        )}
 
                         {/* send / stop (⬆️) */}
                         <button
@@ -341,7 +476,7 @@ bg-transparent p-3
                             style={{ color: 'var(--btn-fg)' }}
                         >
                             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
-                                <path d="M9 3H3v6M15 21h6v-6M21 9V3h-6M3 15v6h6" strokeLinecap="round" />
+                                <path d="M9 3H3v6M15 21h6v-6M21 9V3h-6M3 15v6" strokeLinecap="round" />
                             </svg>
                         </button>
 
@@ -356,10 +491,7 @@ bg-transparent p-3
                                     onKeyDown={(e) => {
                                         if (
                                             e.key === 'Enter' &&
-                                            !e.shiftKey &&
-                                            !e.altKey &&
-                                            !e.ctrlKey &&
-                                            !e.metaKey &&
+                                            !e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey &&
                                             !isIMEComposing(e)
                                         ) {
                                             e.preventDefault();
@@ -373,9 +505,7 @@ bg-transparent p-3
                                             const next = value.slice(0, selectionStart) + '\n' + value.slice(selectionEnd);
                                             setInput(next);
                                             requestAnimationFrame(() => {
-                                                try {
-                                                    el.selectionStart = el.selectionEnd = (selectionStart ?? 0) + 1;
-                                                } catch { }
+                                                try { el.selectionStart = el.selectionEnd = (selectionStart ?? 0) + 1; } catch { }
                                             });
                                         }
                                     }}
@@ -383,10 +513,10 @@ bg-transparent p-3
                                 />
 
                                 <div className="absolute right-3 bottom-3 flex items-center gap-2">
-                                    {/* mic */}
+                                    {/* mic in modal */}
                                     <button
                                         type="button"
-                                        className="h-9 w-9 rounded-full grid place-items-center active:scale-95"
+                                        className={`h-9 rounded-full active:scale-95 flex items-center gap-2 px-2 ${recState === 'recording' ? 'min-w-[80px]' : 'w-9 justify-center'}`}
                                         title={recState === 'recording' ? 'Stop recording' : 'Record voice'}
                                         aria-label="Record voice"
                                         onClick={recState === 'recording' ? stopRecording : startRecording}
@@ -394,9 +524,10 @@ bg-transparent p-3
                                         style={chipStyle}
                                     >
                                         {recState === 'recording' ? (
-                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                                                <rect x="6" y="6" width="12" height="12" rx="2" />
-                                            </svg>
+                                            <>
+                                                <span className="inline-block h-[10px] w-[10px] rounded-full bg-red-500" />
+                                                <MicWave active level={vu} />
+                                            </>
                                         ) : (
                                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                                 <path d="M12 1a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V4a3 3 0 0 1 3-3z" />
@@ -406,6 +537,19 @@ bg-transparent p-3
                                             </svg>
                                         )}
                                     </button>
+
+                                    {/* transcribing pill */}
+                                    {transcribing && (
+                                        <span
+                                            className="h-9 px-3 rounded-full border border-white/15 bg-white/5 text-[12px] inline-flex items-center gap-2"
+                                            style={chipStyle}
+                                        >
+                                            <svg width="14" height="14" viewBox="0 0 24 24" className="animate-spin opacity-80" fill="none" stroke="currentColor" strokeWidth="2">
+                                                <path d="M12 2a10 10 0 1 1-7.07 2.93" />
+                                            </svg>
+                                            Transcribing…
+                                        </span>
+                                    )}
 
                                     {/* send (⬆️) */}
                                     <button

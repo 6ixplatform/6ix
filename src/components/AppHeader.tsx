@@ -69,7 +69,7 @@ type Props = {
         avatarUrl?: string | null;
         wallet?: number | null;
         credits?: number | null;
-        email?: string | null;
+        email?: string | null; // include email so we can safely split
     } | null;
     miniSeed: MiniSeed | null;
 
@@ -233,22 +233,23 @@ export default function AppHeader({
     scrollToBottom,
     avatarFallback = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==',
 }: Props) {
-    /* Load a mini snapshot from localStorage AFTER mount (so SSR never touches localStorage) */
-    const [miniLocal, setMiniLocal] = React.useState<MiniSeed | null>(null);
-    React.useEffect(() => {
-        try { setMiniLocal(JSON.parse(localStorage.getItem('6ixai:profile') || 'null')); } catch { /* ignore */ }
-    }, []);
-
-    /* Hydration-safe gating: render the same values on SSR and the first client paint. */
+    // 1) Mount flag so first client render matches the server HTML exactly
     const [mounted, setMounted] = React.useState(false);
     React.useEffect(() => setMounted(true), []);
 
-    // Values used for SSR/initial client render
-    const ssrDisplay = (miniSeed?.displayName ?? (miniSeed?.email?.split?.('@')[0] ?? 'Profile')) || 'Profile';
-    const ssrAvatar = (miniSeed?.avatarUrl || avatarFallback || AVATAR_FALLBACK);
+    // 2) We MAY read localStorage after mount to mirror UserMenuPortal
+    const [miniLocal, setMiniLocal] = React.useState<MiniSeed | null>(null);
+    React.useEffect(() => {
+        try { setMiniLocal(JSON.parse(localStorage.getItem('6ixai:profile') || 'null')); } catch { /* noop */ }
+    }, []);
 
-    // Values used AFTER mount
-    // Values used AFTER mount
+    // 3) Stable SSR / initial-client values (must match on both passes)
+    const ssrDisplay = miniSeed?.displayName ?? miniSeed?.email?.split?.('@')[0] ?? 'Profile';
+    const ssrAvatar = miniSeed?.avatarUrl || avatarFallback || AVATAR_FALLBACK;
+    const ssrWallet = 0;
+    const ssrCredits = 0;
+
+    // 4) Live values used AFTER mount (can differ safely)
     const csrDisplay =
         profile?.displayName
         ?? miniSeed?.displayName
@@ -257,23 +258,19 @@ export default function AppHeader({
         ?? miniSeed?.email?.split('@')[0]
         ?? miniLocal?.email?.split('@')[0]
         ?? 'Profile';
-    const csrAvatar =
-        (profile?.avatarUrl ||
-            miniSeed?.avatarUrl ||
-            miniLocal?.avatarUrl ||
-            avatarFallback ||
-            AVATAR_FALLBACK);
 
+    const csrAvatar =
+        (profile?.avatarUrl && profile.avatarUrl.trim() !== '' ? profile.avatarUrl :
+            miniSeed?.avatarUrl && miniSeed.avatarUrl.trim() !== '' ? miniSeed.avatarUrl :
+                miniLocal?.avatarUrl && miniLocal.avatarUrl.trim() !== '' ? miniLocal.avatarUrl :
+                    avatarFallback || AVATAR_FALLBACK);
+
+    const walletNow = mounted ? Number((profile?.wallet ?? miniSeed?.wallet ?? miniLocal?.wallet ?? 0)) : ssrWallet;
+    const creditsNow = mounted ? Number((profile?.credits ?? miniSeed?.credits ?? miniLocal?.credits ?? 0)) : ssrCredits;
+
+    // 5) Pick which to show (prevents hydration mismatch)
     const displayNow = mounted ? csrDisplay : ssrDisplay;
     const avatarNow = mounted ? csrAvatar : ssrAvatar;
-
-    // Wallet/Coins also hydration-safe
-    const ssrWallet = Number((miniSeed?.wallet ?? 0) || 0);
-    const ssrCredits = Number((miniSeed?.credits ?? 0) || 0);
-    const csrWallet = Number((profile?.wallet ?? miniSeed?.wallet ?? miniLocal?.wallet ?? 0) || 0);
-    const csrCredits = Number((profile?.credits ?? miniSeed?.credits ?? miniLocal?.credits ?? 0) || 0);
-    const walletNow = mounted ? csrWallet : ssrWallet;
-    const creditsNow = mounted ? csrCredits : ssrCredits;
 
     // model is tied to plan; ensure it shows the allowed one
     const displayModel: UiModelId = coerceUiModelForPlan(model, effPlan);
@@ -282,8 +279,9 @@ export default function AppHeader({
     const speedChoices = SPEEDS_BY_PLAN[effPlan];
 
     const handleSpeedPick = (next: SpeedMode) => {
+        // Free users can’t change; clicking triggers upsell if provided
         if (effPlan === 'free') {
-            onUpsell?.('pro');
+            onUpsell?.('pro'); // suggest upgrading
             return;
         }
         onSpeedChange?.(next);
@@ -294,7 +292,7 @@ export default function AppHeader({
             ref={headerRef}
             className="app-header sticky top-0 z-30 bg-black/75 backdrop-blur-xl border-b border-white/10"
         >
-            <div className="mx-auto px-3 pt-2 pb-2 max-w-[min(1100px,92vw)]">
+            <div className="mx-auto px-3 pt-2 pb-2 max-w=[min(1100px,92vw)] max-w-[min(1100px,92vw)]">
                 {/* Row 1 — logo • music pill • plan/model/speed • right cluster */}
                 <div className="flex items-center gap-2">
                     {/* left – logo (back) */}
@@ -309,7 +307,7 @@ export default function AppHeader({
                         <span className="text-zinc-400 text-lg leading-none">⋯</span>
                     </div>
 
-                    {/* plan/model/speed cluster */}
+                    {/* plan/model/speed cluster (matches pill height & spacing) */}
                     <div className="hidden md:flex items-center gap-2">
                         <Pill title="Your current plan">{effPlan}</Pill>
                         <Pill title="Model is tied to your plan">{displayModel}</Pill>
@@ -325,8 +323,12 @@ export default function AppHeader({
 
                     {/* right – name • avatar • Wallet · Coins • theme */}
                     <div className="flex items-center gap-2 shrink-0 ml-auto">
-                        <div className="hidden md:block text-[11px] opacity-80 whitespace-nowrap ml-1" title={`Wallet $${walletNow.toLocaleString()} · Coins ${creditsNow.toLocaleString()}`}>
-                            <>Wallet ${walletNow.toLocaleString()} · Coins {creditsNow.toLocaleString()}</>
+                        <div
+                            className="hidden md:block text-[11px] opacity-80 whitespace-nowrap ml-1"
+                            suppressHydrationWarning
+                        >
+                            {/* fixed locale to avoid SSR/CSR locale drift */}
+                            <>Wallet ${walletNow.toLocaleString('en-US')} · Coins {creditsNow.toLocaleString('en-US')}</>
                         </div>
 
                         <button
@@ -339,12 +341,15 @@ export default function AppHeader({
                             <CrescentIcon size={18} />
                         </button>
 
-                        {/* Hydration-safe name (text + title use the same gated value) */}
-                        <div className="hidden sm:block text-sm opacity-90 truncate max-w-[180px]" title={displayNow}>
+                        {/* Name: gate title to avoid attribute mismatch; suppress text hydration warning */}
+                        <div
+                            className="hidden sm:block text-sm opacity-90 truncate max-w-[180px]"
+                            title={mounted ? displayNow : undefined}
+                            suppressHydrationWarning
+                        >
                             {displayNow}
                         </div>
 
-                        {/* Hydration-safe avatar */}
                         <button
                             ref={avatarBtnRef}
                             onClick={onAvatarClick}
@@ -352,8 +357,8 @@ export default function AppHeader({
                             aria-label="Account menu"
                         >
                             <img
-                                src={avatarNow}
-                                alt={displayNow || 'avatar'}
+                                src={avatarNow || AVATAR_FALLBACK}
+                                alt={mounted ? (displayNow || 'avatar') : 'avatar'}
                                 className="h-full w-full object-cover"
                                 onError={(e) => { (e.currentTarget as HTMLImageElement).src = AVATAR_FALLBACK; }}
                             />
@@ -372,6 +377,7 @@ export default function AppHeader({
                     <Pill>{effPlan}</Pill>
                     <Pill>{displayModel}</Pill>
                     {SPEEDS_BY_PLAN[effPlan].length > 1 ? (
+                        // mobile native select when selectable
                         <label className="h-9 px-4 rounded-full bg-white/5 border border-white/15 text-[13px] text-zinc-200 grid place-items-center">
                             <select
                                 className="bg-transparent outline-none"

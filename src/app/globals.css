@@ -2696,3 +2696,64 @@ html, body {
   background: var(--page-bg);
   color: var(--th-text);
 }
+
+/* Make the UA use the correct color scheme for form controls, etc. */
+:root {
+  color-scheme: light dark;
+}
+
+/* Baseline: page must be scrollable and fill the real viewport on mobile */
+html, body {
+  height: 100%;
+}
+
+body {
+  /* modern viewport units that account for browser UI bars */
+  min-height: 100svh;
+  min-height: 100dvh;
+  /* most modern browsers */
+  min-height: 100vh;
+  /* fallback */
+  overflow-y: auto;
+  /* never lock page scroll globally */
+  -webkit-overflow-scrolling: touch;
+  /* smooth scroll on iOS */
+}
+
+/* App root should stretch and allow the main area to grow */
+#root, #__next {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Your main content area fills remaining height and can scroll inside */
+main {
+  flex: 1 1 auto;
+  min-height: 0;
+  /* important for nested flex + scroll */
+}
+
+/* If you have a fixed bottom composer/nav, keep content above it */
+.site-main--with-fixed-bottom {
+  padding-bottom: calc(env(safe-area-inset-bottom) + 96px);
+}
+
+/* Safe area helpers (optional) */
+.safe-pb {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.safe-pt {
+  padding-top: env(safe-area-inset-top);
+}
+
+/* Sensible defaults */
+* {
+  box-sizing: border-box;
+}
+
+img, video, canvas, svg {
+  max-width: 100%;
+  height: auto;
+}
