@@ -8,7 +8,7 @@ export default function LandingOrb({
     name = '6CLEMENT JOSHUA', // NEW: the line under the orb
     size = 'clamp(180px, 48vw, 360px)',
     wobbleSeconds = 1.2, // orb wobble speed (lower = faster)
-    nameSpeedSeconds = 6.0, // ink/shimmer speed for the name
+    nameSpeedSeconds = 10.0, // ink/shimmer speed for the name
 }: {
     label?: string;
     name?: string;

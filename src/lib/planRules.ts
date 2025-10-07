@@ -100,7 +100,7 @@ export function coerceUiModelForPlan(ui: UiModelId, plan: Plan): UiModelId {
 
 // If you want INSTANT to be Pro-only, flip the return here accordingly.
 export const speedRequiredPlan = (s: SpeedMode): Plan =>
-    s === 'thinking' ? 'max' : /* s === 'instant' ? 'pro' : */ 'free';
+    s === 'thinking' ? 'max' : s === 'instant' ? 'pro' : 'free';
 
 // ───────────────────────────────────────────────────────────────────────────────
 // Feature switches & capability bundle

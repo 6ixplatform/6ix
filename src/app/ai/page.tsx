@@ -1,11 +1,11 @@
 'use client';
-
-
 export const dynamic = 'force-dynamic';
 import { loadUserPrefs, saveUserPrefs, parseUserDirective, mergePrefs, type UserPrefs, buildSystemSteer, applyDirectiveAndPersist } from '@/lib/prefs'
 import React, { useEffect, Suspense, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { MutableRefObject } from 'react';
+const useIsoLayoutEffect =
+    typeof window !== 'undefined' ? useLayoutEffect : useEffect;
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import '@/styles/6ix.css';
@@ -26,13 +26,13 @@ import CodeBlock from '@/components/CodeBlock';
 // import plan/model gating from a single source of truth
 import {
     Plan, UiModelId, SpeedMode,
-    UI_MODEL_IDS,
-    isAllowedPlan, isModelAllowed, modelRequiredPlan,
-    speedRequiredPlan, allowFollowupPills,
+    isAllowedPlan,
+    allowFollowupPills,
     resolveModel,
     capabilitiesForPlan,
     hydrateEffectivePlan,
-    sanitizeRuntimeSelection
+    sanitizeRuntimeSelection,
+    coerceUiModelForPlan
 } from '@/lib/planRules';
 import { applyKidsStateFromReply, getKidsState, KidsState, maybeGuardianCheck, setKidsState } from '@/lib/kids';
 import { buildFreeNudge, shouldNudgeFreeUser } from '@/lib/nudge';
@@ -150,77 +150,6 @@ function SwatchGrid({
     );
 }
 
-function ModelSpeedPicker({
-    plan,
-    model,
-    speed,
-    onPickModel,
-    onPickSpeed,
-    openUpsell,
-}: {
-    plan: Plan;
-    model: UiModelId;
-    speed: SpeedMode;
-    onPickModel: (m: UiModelId) => void;
-    onPickSpeed: (s: SpeedMode) => void;
-    openUpsell: (need: Plan) => void;
-}) {
-    // If UI_MODEL_IDS is an array, use it; if it’s a record, use its values.
-    const MODELS: UiModelId[] = Array.isArray(UI_MODEL_IDS)
-        ? (UI_MODEL_IDS as UiModelId[])
-        : (Object.values(UI_MODEL_IDS) as UiModelId[]);
-
-    const SPEEDS: SpeedMode[] = ['auto', 'instant', 'thinking'];
-    const nice = (s: string) => s.replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-
-    return (
-        <div className="rounded-2xl border border-white/12 bg-white/5 p-3 space-y-3">
-            {/* Models */}
-            <div>
-                <div className="text-[12px] opacity-70 mb-1">Models</div>
-                <div className="flex flex-wrap gap-2">
-                    {MODELS.map((m) => {
-                        const allowed = isModelAllowed(m, plan);
-                        const need = modelRequiredPlan(m);
-                        return (
-                            <button
-                                key={m}
-                                type="button"
-                                className={`btn btn-water btn-xs ${model === m ? 'ring-1 ring-white/40' : ''} ${!allowed ? 'opacity-60' : ''}`}
-                                onClick={() => (allowed ? onPickModel(m) : openUpsell(need))}
-                                title={allowed ? `Use ${nice(m)}` : `Requires ${nice(need)}`}
-                            >
-                                {nice(m)}
-                            </button>
-                        );
-                    })}
-                </div>
-            </div>
-
-            {/* Speed */}
-            <div>
-                <div className="text-[12px] opacity-70 mb-1">Speed</div>
-                <div className="flex flex-wrap gap-2">
-                    {SPEEDS.map((s) => {
-                        const need = speedRequiredPlan(s);
-                        const allowed = isAllowedPlan(plan, need);
-                        return (
-                            <button
-                                key={s}
-                                type="button"
-                                className={`btn btn-water btn-xs ${speed === s ? 'ring-1 ring-white/40' : ''} ${!allowed ? 'opacity-60' : ''}`}
-                                onClick={() => (allowed ? onPickSpeed(s) : openUpsell(need))}
-                                title={allowed ? `Speed: ${nice(s)}` : `Requires ${nice(need)}`}
-                            >
-                                {nice(s)}
-                            </button>
-                        );
-                    })}
-                </div>
-            </div>
-        </div>
-    );
-}
 
 export default function Page() {
     return (
@@ -232,10 +161,7 @@ export default function Page() {
     );
 }
 
-
 /* ---------- types ---------- */
-type Role = 'user' | 'assistant' | 'system';
-
 type Attachment = {
     id: string;
     name: string;
@@ -291,35 +217,8 @@ type AnalysisResponse = {
     thumbnails?: Record<string, string>;
     palettes?: { hex: string }[]; // (stub, if you later add it)
 };
-type FollowUp = { label: string; prompt: string };
-
-function deriveFollowups(plan: Plan, user: string, answer: string): FollowUp[] {
-    if (!allowFollowupPills(plan)) return []; // pills only for Pro / Max
-    const a = answer || '';
-    const u = (user || '').toLowerCase();
-    const out: FollowUp[] = [];
-
-    const long = a.length > 600 || a.split('\n').length > 12;
-    const hasBullets = /(^|\n)\s*[-*•]\s+/m.test(a);
-    const hasSteps = /(^|\n)\s*\d+[\.)]\s+/m.test(a);
-    const hasCode = /```/.test(a);
-    const hasHead = /(^|\n)#{2,}/.test(a);
-
-    if (long || hasHead) out.push({ label: 'Do you want a tighter summary?', prompt: 'Summarize the above in 5 short bullets.' });
-    if (hasBullets || hasSteps) out.push({ label: 'Turn this into a checklist.', prompt: 'Convert the above into a concise actionable checklist.' });
-    if (u.includes('vs') || /compare|difference/i.test(u)) out.push({ label: 'Make a quick table?', prompt: 'Put the key differences into a 2-column table.' });
-    if (hasCode) out.push({ label: 'Explain the code?', prompt: 'Explain the code above line-by-line and note pitfalls.' });
-    if (/remind|schedule|every day|daily/i.test(u)) out.push({ label: 'Set a different type of reminder?', prompt: 'Suggest reminder options and frequencies for this.' });
-
-    // Dedupe & cap at 3
-    const seen = new Set<string>();
-    return out.filter(f => !seen.has(f.label) && seen.add(f.label)).slice(0, 3);
-}
-
 
 const DEBUG_STREAM = false;
-
-const SPEEDS: readonly SpeedMode[] = ['auto', 'instant', 'thinking'] as const;
 
 const ALT_STYLES = [
     'a tight TL;DR first, then new details',
@@ -328,8 +227,6 @@ const ALT_STYLES = [
     'a 2-column comparison table, then a recommendation',
     'a simple, jargon-free explanation plus 2 fresh tips'
 ];
-
-type StopKind = 'text' | 'image';
 
 // Mini snapshot: hydrate synchronously on first paint (no 1-frame delay)
 type MiniSeed = {
@@ -576,38 +473,7 @@ async function loadProfileFromAPI(): Promise<Profile | null> {
     }
 }
 
-async function uploadAvatarToSupabase(file: File): Promise<string | null> {
-    try {
-        const supabase = supabaseBrowser();
-        if (!supabase) return null;
-        const { data: auth } = await supabase.auth.getUser();
-        const user = auth?.user;
-        if (!user) return null;
 
-        const path = `avatars/${user.id}-${Date.now()}.${file.name.split('.').pop() || 'jpg'}`;
-        const up = await supabase.storage.from('avatars').upload(path, file, { cacheControl: '3600', upsert: true });
-        if (up.error) return null;
-
-        const { data: pub } = supabase.storage.from('avatars').getPublicUrl(path);
-        const publicUrl = pub?.publicUrl ?? null;
-
-        if (publicUrl) {
-            await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('id', user.id);
-        }
-        return publicUrl;
-    } catch { return null; }
-}
-
-async function uploadAvatarToAPI(file: File): Promise<string | null> {
-    try {
-        const fd = new FormData();
-        fd.append('file', file);
-        const r = await fetch('/api/profile/avatar', { method: 'POST', body: fd });
-        if (!r.ok) return null;
-        const j = await r.json();
-        return j.url ?? j.publicUrl ?? j.avatarUrl ?? null;
-    } catch { return null; }
-}
 
 
 const AVATAR_FALLBACK =
@@ -621,21 +487,6 @@ const AVATAR_FALLBACK =
 </svg>`);
 
 
-function useIsMobile(breakpoint = 767) {
-    const [isMobile, setIsMobile] = React.useState(false);
-    React.useEffect(() => {
-        if (typeof window === 'undefined') return;
-        const mq = window.matchMedia(`(max-width: ${breakpoint}px)`);
-        const update = () => setIsMobile(mq.matches);
-        update();
-        // Safari fallback for old addListener/removeListener
-        mq.addEventListener ? mq.addEventListener('change', update) : mq.addListener(update);
-        return () => {
-            mq.removeEventListener ? mq.removeEventListener('change', update) : mq.removeListener(update);
-        };
-    }, [breakpoint]);
-    return isMobile;
-}
 /* ---------- Premium Guard Modal ---------- */
 function PremiumModal({
     open, displayName, required, onClose, onGoPremium,
@@ -759,7 +610,7 @@ function AIPageInner() {
     const portalRoot = typeof window !== 'undefined' ? document.body : null;
 
 
-    React.useEffect(() => { setMounted(true); }, []);
+    useIsoLayoutEffect(() => { setMounted(true); }, []);
     // open from anywhere: window.dispatchEvent(new CustomEvent('helpkit:open'))
 
     // Kids state (persisted)
@@ -800,7 +651,7 @@ function AIPageInner() {
     const [descAt, setDescAt] = React.useState<number | null>(null);
 
 
-    const [hydrating, setHydrating] = React.useState(true);
+
     React.useEffect(() => {
         let alive = true;
         (async () => {
@@ -817,25 +668,18 @@ function AIPageInner() {
     const [streaming, setStreaming] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [helpOpen, setHelpOpen] = React.useState(false);
-    const [composerMax, setComposerMax] = useState(false);
     // defer localStorage to client after hydration
     const [miniSeed, setMiniSeed] = React.useState<MiniSeed | null>(() => {
         try { return JSON.parse(localStorage.getItem('6ixai:profile') || 'null'); } catch { return null; }
     });
+
     // --- Voice state (minimal; HTTPS required on iOS) ---
     const [recState, setRecState] = useState<'idle' | 'recording'>('idle');
     const [transcribing, setTranscribing] = useState(false);
     const mediaRef = useRef<MediaRecorder | null>(null);
     const chunksRef = useRef<Blob[]>([]);
-    const turnRef = useRef(0)
     const pickerOpenRef = useRef(false);
     const focusLockRef = useRef(false);
-    const instant = React.useMemo(() => ({
-        name: miniSeed?.displayName ?? 'Profile',
-        avatar: miniSeed?.avatarUrl ?? AVATAR_FALLBACK,
-        wallet: Number(miniSeed?.wallet ?? 0),
-        credits: Number(miniSeed?.credits ?? 0),
-    }), [miniSeed]);
     const [menuOpen, setMenuOpen] = useState(false);
     const [avatarOpen, setAvatarOpen] = useState(false);
     const [savingAvatar, setSavingAvatar] = useState(false);
@@ -901,24 +745,12 @@ function AIPageInner() {
 
 
     const avatarBtnRef = useRef<HTMLButtonElement | null>(null) as MutableRefObject<HTMLButtonElement | null>;
-    const toolFiredRef = useRef(false); // put at component top (once)
-
-    const [followups, setFollowups] = useState<FollowUp[]>([]);
-    const lastAssistantRef = useRef(''); // keep full streamed text
 
     /* ---- TTS usage (per day) ---- */
-    const TTS_LIMITS: Record<Plan, number> = { free: 10, pro: 9999, max: 99999 };
-
-    const ttsDayKey = () => new Date().toISOString().slice(0, 10);
-    const getTtsCount = () => { try { return Number(localStorage.getItem('6ix:tts:' + ttsDayKey()) || '0'); } catch { return 0; } };
-    const bumpTtsCount = () => { try { localStorage.setItem('6ix:tts:' + ttsDayKey(), String(getTtsCount() + 1)); } catch { } };
-
-    const [ttsCount, setTtsCount] = useState<number>(() => getTtsCount());
     const [ttsLimitOpen, setTtsLimitOpen] = useState(false);
     const [lastNudgeAt, setLastNudgeAt] = useState<number>(() => {
         try { return Number(localStorage.getItem('6ix:lastNudgeTs') || 0); } catch { return 0; }
     });
-
 
     // inside AIPage(), add:
     const signOutNow = async () => {
@@ -1015,7 +847,9 @@ function AIPageInner() {
         () => effectivePlan(plan, subStatus, { graceDays: 2 }),
         [plan, subStatus]
     );
-
+    useEffect(() => {
+        setModel(prev => coerceUiModelForPlan(prev, effPlan));
+    }, [effPlan]);
     // Track if this user has *ever* been premium (local fallback when server doesn't say)
     function everPremiumKey() { return `6ix:everPremium:${profile?.id || 'anon'}`; }
     function setEverPremium() { try { localStorage.setItem(everPremiumKey(), '1'); } catch { } }
@@ -1069,6 +903,26 @@ function AIPageInner() {
     const [profileLoading, setProfileLoading] = useState(true);
     const [showAvatarCard, setShowAvatarCard] = useState(false);
     const displayName = profile?.displayName ?? 'Friend';
+    // Instant header data: prefer live profile, else miniSeed, else fallback
+    const headerProfile = React.useMemo<Profile | null>(() => {
+        if (profile) return profile;
+        if (!miniSeed) return null;
+        return {
+            id: 'localseed',
+            displayName: miniSeed.displayName ?? '',
+            username: null,
+            email: miniSeed.email ?? null,
+            avatarUrl: miniSeed.avatarUrl ?? null,
+            plan, // safe default; corrected after hydrate
+            credits: miniSeed.credits ?? null,
+            wallet: miniSeed.wallet ?? null,
+            verified: false,
+            premium: undefined,
+            firstName: null, lastName: null, age: null, location: null,
+            timezone: null, bio: null, language: null,
+        } as Profile;
+    }, [profile, miniSeed, plan]);
+
     /* hard guard: if not authenticated, redirect to sign-in */
     // Resilient auth guard — never redirect on transient nulls
     useEffect(() => {
@@ -1095,6 +949,7 @@ function AIPageInner() {
                 router.replace('/auth/signin?next=/ai');
             }
         }, 2500);
+
 
         return () => { cancelled = true; clearTimeout(t); try { sub?.unsubscribe(); } catch { } };
     }, [router]);
@@ -1226,21 +1081,6 @@ function AIPageInner() {
         return () => window.removeEventListener('storage', onStorage);
     }, [busy]);
 
-
-    const [kbOpen, setKbOpen] = useState(false);
-
-    useEffect(() => {
-        const vv = typeof window !== 'undefined' ? window.visualViewport : null;
-        if (!vv) return;
-        const onResize = () => {
-            // simple heuristic: viewport shrinks by >120px ⇒ keyboard shown
-            setKbOpen(window.innerHeight - vv.height > 120);
-        };
-        vv.addEventListener('resize', onResize);
-        onResize();
-        return () => vv.removeEventListener('resize', onResize);
-    }, []);
-
     React.useEffect(() => {
         const open = () => setHelpOpen(true);
         const close = () => setHelpOpen(false);
@@ -1332,27 +1172,39 @@ function AIPageInner() {
     }, [attachments, input, plan, model]);
 
     // ——— header & composer sizing
-    useEffect(() => {
+    useIsoLayoutEffect(() => {
+        if (typeof window === 'undefined') return;
+
         const EXTRA = 100;
         const update = () => {
             const ch = compRef.current?.offsetHeight ?? 160;
             const hh = headerRef.current?.offsetHeight ?? 120;
+
             document.documentElement.style.setProperty('--composer-h', `${ch}px`);
             document.documentElement.style.setProperty('--header-h', `${hh}px`);
+
             const el = listRef.current;
             if (el) {
                 const v = `calc(${ch}px + env(safe-area-inset-bottom,0px) + ${EXTRA}px)`;
                 el.style.paddingBottom = v;
                 el.style.scrollPaddingBottom = v;
             }
-            try { localStorage.setItem('6ixai:ch', String(ch)); localStorage.setItem('6ixai:hh', String(hh)); } catch { }
+
+            try {
+                localStorage.setItem('6ixai:ch', String(ch));
+                localStorage.setItem('6ixai:hh', String(hh));
+            } catch { }
         };
-        update();
+
+        update(); // run once before paint
         const ro = new ResizeObserver(update);
-        if (compRef.current) ro.observe(compRef.current);
-        if (headerRef.current) ro.observe(headerRef.current);
+        const c = compRef.current;
+        const h = headerRef.current;
+        if (c) ro.observe(c);
+        if (h) ro.observe(h);
         return () => ro.disconnect();
     }, []);
+
 
     const scrollToBottom = (smooth = false) => {
         const el = listRef.current; if (!el) return;
@@ -1585,7 +1437,6 @@ function AIPageInner() {
         } catch { }
 
         setMessages([]);
-        lastAssistantRef.current = '';
         chatKeyRef.current = safeUUID();
         scrollToBottom(false);
     }
@@ -1822,13 +1673,7 @@ function AIPageInner() {
         try { navigator.clipboard.writeText(s); } catch { }
     }
 
-    function shareText(s: string) {
-        if (navigator.share) {
-            navigator.share({ text: s }).catch(() => { });
-        } else {
-            copyText(s);
-        }
-    }
+
 
     // Regenerate only the assistant reply at index i (do NOT re-send the user prompt)
     async function recreateAssistantById(targetId: string) {
@@ -1988,15 +1833,6 @@ function AIPageInner() {
     }
 
 
-    function buildImageConfirm(original: string, first: string) {
-        return (
-            `Do you want me to generate an image from that, ${first}?` +
-            `\n\n<suggested>\n` +
-            `"Yes — generate the image now"\n` +
-            `"No — keep it as text"\n` +
-            `</suggested>`
-        );
-    }
 
     function detectKind(mime: string, name: string): Attachment['kind'] {
         const ext = name.toLowerCase().split('.').pop() || '';
@@ -2087,23 +1923,7 @@ function AIPageInner() {
         return null;
     }
 
-    function buildFileConfirm(kind: 'pdf' | 'excel' | 'sketch', first: string) {
-        const label = kind === 'pdf' ? 'a PDF'
-            : kind === 'excel' ? 'an Excel file'
-                : 'a sketch/design';
-        return (
-            `Should I generate ${label} for you, ${first}?` +
-            `\n\n<suggested>\n` +
-            `"Yes — generate ${label}"\n` +
-            `"No — keep it as text"\n` +
-            `</suggested>`
-        );
-    }
 
-    function looksLikeComplaint(t: string) {
-        const s = (t || '').toLowerCase();
-        return /\b(not what i asked|wrong|don.?t like|bad|useless|off|mistake|why.*image)\b/.test(s);
-    }
 
     function getTypingLabel(text: string, plan: Plan) {
         if (plan === 'free') return '6IX AI is typing';
@@ -2429,16 +2249,7 @@ function AIPageInner() {
         }
     };
 
-    const stop = () => {
-        try {
-            stoppedRef.current = true;
-            if (imgInFlightRef.current) {
-                imgAbortRef.current?.abort(); // cancel image generation
-            } else {
-                abortRef.current?.abort(); // cancel text streaming
-            }
-        } catch { }
-    };
+
     type AnyCodeProps = { inline?: boolean; className?: string; children?: React.ReactNode } & Record<string, any>;
     const mdComponents: Components = {
         code: ({ inline, className, children, ...props }: AnyCodeProps) => (
@@ -2489,12 +2300,13 @@ function AIPageInner() {
                 style={{
                     background: 'var(--page-bg, var(--th-bg, #000))',
                     color: 'var(--th-text, #fff)',
-                    visibility: (authChecked && booted) ? 'visible' : 'hidden', // <— add this
+                    visibility: authChecked ? 'visible' : 'hidden', // <— add this
                 }}
                 suppressHydrationWarning
             >
                 <BackStopper />
                 <LiveWallpaper />
+
                 <AppHeader
                     headerRef={headerRef}
                     profile={profile}
@@ -2502,8 +2314,8 @@ function AIPageInner() {
                     effPlan={effPlan}
                     model={model}
                     speed={speed}
-                    onModelChange={(v) => setModel(v)}
                     onSpeedChange={(v) => setSpeed(v)}
+                    onUpsell={(need) => setPremiumModal({ open: true, required: need })}
                     avatarBtnRef={avatarBtnRef}
                     onAvatarClick={() => setMenuOpen(v => !v)}
                     themeBtnRef={themeBtnRef}
@@ -2511,25 +2323,10 @@ function AIPageInner() {
                     scrollToBottom={scrollToBottom}
                     avatarFallback={AVATAR_FALLBACK}
                 />
-                <div className="mx-auto w-full max-w-[min(900px,92vw)] px-3 mt-2">
-                    <ModelSpeedPicker
-                        plan={effPlan}
-                        model={model}
-                        speed={speed}
-                        onPickModel={(m) => setModel(m)}
-                        onPickSpeed={(s) => setSpeed(s)}
-                        openUpsell={(need) => setPremiumModal({ open: true, required: need })}
-                    />
-                </div>
+
                 {/* EMPTY STATE — tagline above orb */}
                 {booted && messages.length === 0 && !streaming && (
                     <section className="intro-orb__stage relative mx-auto max-w-[900px] pt-8 pb-8">
-                        {/* Tagline FIRST so it's always on top and never hidden */}
-                        <div className="intro-orb__title z-20 mt-0 mb-0">
-                            {/* If you prefer your SVG emboss component, keep using it: */}
-
-                        </div>
-
                         {/* Orb */}
                         <LandingOrb />
                     </section>
@@ -2565,13 +2362,6 @@ function AIPageInner() {
                         onClose={() => setThemeOpen(false)}
                     />,
                     portalRoot)}
-                <button
-                    type="button"
-                    className="six-menu__item"
-                    onClick={() => window.dispatchEvent(new CustomEvent('helpkit:open'))}
-                >
-                </button>
-
 
                 {showHistory && (
                     <HistoryOverlay
@@ -2613,7 +2403,7 @@ max-w-[min(900px,92vw)]
                                         url={m.url}
                                         prompt={m.prompt || ''}
                                         displayName={profile?.displayName}
-                                        busy={descAt === i || (speaking && descAt === i)} // ← spinner condition
+                                        busy={descAt === i}// ← spinner condition
                                         onOpen={() => setLightbox({ open: true, url: m.url!, prompt: m.prompt || '' })}
                                         onShare={() => smartShare(m.url!)}
                                         onDescribe={async () => {
