@@ -4,7 +4,7 @@ import { usePathname, useRouter } from 'next/navigation';
 type Item = { label: string; href: string };
 
 const DEFAULT_ITEMS: Item[] = [
-    { label: '6MUSIC', href: '/music' },
+    { label: '6FEED', href: '/feed' },
     { label: '6IXAI', href: '/ai' },
     { label: '6GAME', href: '/game' },
 ];

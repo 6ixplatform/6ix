@@ -1,41 +1,39 @@
 // components/ImageMsg.tsx
 'use client';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
+
+type PlanTier = 'free' | 'pro' | 'max';
 
 type ImageMsgProps = {
-    url?: string; // falsy => generating or not ready
+    url?: string; // falsy => generating / not ready
     prompt: string;
-    displayName?: string | null; // personalize status
-    busy?: boolean; // ← parent-controlled "working" (describe/tts)
+    overlay?: string; // live progress line during generation
+    displayName?: string | null;
+    busy?: boolean; // describe/TTS is running
+    plan: PlanTier;
     onOpen: () => void;
     onDescribe: () => void;
-    onRecreate: () => void;
+    onRecreate: (e: React.MouseEvent<HTMLButtonElement>) => void;
     onShare: () => void;
 };
 
-const Btn = ({
-    title, onClick, children, disabled,
-}: {
-    title: string;
-    onClick: () => void;
-    children: React.ReactNode;
-    disabled?: boolean; // ← NEW
-}) => (
-    <button
-        className="icon-btn inline-flex items-center justify-center h-7 w-7 rounded-md active:scale-95 transition disabled:opacity-40 disabled:pointer-events-none"
-        title={title}
-        aria-label={title}
-        onClick={onClick}
-        disabled={disabled} // ← NEW
-    >
-        {children}
-    </button>
-);
+/* -------- unified card sizing (smaller) -------- */
+const CARD_W_PX = 420;
+const CARD_W_VW = 86;
+const CARD_RADIUS_CLASS = 'rounded-2xl';
 
+/* -------- icons -------- */
 const Icon = {
     Volume: () => (
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+            <path d="M4 10v4h4l5 4V6l-5 4H4z" />
+            <path d="M16 9a5 5 0 0 1 0 6" fill="none" stroke="currentColor" strokeWidth="1.6" />
+            <path d="M18 7a8 8 0 0 1 0 10" fill="none" stroke="currentColor" strokeWidth="1.6" />
+        </svg>
+    ),
+    Open: () => (
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8">
-            <path d="M4 10v4h4l5 4V6l-5 4H4z" /><path d="M16 9a5 5 0 0 1 0 6" /><path d="M18 7a8 8 0 0 1 0 10" />
+            <path d="M14 3h7v7" /><path d="M21 3l-9 9" /><path d="M5 7v12h12" />
         </svg>
     ),
     Refresh: () => (
@@ -46,159 +44,227 @@ const Icon = {
     ),
     Share: () => (
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8">
-            <path d="M12 3v14" /><path d="M7 8l5-5 5 5" /><path d="M5 21h14" />
+            <circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" />
+            <path d="M8.6 13.5l6.8 3.9M15.4 6.6L8.6 10.5" />
         </svg>
     ),
-    Spinner: () => (
-        <svg viewBox="0 0 24 24" width="18" height="18" className="animate-spin">
+    Spinner: ({ fast }: { fast?: boolean }) => (
+        <svg viewBox="0 0 24 24" width="16" height="16" className="animate-spin" style={fast ? { animationDuration: '0.6s' } : undefined}>
             <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" fill="none" opacity=".25" />
             <path d="M21 12a9 9 0 0 1-9 9" stroke="currentColor" strokeWidth="2" fill="none" />
         </svg>
-    )
+    ),
 };
 
+/* -------- helper for rotating HUD text -------- */
+function subjectFromPrompt(prompt: string) {
+    const t = (prompt || '').trim();
+    const lead = t.replace(/^(generate|create|make|draw|render|design|compose|produce|paint)\s+/i, '');
+    const m = lead.match(/\bof\s+(.*)$/i);
+    const subj = (m?.[1] || lead).replace(/^(a|an|the)\s+/i, '');
+    return subj.split(/[.?!]/)[0].split(/\s+/).slice(0, 10).join(' ').trim();
+}
+
 export default function ImageMsg({
-    url, prompt, displayName, busy, onOpen, onDescribe, onRecreate, onShare
+    url, prompt, overlay, displayName, busy, plan, onOpen, onDescribe, onRecreate, onShare
 }: ImageMsgProps) {
-    // status machine: we never mount <img> unless status === 'ready'
     const [status, setStatus] = useState<'idle' | 'pending' | 'ready' | 'error'>(() => (url ? 'pending' : 'idle'));
     const [displayUrl, setDisplayUrl] = useState<string | null>(null);
+    const [imgLoaded, setImgLoaded] = useState(false);
 
-    // personalized rotating captions while loading
+    // natural image AR for skeleton (so the rounded skeleton never peeks)
+    const [nat, setNat] = useState<{ w: number; h: number } | null>(null);
+
+    // local flag to distinguish "regenerating" from "describe busy"
+    const [isRecreating, setIsRecreating] = useState(false);
+
     const first = (displayName || 'friend').split(' ')[0];
+
     const captions = useMemo(() => {
-        const base = [
-            `Thinking up the shot…`,
-            `Sketching layout…`,
-            `Adding details…`,
-            `Balancing lighting…`,
-            `Rendering textures…`,
-            `Color grading…`,
-            `Finishing touches…`,
-        ];
+        if (overlay) return [overlay];
+        const subj = subjectFromPrompt(prompt) || 'your idea';
+        const base = [`Composing scene & layout`, `Refining textures & lighting`, `Finalizing details`, `Generating image of ${subj}`];
         if (first && Math.random() < 0.7) base.splice(1, 0, `Working on it, ${first}…`);
         return base;
-    }, [first]);
+    }, [overlay, prompt, first]);
 
     const [tick, setTick] = useState(0);
     useEffect(() => {
         if (status === 'ready') return;
-        const t = setInterval(() => setTick(t => (t + 1) % captions.length), 3000);
+        const t = setInterval(() => setTick(v => (v + 1) % captions.length), 3000);
         return () => clearInterval(t);
     }, [status, captions.length]);
 
-    // Preload on every url change; only show <img> when it actually loads
+    // preload and capture natural size
     useEffect(() => {
+        setImgLoaded(false);
         setDisplayUrl(null);
-
-        if (!url) { // no URL yet (placeholder)
-            setStatus('pending');
-            return;
-        }
-
-        let cancelled = false;
+        if (!url) { setStatus('pending'); return; }
+        let canceled = false;
         setStatus('pending');
-
         const img = new Image();
         img.onload = () => {
-            if (cancelled) return;
+            if (canceled) return;
+            setNat({ w: img.naturalWidth || 1, h: img.naturalHeight || 1 });
             setDisplayUrl(url);
             setStatus('ready');
+            setTimeout(() => setImgLoaded(true), 20);
+            setIsRecreating(false); // new image arrived → no longer recreating
         };
-        img.onerror = () => {
-            if (cancelled) return;
-            setStatus('error');
-        };
+        img.onerror = () => { if (!canceled) setStatus('error'); };
         img.src = url;
-
-        return () => { cancelled = true; };
+        return () => { canceled = true; };
     }, [url]);
+
+    const handleRecreate = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
+        // immediately return to skeleton state and hide actions
+        setIsRecreating(true);
+        setImgLoaded(false);
+        setDisplayUrl(null);
+        setStatus('pending');
+        onRecreate(e);
+    }, [onRecreate]);
 
     const isLoading = status !== 'ready';
     const hasError = status === 'error';
-    const isWorking = !!busy || isLoading; // ← spinner if loading OR parent says busy
+    const overlayNow = overlay || captions[tick] || 'Working…';
+    const skelAR = nat ? `${nat.w} / ${nat.h}` : '1 / 1';
 
     return (
-        <div className="space-y-1">
+        <div className="space-y-2 image-msg">
+            {/* Progress pill (only while loading) */}
+            {isLoading && (
+                <div className="flex justify-start">
+                    <span className="inline-flex items-center gap-2 text-[12px] px-3 py-1 rounded-full bg-white/10 border border-white/15">
+                        <i className="h-3 w-3 rounded-full animate-pulse bg-white/80" />
+                        <span>{overlayNow}</span>
+                    </span>
+                </div>
+            )}
+
+            {/* Card — edge-to-edge media; overflow hidden clips to rounded corners */}
             <div
-                className="relative overflow-hidden rounded-2xl border border-white/12 bg-white/5"
-                style={{ width: 'min(92vw, 620px)' }}
-                aria-busy={isWorking} // ← reflect busy state
+                className={`relative ${CARD_RADIUS_CLASS} overflow-hidden border border-white/12 bg-white/5`}
+                style={{ width: `min(${CARD_W_PX}px, ${CARD_W_VW}vw)` }}
+                aria-busy={isLoading || !!busy}
             >
-                {/* Skeleton (shown for pending & error) */}
-                {isLoading && (
-                    <div className="aspect-square w-full animate-pulse"
-                        style={{ background: 'linear-gradient(90deg,#2a2a2a,#3a3a3a,#2a2a2a)', filter: 'blur(2px)' }} />
+                {/* Skeleton with exact AR to avoid any “ring” */}
+                {(isLoading || !imgLoaded) && (
+                    <div className="w-full img-skel" style={{ aspectRatio: skelAR }} />
                 )}
 
-                {/* Real image — ONLY when preload succeeded */}
                 {status === 'ready' && displayUrl && (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                         src={displayUrl}
                         alt={prompt || 'generated image'}
-                        className="block w-full h-auto"
+                        className={[
+                            'block w-full h-auto', // full-bleed
+                            'transition-opacity duration-500', // fade-in
+                            imgLoaded ? 'opacity-100' : 'opacity-0',
+                        ].join(' ')}
                         onClick={onOpen}
                         draggable={false}
                         style={{ cursor: 'zoom-in' }}
                     />
                 )}
 
-                {/* Loading status (top-left) */}
-                {status === 'pending' && (
-                    <div className="absolute top-2 left-2 text-[12px] text-white/90">
-                        <span className="inline-block animate-[pingpong_1.8s_ease-in-out_infinite]" style={{ transformOrigin: 'left center' }}>
-                            {captions[tick]}
-                        </span>
+                {/* Actions: only render AFTER the image has fully loaded */}
+                {status === 'ready' && displayUrl && imgLoaded && (
+                    <div className="absolute top-2 right-2 z-10 flex items-center gap-1">
+                        {/* DESCRIBE — spinner shows ONLY when busy and NOT recreating */}
+                        <button
+                            type="button"
+                            title={busy && !isRecreating ? 'Describing…' : 'Listen (describe)'}
+                            aria-label="Listen (describe)"
+                            onClick={onDescribe}
+                            disabled={!!busy || !displayUrl}
+                            className="h-7 w-7 grid place-items-center rounded-full bg-black text-white/95 shadow-sm hover:bg-black/85 active:scale-95 disabled:opacity-40 disabled:pointer-events-none"
+                        >
+                            {busy && !isRecreating ? <Icon.Spinner fast /> : <Icon.Volume />}
+                        </button>
+
+                        {/* OPEN */}
+                        <button
+                            type="button"
+                            title="Open"
+                            aria-label="Open"
+                            onClick={onOpen}
+                            disabled={!displayUrl}
+                            className="h-7 w-7 grid place-items-center rounded-full bg-black text-white/95 shadow-sm hover:bg-black/85 disabled:opacity-40"
+                        >
+                            <Icon.Open />
+                        </button>
+
+                        {/* RECREATE */}
+                        <button
+                            type="button"
+                            title="Recreate"
+                            aria-label="Recreate"
+                            onClick={handleRecreate}
+                            disabled={!!busy}
+                            className="h-7 w-7 grid place-items-center rounded-full bg-black text-white/95 shadow-sm hover:bg-black/85 disabled:opacity-40"
+                        >
+                            <Icon.Refresh />
+                        </button>
+
+                        {/* SHARE */}
+                        <button
+                            type="button"
+                            title="Share"
+                            aria-label="Share"
+                            onClick={onShare}
+                            disabled={!displayUrl || !!busy}
+                            className="h-7 w-7 grid place-items-center rounded-full bg-black text-white/95 shadow-sm hover:bg-black/85 disabled:opacity-40"
+                        >
+                            <Icon.Share />
+                        </button>
                     </div>
                 )}
 
-                {/* Error status (top-left) */}
                 {hasError && (
                     <div className="absolute inset-0 grid place-items-center">
                         <div className="text-center text-[13px] text-white/85 px-3">
                             <div className="mb-2">Couldn’t load the image.</div>
-                            <button className="btn btn-water" onClick={onRecreate}>Recreate</button>
+                            <button className="btn btn-water" onClick={onRecreate as any}>Recreate</button>
                         </div>
                     </div>
                 )}
             </div>
 
-            {/* Actions */}
-            <div className="image-actions flex items-center gap-2">
-                {isLoading ? (
-                    <Icon.Spinner />
-                ) : (
-                    <>
-                        {/* Listen shows spinner while parent marks this card busy */}
-                        <Btn
-                            title={busy ? 'Working…' : 'Listen (describe)'}
-                            onClick={busy ? () => { } : onDescribe}
-                            disabled={!!busy}
-                        >
-                            {busy ? <Icon.Spinner /> : <Icon.Volume />}
-                        </Btn>
-
-                        <Btn title="Recreate" onClick={onRecreate} disabled={!!busy}>
-                            <Icon.Refresh />
-                        </Btn>
-
-                        <Btn title="Share" onClick={onShare} disabled={!!busy}>
-                            <Icon.Share />
-                        </Btn>
-                    </>
-                )}
-            </div>
-
+            {/* Local styles */}
             <style jsx>{`
-@keyframes pingpong {
-0% { transform: translateX(0); }
-50% { transform: translateX(10px); }
-100% { transform: translateX(0); }
+/* Compact skeleton with shimmer */
+.img-skel {
+background:
+radial-gradient(120% 140% at 30% 20%, rgba(255,255,255,0.10), rgba(255,255,255,0.05) 40%, rgba(255,255,255,0.03) 70%, transparent),
+linear-gradient(90deg,#2a2a2a,#3a3a2a,#2a2a2a);
+position: relative;
+overflow: hidden;
 }
-.image-actions { color: var(--icon-fg); } /* icons = currentColor */
-.icon-btn { color: inherit; background: transparent; }
-.icon-btn:hover { background: var(--th-surface); } /* readable on both themes */
+.img-skel::after {
+content: '';
+position: absolute; inset: 0;
+background: linear-gradient(90deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0.10) 50%, rgba(255,255,255,0.02) 100%);
+transform: translateX(-100%);
+animation: shimmer 1.4s infinite;
+}
+@keyframes shimmer { to { transform: translateX(100%); } }
+`}</style>
+
+            {/* Global, defensive overrides */}
+            <style jsx global>{`
+.image-msg { line-height: 0; } /* remove inline-image baseline gap */
+.image-msg img {
+display: block !important;
+width: 100% !important;
+height: auto !important;
+margin: 0 !important;
+padding: 0 !important;
+border: 0 !important;
+background: transparent !important;
+}
+.image-msg .${CARD_RADIUS_CLASS} { overflow: hidden !important; }
 `}</style>
         </div>
     );

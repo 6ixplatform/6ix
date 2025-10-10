@@ -233,44 +233,33 @@ export default function AppHeader({
     scrollToBottom,
     avatarFallback = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==',
 }: Props) {
-    // 1) Mount flag so first client render matches the server HTML exactly
-    const [mounted, setMounted] = React.useState(false);
-    React.useEffect(() => setMounted(true), []);
 
-    // 2) We MAY read localStorage after mount to mirror UserMenuPortal
-    const [miniLocal, setMiniLocal] = React.useState<MiniSeed | null>(null);
+    // same as UserMenuPortal: quick local fallback
+    const [mini, setMini] = React.useState<{ avatarUrl?: string | null; displayName?: string | null; email?: string | null; wallet?: number | null; credits?: number | null } | null>(null);
     React.useEffect(() => {
-        try { setMiniLocal(JSON.parse(localStorage.getItem('6ixai:profile') || 'null')); } catch { /* noop */ }
+        try { setMini(JSON.parse(localStorage.getItem('6ixai:profile') || 'null')); } catch { }
     }, []);
 
-    // 3) Stable SSR / initial-client values (must match on both passes)
-    const ssrDisplay = miniSeed?.displayName ?? miniSeed?.email?.split?.('@')[0] ?? 'Profile';
-    const ssrAvatar = miniSeed?.avatarUrl || avatarFallback || AVATAR_FALLBACK;
-    const ssrWallet = 0;
-    const ssrCredits = 0;
+    const name =
+        (profile?.displayName
+            || (profile as any)?.username
+            || profile?.email?.split?.('@')[0]
+            || miniSeed?.displayName
+            || miniSeed?.email?.split?.('@')[0]
+            || mini?.displayName
+            || mini?.email?.split?.('@')[0]
+            || 'Profile'
+        ).trim();
 
-    // 4) Live values used AFTER mount (can differ safely)
-    const csrDisplay =
-        profile?.displayName
-        ?? miniSeed?.displayName
-        ?? miniLocal?.displayName
-        ?? profile?.email?.split('@')[0]
-        ?? miniSeed?.email?.split('@')[0]
-        ?? miniLocal?.email?.split('@')[0]
-        ?? 'Profile';
+    const avatarSrc = (profile?.avatarUrl?.trim()
+        || miniSeed?.avatarUrl?.trim()
+        || mini?.avatarUrl
+        || (avatarFallback || AVATAR_FALLBACK)) as string;
 
-    const csrAvatar =
-        (profile?.avatarUrl && profile.avatarUrl.trim() !== '' ? profile.avatarUrl :
-            miniSeed?.avatarUrl && miniSeed.avatarUrl.trim() !== '' ? miniSeed.avatarUrl :
-                miniLocal?.avatarUrl && miniLocal.avatarUrl.trim() !== '' ? miniLocal.avatarUrl :
-                    avatarFallback || AVATAR_FALLBACK);
+    const walletNow = Number(profile?.wallet ?? miniSeed?.wallet ?? mini?.wallet ?? 0);
+    const creditsNow = Number(profile?.credits ?? miniSeed?.credits ?? mini?.credits ?? 0);
 
-    const walletNow = mounted ? Number((profile?.wallet ?? miniSeed?.wallet ?? miniLocal?.wallet ?? 0)) : ssrWallet;
-    const creditsNow = mounted ? Number((profile?.credits ?? miniSeed?.credits ?? miniLocal?.credits ?? 0)) : ssrCredits;
 
-    // 5) Pick which to show (prevents hydration mismatch)
-    const displayNow = mounted ? csrDisplay : ssrDisplay;
-    const avatarNow = mounted ? csrAvatar : ssrAvatar;
 
     // model is tied to plan; ensure it shows the allowed one
     const displayModel: UiModelId = coerceUiModelForPlan(model, effPlan);
@@ -279,7 +268,7 @@ export default function AppHeader({
     const speedChoices = SPEEDS_BY_PLAN[effPlan];
 
     const handleSpeedPick = (next: SpeedMode) => {
-        // Free users can’t change; clicking triggers upsell if provided
+
         if (effPlan === 'free') {
             onUpsell?.('pro'); // suggest upgrading
             return;
@@ -341,13 +330,9 @@ export default function AppHeader({
                             <CrescentIcon size={18} />
                         </button>
 
-                        {/* Name: gate title to avoid attribute mismatch; suppress text hydration warning */}
-                        <div
-                            className="hidden sm:block text-sm opacity-90 truncate max-w-[180px]"
-                            title={mounted ? displayNow : undefined}
-                            suppressHydrationWarning
-                        >
-                            {displayNow}
+                        {/* Name (portal-style; one source of truth) */}
+                        <div className="hidden sm:block text-sm opacity-90 truncate max-w-[180px]">
+                            <span title={name}>{name}</span>
                         </div>
 
                         <button
@@ -356,14 +341,16 @@ export default function AppHeader({
                             className="relative h-9 w-9 rounded-full overflow-hidden border border-white/15 active:scale-95"
                             aria-label="Account menu"
                         >
+                            {/* Avatar (portal-style; single <img>, src updates as props/mini change) */}
                             <img
-                                src={avatarNow || AVATAR_FALLBACK}
-                                alt={mounted ? (displayNow || 'avatar') : 'avatar'}
+                                src={avatarSrc}
+                                alt={name || 'avatar'}
                                 className="h-full w-full object-cover"
                                 onError={(e) => { (e.currentTarget as HTMLImageElement).src = AVATAR_FALLBACK; }}
                             />
                             <VerifiedBadge plan={effPlan} />
                         </button>
+
                     </div>
                 </div>
 
@@ -377,7 +364,7 @@ export default function AppHeader({
                     <Pill>{effPlan}</Pill>
                     <Pill>{displayModel}</Pill>
                     {SPEEDS_BY_PLAN[effPlan].length > 1 ? (
-                        // mobile native select when selectable
+
                         <label className="h-9 px-4 rounded-full bg-white/5 border border-white/15 text-[13px] text-zinc-200 grid place-items-center">
                             <select
                                 className="bg-transparent outline-none"

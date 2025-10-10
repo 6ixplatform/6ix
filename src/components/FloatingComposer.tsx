@@ -1,9 +1,12 @@
+// FloatingComposer.tsx
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 /* ----- Types ----- */
+type Plan = 'free' | 'pro' | 'max';
+
 type Attachment = {
     id: string;
     name: string;
@@ -38,6 +41,9 @@ type Props = {
     transcribing: boolean;
     isBusy: boolean;
     hasPendingUpload: boolean;
+    busyLabel?: string;
+    phase?: 'uploading' | 'analyzing' | 'ready';
+    tickerMessages?: string[];
 
     // voice
     recState: 'idle' | 'recording';
@@ -47,6 +53,11 @@ type Props = {
     // actions
     send: () => void;
     handleStop: () => void;
+
+    // NEW
+    plan: Plan;
+    hints?: string[]; // ok to leave unused for now
+    hintTick?: number; // ok to leave unused for now
 };
 
 /* ──────────────────────────────────────────────────────────── */
@@ -99,6 +110,7 @@ export default function FloatingComposer({
     streaming, transcribing, isBusy, hasPendingUpload,
     recState, startRecording, stopRecording,
     send, handleStop,
+    plan,
 }: Props) {
     const [composerMax, setComposerMax] = useState(false);
 
@@ -118,11 +130,11 @@ export default function FloatingComposer({
     }, [input, textRef]);
 
     // open hidden file input safely
-    const openFiles = () => {
+    const openFiles = React.useCallback(() => {
         pickerOpenRef.current = true;
-        try { onOpenFiles?.(); } catch { }
-        try { fileInputRef.current?.click(); } catch { }
-    };
+        fileInputRef.current?.click(); // single click source
+    }, [pickerOpenRef, fileInputRef]);
+
 
     // Helper: robust IME/composition detection (TS-safe)
     const isIMEComposing = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -269,32 +281,47 @@ px-3 pointer-events-none
                         {attachments.map(a => (
                             <div
                                 key={a.id}
-                                className={`flex items-center gap-2 rounded-xl bg-white/5 dark:bg-white/10 border border-white/10 px-2 py-1 ${a.status !== 'ready' ? 'opacity-70' : ''
-                                    }`}
+                                className={[
+                                    'relative overflow-hidden rounded-xl border border-white/12 bg-white/5',
+                                    'h-20 w-20 grid place-items-center', // smaller chips
+                                    a.status !== 'ready' ? 'opacity-80' : ''
+                                ].join(' ')}
                             >
-                                {/* tiny rounded preview */}
+                                {/* preview / type (NO NAMES/CAPTIONS) */}
                                 {a.previewUrl ? (
                                     a.kind === 'image' ? (
-                                        <img src={a.previewUrl} className="h-7 w-7 rounded-lg object-cover" />
+                                        <img src={a.previewUrl} className="h-full w-full object-cover" alt="" />
                                     ) : a.kind === 'video' ? (
-                                        <video src={a.previewUrl} className="h-7 w-7 rounded-lg object-cover" muted />
+                                        <video src={a.previewUrl} className="h-full w-full object-cover" muted />
                                     ) : (
-                                        <span className="text-[10px] opacity-70">{a.kind}</span>
+                                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-black/30 text-white/90">
+                                            {a.kind.toUpperCase()}
+                                        </span>
                                     )
                                 ) : (
-                                    <span className="text-[10px] opacity-70">FILE</span>
+                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-black/30 text-white/90">FILE</span>
                                 )}
 
-                                <div className="text-[12px] max-w-[200px] truncate">{a.name}</div>
+                                {/* spinner while ingest/analyze */}
+                                {a.status !== 'ready' && (
+                                    <div className="absolute inset-0 grid place-items-center">
+                                        <svg viewBox="0 0 24 24" width="18" height="18" className="animate-spin opacity-90" fill="none" stroke="currentColor" strokeWidth="2">
+                                            <circle cx="12" cy="12" r="9" opacity=".2" />
+                                            <path d="M21 12a9 9 0 0 1-9 9" />
+                                        </svg>
+                                    </div>
+                                )}
 
+                                {/* remove (kept) */}
                                 <button
                                     type="button"
                                     onClick={() => onRemoveAttachment(a.id)}
-                                    className="ml-1 h-5 w-5 rounded-full bg-black/70 text-white grid place-items-center"
+                                    className="absolute top-1.5 right-1.5 h-6 w-6 rounded-full grid place-items-center"
                                     title="Remove"
                                     aria-label="Remove"
+                                    style={{ background: 'rgba(0,0,0,.7)', color: '#fff' }}
                                 >
-                                    <svg viewBox="0 0 24 24" width="12" height="12">
+                                    <svg viewBox="0 0 24 24" width="13" height="13">
                                         <path d="M6 6L18 18M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                                     </svg>
                                 </button>
@@ -302,6 +329,35 @@ px-3 pointer-events-none
                         ))}
                     </div>
                 )}
+                {/* hidden file input — plan-aware accept + count cap */}
+                {/* hidden file input — plan-aware accept + count cap (SSR-safe) */}
+                <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    hidden
+                    // Free: images only. Pro/Max: any file type.
+                    accept={plan === 'free' ? 'image/*' : undefined}
+                    onChange={(e) => {
+                        const files = e.currentTarget.files;
+                        if (!files || !files.length) return;
+
+                        const cap = plan === 'free' ? 6 : plan === 'pro' ? 9 : 20;
+
+                        if (files.length + attachments.length > cap) {
+                            alert(`You can attach up to ${cap} ${plan === 'free' ? 'images' : 'files'} for your plan.`);
+                            e.currentTarget.value = '';
+                            return;
+                        }
+
+                        // delegate – parent does: preview → POST /api/files/ingest (x-plan header) → /api/files/analyze
+                        onFilesChosen(files);
+                        e.currentTarget.value = '';
+                        pickerOpenRef.current = false;
+                        setTimeout(() => textRef.current?.focus({ preventScroll: true }), 0);
+                    }}
+                />
+
 
                 {/* shell — single ring, glassy blur */}
                 <div
@@ -345,19 +401,6 @@ overflow-hidden
                             <path d="M12 5v14M5 12h14" />
                         </svg>
                     </button>
-
-                    <input
-                        ref={fileInputRef}
-                        type="file"
-                        multiple
-                        hidden
-                        onChange={(e) => {
-                            if (e.target.files?.length) onFilesChosen(e.target.files);
-                            e.target.value = '';
-                            pickerOpenRef.current = false;
-                            setTimeout(() => textRef.current?.focus({ preventScroll: true }), 0);
-                        }}
-                    />
 
                     {/* text area */}
                     <textarea
@@ -459,7 +502,7 @@ resize-none rounded-[9999px]
             {/* Fullscreen modal editor */}
             {composerMax && createPortal(
                 <div
-                    className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm grid place-items-center"
+                    className="fixed bottom-0 inset-x-0 z-[60] bg-black/60 backdrop-blur-sm grid place-items-center"
                     onClick={() => setComposerMax(false)}
                 >
                     <div
@@ -598,16 +641,32 @@ bg-transparent p-3
                                 {attachments.length > 0 && (
                                     <div className="flex flex-wrap gap-2">
                                         {attachments.map(a => (
-                                            <div key={a.id} className="rounded-xl border border-white/15 bg-white/5 px-2 py-1 flex items-center gap-2">
-                                                <div className="text-[12px] max-w-[200px] truncate">{a.name}</div>
+                                            <div
+                                                key={a.id}
+                                                className="relative h-16 w-16 rounded-lg overflow-hidden border border-white/12 bg-white/5 grid place-items-center"
+                                            >
+                                                {a.previewUrl ? (
+                                                    a.kind === 'image' ? (
+                                                        <img src={a.previewUrl} className="h-full w-full object-cover" alt="" />
+                                                    ) : a.kind === 'video' ? (
+                                                        <video src={a.previewUrl} className="h-full w-full object-cover" muted />
+                                                    ) : (
+                                                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-black/30 text-white/90">
+                                                            {a.kind.toUpperCase()}
+                                                        </span>
+                                                    )
+                                                ) : (
+                                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-black/30 text-white/90">FILE</span>
+                                                )}
+
                                                 <button
                                                     type="button"
                                                     onClick={() => onRemoveAttachment(a.id)}
-                                                    className="ml-1 h-5 w-5 rounded-full bg-black text-white grid place-items-center"
+                                                    className="absolute top-1 right-1 h-5 w-5 rounded-full bg-black/80 text-white grid place-items-center"
                                                     title="Remove"
                                                     aria-label="Remove"
                                                 >
-                                                    <svg viewBox="0 0 24 24" width="12" height="12">
+                                                    <svg viewBox="0 0 24 24" width="11" height="11">
                                                         <path d="M6 6L18 18M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                                                     </svg>
                                                 </button>
@@ -615,6 +674,7 @@ bg-transparent p-3
                                         ))}
                                     </div>
                                 )}
+
                             </div>
                         </div>
                     </div>

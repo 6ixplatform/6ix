@@ -1,3 +1,4 @@
+// components/MsgActions.tsx
 'use client';
 import React, { useState } from 'react';
 
@@ -10,18 +11,26 @@ type Props = {
     disliked?: boolean;
     onLike: () => void;
     onDislike: () => void;
-    onRefresh: () => void;
+
+    /** Legacy instant refresh (optional) */
+    onRefresh?: () => void;
+
+    /** New: opens the recreate/options menu (we use the button as anchor) */
+    onRecreate?: (e: React.MouseEvent<HTMLButtonElement>) => void;
+
     onShare: () => void;
     sharing?: boolean;
 };
 
-const SIZE = 18; // icon size
-const BTN = 28; // button box
-const STROKE = 1.8; // line weight
+const SIZE = 18;
+const BTN = 28;
+const STROKE = 1.8;
 
 const Btn = ({
     title, onClick, disabled, children,
-}: { title: string; onClick: () => void; disabled?: boolean; children: React.ReactNode }) => (
+}: {
+    title: string; onClick: (e: React.MouseEvent<HTMLButtonElement>) => void; disabled?: boolean; children: React.ReactNode
+}) => (
     <button
         className="icon-btn"
         title={title}
@@ -48,17 +57,15 @@ opacity:.9;
     </button>
 );
 
-/* ── Outline icons (match references) ─────────────────────────────────────── */
-const cap = "round" as const;
-const join = "round" as const;
+const cap = 'round' as const;
+const join = 'round' as const;
 
+/* ── Outline icons (no fill) ────────────────────────────────────────────── */
 const Icon = {
     Copy: () => (
         <svg viewBox="0 0 24 24" width={SIZE} height={SIZE} fill="none"
             stroke="currentColor" strokeWidth={STROKE} strokeLinecap={cap} strokeLinejoin={join}>
-            {/* back square */}
             <rect x="5" y="6" width="11" height="11" rx="3" />
-            {/* front square */}
             <rect x="8" y="9" width="11" height="11" rx="3" />
         </svg>
     ),
@@ -87,9 +94,7 @@ const Icon = {
         <svg viewBox="0 0 24 24" width={SIZE} height={SIZE} fill="none"
             stroke={active ? 'var(--ok, #16a34a)' : 'currentColor'}
             strokeWidth={STROKE} strokeLinecap={cap} strokeLinejoin={join}>
-            {/* cuff */}
             <rect x="2.5" y="10" width="5.5" height="8" rx="2" />
-            {/* thumb outline */}
             <path d="M8 18h7.5a3 3 0 0 0 2.9-2.2l1.3-4.6A2.5 2.5 0 0 0 17.3 8H14c.4-1.8.5-3.1.2-3.9C13.8 3.3 12.8 3 12 4l-2 5H8a2 2 0 0 0-2 2v5" />
         </svg>
     ),
@@ -97,9 +102,7 @@ const Icon = {
         <svg viewBox="0 0 24 24" width={SIZE} height={SIZE} fill="none"
             stroke={active ? 'var(--bad, #e11d48)' : 'currentColor'}
             strokeWidth={STROKE} strokeLinecap={cap} strokeLinejoin={join}>
-            {/* cuff */}
             <rect x="16" y="6" width="5.5" height="8" rx="2" />
-            {/* thumb outline */}
             <path d="M16 6H8.5A3 3 0 0 0 5.6 8.2L4.3 12.8A2.5 2.5 0 0 0 6.7 16H10c-.4 1.8-.5 3.1-.2 3.9.4.8 1.4 1.1 2.2.1l2-5h2a2 2 0 0 0 2-2V6" />
         </svg>
     ),
@@ -115,11 +118,8 @@ const Icon = {
     Share: () => (
         <svg viewBox="0 0 24 24" width={SIZE} height={SIZE} fill="none"
             stroke="currentColor" strokeWidth={STROKE} strokeLinecap={cap} strokeLinejoin={join}>
-            {/* tray */}
             <path d="M5 21h14" />
-            {/* vertical shaft */}
             <path d="M12 3v14" />
-            {/* arrow head */}
             <path d="M7 8l5-5 5 5" />
         </svg>
     ),
@@ -148,7 +148,8 @@ export default function MsgActions({
     textToCopy,
     onSpeak, speaking, speakDisabled,
     liked, disliked, onLike, onDislike,
-    onRefresh, onShare, sharing,
+    onRefresh, onRecreate,
+    onShare, sharing,
 }: Props) {
     const [copied, setCopied] = useState(false);
 
@@ -166,19 +167,28 @@ export default function MsgActions({
                 {copied ? <Icon.Tick /> : <Icon.Copy />}
             </Btn>
 
-            <Btn title="Listen" onClick={onSpeak} disabled={speakDisabled}>
+            <Btn title="Listen" onClick={() => onSpeak()} disabled={speakDisabled}>
                 {speaking ? <Icon.Spinner /> : <Icon.Volume />}
             </Btn>
 
             {showLike && (
-                <Btn title="Like" onClick={onLike}><Icon.Like active={!!liked} /></Btn>
+                <Btn title="Like" onClick={() => onLike()}><Icon.Like active={!!liked} /></Btn>
             )}
             {showDislike && (
-                <Btn title="Dislike" onClick={onDislike}><Icon.Dislike active={!!disliked} /></Btn>
+                <Btn title="Dislike" onClick={() => onDislike()}><Icon.Dislike active={!!disliked} /></Btn>
             )}
 
-            <Btn title="Recreate" onClick={onRefresh}><Icon.Refresh /></Btn>
-            <Btn title="Share" onClick={onShare}>{sharing ? <Icon.Spinner /> : <Icon.Share />}</Btn>
+            {/* Recreate opens the small options menu if provided; else falls back to legacy refresh */}
+            <Btn
+                title="Recreate"
+                onClick={(e) => { onRecreate ? onRecreate(e) : onRefresh?.(); }}
+            >
+                <Icon.Refresh />
+            </Btn>
+
+            <Btn title="Share" onClick={() => onShare()}>
+                {sharing ? <Icon.Spinner /> : <Icon.Share />}
+            </Btn>
 
             <style jsx>{`
 .msg-actions{

@@ -39,11 +39,11 @@ import { buildFreeNudge, shouldNudgeFreeUser } from '@/lib/nudge';
 import MsgActions from '@/components/MsgActions';
 import { safeUUID } from '@/lib/uuid';
 import { bumpChat, bumpImg, CHAT_LIMITS, chatUsed, createImage, describeImage, IMG_LIMITS, imgUsed } from '@/lib/imageGen';
-import ImageMsg from '@/components/imageMsg';
+
 import TTSLimitModal from '@/components/TTSLimitModal';
 import { persistChat, restoreChat } from '@/lib/chatPersist';
 import { buildStopReply } from '@/lib/stopReply';
-import FeedbackTicker, { buildFeedback } from '@/components/FeedbackTicker';
+import { buildFeedback } from '@/components/FeedbackTicker';
 import LandingOrb from '@/components/LandingOrb';
 import { ThemeProvider, useTheme } from '@/theme/ThemeProvider';
 import LiveWallpaper from '@/components/live/LiveWallpaper';
@@ -58,7 +58,11 @@ import AvatarEditorModal from '@/components/AvatarEditorModal';
 import UserMenuPortal from '@/components/UserMenuPortal';
 import AppHeader from '@/components/AppHeader';
 import ThemePanel from '@/theme/ThemePanel';
-
+import { imagePlanFor } from '@/lib/imagePlan';
+import { sniffImageRequest } from '@/lib/imageSniffer';
+import UserFileMsg from '@/components/UserFileMsg';
+import ImageMsg from '@/components/ImageMsg';
+import { analyzeFiles } from '@/lib/analyzer';
 const HelpOverlay = NextDynamic(() => import('@/components/HelpOverlay'), { ssr: false });
 
 // --- Control tag parsers (COLOR_PICKER / SWATCH_GRID) ---
@@ -168,12 +172,31 @@ type Attachment = {
     mime: string;
     size: number;
     kind: 'image' | 'video' | 'audio' | 'pdf' | 'doc' | 'sheet' | 'text' | 'other';
-    previewUrl?: string; // local object URL for preview
-    remoteUrl?: string | null; // set after upload
+    previewUrl?: string;
+    remoteUrl?: string | null;
     status?: 'pending' | 'uploading' | 'ready' | 'error';
+
+    // NEW: background analysis for composer hints
+    analysisStatus?: 'idle' | 'pending' | 'done' | 'error';
+    analysis?: {
+        summary?: string;
+        followups?: string[];
+    };
+
     error?: string | null;
-    file?: File; // raw file (for ingest)
+    file?: File;
 };
+
+type MsgAttachment = {
+    id: string;
+    name: string;
+    mime: string;
+    size: number;
+    kind: Attachment['kind'];
+    url: string; // ← final, public URL used in chat
+    previewUrl?: string; // optional
+};
+
 type ChatMessage = {
     id?: string;
     role: 'user' | 'assistant' | 'system';
@@ -181,10 +204,23 @@ type ChatMessage = {
     kind?: 'text' | 'image';
     url?: string;
     prompt?: string;
-    attachments?: Attachment[]; // ← NEW
+    attachments?: MsgAttachment[];
     feedback?: 1 | -1 | 0;
-};
 
+    // NEW: lightweight per-message meta for image HUD/skeleton
+    meta?: {
+        overlay?: string; // current progress line
+        step?: number; // current step index (0-based)
+        steps?: string[]; // planned steps
+    };
+};
+type PreAnalysis = {
+    summary: string;
+    followups?: string[];
+    blank?: boolean;
+    // keep optional if you later surface links
+    links?: { title: string; url: string }[];
+};
 type Profile = {
     id: string;
     displayName: string | null;
@@ -346,6 +382,47 @@ async function streamLLM(
         if (doneSeen) break;
     }
 }
+
+// -------- Prompt-aware image progress helpers --------
+function extractSubject(prompt: string): string {
+    const t = (prompt || '').trim();
+    // strip leading verbs
+    const lead = t.replace(/^(generate|create|make|draw|render|design|compose|produce|paint)\s+/i, '');
+    // prefer "of <thing>" phrases
+    const m = lead.match(/\bof\s+(.*)$/i);
+    const subj = (m?.[1] || lead).replace(/^(a|an|the)\s+/i, '');
+    return subj.split(/[.?!]/)[0].split(/\s+/).slice(0, 10).join(' ').trim();
+}
+
+function pickStyle(prompt: string): string | null {
+    const styles = ['photorealistic', 'realistic', 'watercolor', 'oil painting', 'cartoon', 'anime', 'pixel art', '3d', 'isometric', 'line art', 'sketch', 'cyberpunk', 'noir', 'minimal'];
+    const low = prompt.toLowerCase();
+    for (const s of styles) if (low.includes(s)) return s;
+    return null;
+}
+
+function pickCamera(prompt: string): string | null {
+    const cams = ['portrait', 'landscape', 'close-up', 'macro', 'hdr', 'wide shot', 'bokeh', 'studio lighting', 'soft light', 'rim light'];
+    const low = prompt.toLowerCase();
+    for (const c of cams) if (low.includes(c)) return c;
+    return null;
+}
+
+function buildImageSteps(prompt: string): string[] {
+    const subj = extractSubject(prompt) || 'your idea';
+    const style = pickStyle(prompt);
+    const camera = pickCamera(prompt);
+
+    const steps: string[] = [
+        `Generating image of ${subj}`,
+        camera ? `Analyzing ${camera} & composition` : 'Composing scene & layout',
+        'Refining textures & lighting',
+    ];
+    if (style) steps.push(`Rendering in “${style}” style`);
+    steps.push('Finalizing details');
+    return steps;
+}
+
 
 function splitVisibleAndSuggestions(md: string) {
     const m = md?.match(/<suggested>[\s\S]*?<\/suggested>/i);
@@ -608,8 +685,92 @@ function AIPageInner() {
     const [turnLabel, setTurnLabel] = React.useState<string>('');
     const [status, setStatus] = useState<string | null>(null);
     const portalRoot = typeof window !== 'undefined' ? document.body : null;
+    const [descBusyId, setDescBusyId] = useState<string | null>(null);
+    const [recreatingId, setRecreatingId] = React.useState<string | null>(null);
+    const [overlay, setOverlay] = React.useState<{ open: boolean; text: string }>({ open: false, text: '' });
+    const didInitialScrollRef = React.useRef(false);
+    const afterBootScrollTimersRef = React.useRef<number[]>([]);
+    const [speakingFor, setSpeakingFor] = React.useState<string | null>(null);
 
+    function clearAfterBootScrollTimers() {
+        try { afterBootScrollTimersRef.current.forEach(id => clearTimeout(id)); } catch { }
+        afterBootScrollTimersRef.current = [];
+    }
+    // text in the composer (rename if yours is different)
+    const [input, setInput] = useState('');
 
+    // recreate menu (mini modal) state — now supports images and chat
+    const [reMenu, setReMenu] = React.useState<{
+        open: boolean;
+        i: number;
+        id?: string;
+        prompt: string;
+        pos: { top: number; left: number } | null;
+        switchOpen?: boolean;
+        mode: 'image' | 'chat';
+    }>({ open: false, i: -1, prompt: '', pos: null, switchOpen: false, mode: 'image' });
+
+    function openRecreateMenu(
+        i: number,
+        prompt: string,
+        anchorEl: HTMLElement,
+        mode: 'image' | 'chat' = 'image'
+    ) {
+        ensureMsgIdAt(i); // guarantee this message has an id
+        const targetId = messages[i]?.id; // capture stable id now
+        const r = anchorEl.getBoundingClientRect();
+        setReMenu({
+            open: true,
+            i,
+            id: targetId,
+            prompt: prompt || '',
+            pos: { top: Math.round(r.bottom + 8), left: Math.round(r.left) },
+            switchOpen: false,
+            mode,
+        });
+    }
+    function closeRecreateMenu() { setReMenu(s => ({ ...s, open: false })); }
+
+    // derive a nice caption for the currently used IMAGE model by plan
+    function currentImageModelCaption(p: Plan) {
+        const m = imagePlanFor(p).model;
+        return m === 'dall-e-3' ? 'Photoreal (DALL·E 3)' : 'Artistic (GPT-Image-1)';
+    }
+
+    // recreate with a specific model (Pro/Max can switch)
+    async function regenerateImageWithModelById(targetId: string, model: 'gpt-image-1' | 'dall-e-3') {
+        const i = messages.findIndex(m => m.id === targetId);
+        if (i < 0) return;
+        const msg = messages[i];
+        if (!msg?.prompt) return;
+
+        if (plan === 'free' && imgUsed() >= IMG_LIMITS.free) {
+            setPremiumModal({ open: true, required: 'pro' });
+            maybeNudge('image_limit');
+            return;
+        }
+
+        setRecreatingId(targetId);
+        setMessages(ms => {
+            const nx = ms.slice();
+            const j = nx.findIndex(m => m.id === targetId);
+            if (j !== -1) nx[j] = { ...nx[j], url: '' }; // skeleton only for this card
+            return nx;
+        });
+
+        try {
+            const url = await createImage(msg.prompt, plan, { model });
+            bumpImg();
+            setMessages(ms => {
+                const nx = ms.slice();
+                const j = nx.findIndex(m => m.id === targetId);
+                if (j !== -1) nx[j] = { ...nx[j], url };
+                return nx;
+            });
+        } finally {
+            setRecreatingId(null);
+        }
+    }
     useIsoLayoutEffect(() => { setMounted(true); }, []);
     // open from anywhere: window.dispatchEvent(new CustomEvent('helpkit:open'))
 
@@ -648,21 +809,55 @@ function AIPageInner() {
     // AIPage() — replace your messages state initializer:
     const [messages, setMessages] = React.useState<ChatMessage[]>([]);
     const [booted, setBooted] = React.useState(false);
-    const [descAt, setDescAt] = React.useState<number | null>(null);
-
-
 
     React.useEffect(() => {
         let alive = true;
         (async () => {
-            const restored = await restoreChat(); // your helper already reads localStorage
+            const restored = await restoreChat();
             if (!alive) return;
             if (restored?.length) setMessages(restored as any);
+
+            // (optional) repair image placeholders that had prompt but no url
+            const pend = (restored || [])
+                .map((m, i) => ({ m, i }))
+                .filter(x => x.m?.kind === 'image' && !x.m?.url && x.m?.prompt);
+
+            for (const { i, m } of pend) {
+                try {
+                    const url = await createImage(m.prompt!, plan);
+                    if (!alive) return;
+                    setMessages(ms => {
+                        const nx = ms.slice();
+                        if (nx[i]?.kind === 'image' && !nx[i].url) nx[i] = { ...(nx[i] as any), url };
+                        return nx;
+                    });
+                } catch { /* ignore */ }
+            }
+
             setBooted(true);
+
+            // --- initial bottom snap (strong) ---
+            // Run several times to beat pending layout/virtual-keyboard/slow images
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    scrollToBottom(false);
+                    clearAfterBootScrollTimers();
+                    afterBootScrollTimersRef.current = [
+                        window.setTimeout(() => scrollToBottom(false), 0),
+                        window.setTimeout(() => scrollToBottom(false), 80),
+                        window.setTimeout(() => scrollToBottom(false), 220),
+                        window.setTimeout(() => scrollToBottom(false), 450),
+                    ] as any;
+                });
+            });
         })();
-        return () => { alive = false; };
-    }, []);
-    const [input, setInput] = useState('');
+        return () => { alive = false; clearAfterBootScrollTimers(); };
+    }, []); // run ONCE
+
+
+
+    const [descAt, setDescAt] = React.useState<number | null>(null);
+
     const [attachments, setAttachments] = useState<Attachment[]>([]); // ← NEW
     const fileInputRef = useRef<HTMLInputElement | null>(null); // ← NEW
     const [streaming, setStreaming] = useState(false);
@@ -683,6 +878,54 @@ function AIPageInner() {
     const [menuOpen, setMenuOpen] = useState(false);
     const [avatarOpen, setAvatarOpen] = useState(false);
     const [savingAvatar, setSavingAvatar] = useState(false);
+
+    // plan-based file rules
+    function maxFilesFor(p: Plan) { return p === 'max' ? 20 : p === 'pro' ? 9 : 6; }
+    function isAllowedForPlan(p: Plan, mime: string, kind: Attachment['kind']) {
+        if (p === 'free') return /^image\//.test(mime) || kind === 'image';
+        return true; // pro / max: any type
+    }
+
+    const [composerHints, setComposerHints] = React.useState<string[]>([]);
+    const [hintTick, setHintTick] = React.useState(0);
+    useEffect(() => {
+        if (!composerHints.length) return;
+        const t = setInterval(() => setHintTick(v => (v + 1) % composerHints.length), 3000);
+        return () => clearInterval(t);
+    }, [composerHints.length]);
+
+    // --- Image progress timers (per message id) ---
+    const imageTimersRef = React.useRef<Record<string, number>>({});
+
+    // update one image message's overlay text safely
+    const setImageOverlay = React.useCallback((id: string, updater: (prev: ChatMessage) => ChatMessage) => {
+        setMessages(ms => {
+            const nx = ms.slice();
+            const i = nx.findIndex(m => m.id === id);
+            if (i !== -1) nx[i] = updater(nx[i]);
+            return nx;
+        });
+    }, [setMessages]);
+
+    function startHud(id: string) {
+        stopHud(id);
+        imageTimersRef.current[id] = window.setInterval(() => {
+            setImageOverlay(id, (prev) => {
+                const meta = prev.meta || { step: 0, steps: [] as string[] };
+                const steps = meta.steps?.length ? meta.steps : ['Working…'];
+                const nextStep = typeof meta.step === 'number' ? (meta.step + 1) % steps.length : 0;
+                return {
+                    ...prev,
+                    meta: { ...meta, step: nextStep, overlay: steps[nextStep], steps }
+                };
+            });
+        }, 3000); // pace of the HUD step changes
+    }
+
+    function stopHud(id: string) {
+        const t = imageTimersRef.current[id];
+        if (t) { clearInterval(t); delete imageTimersRef.current[id]; }
+    }
 
     // FREE-plan daily limit for STT (1/day)
     const [sttCount, setSttCount] = useState<number>(() => {
@@ -709,6 +952,24 @@ function AIPageInner() {
             localStorage.setItem('6ixai:profile', JSON.stringify(next));
             setMiniSeed(next);
         } catch { }
+    }
+    async function handleDescribeAttachment(a: { id?: string; url?: string; remoteUrl?: string; file?: File }) {
+        const url = a.remoteUrl || a.url;
+        setDescBusyId(a.id ?? url ?? 'local');
+        try {
+            if (!url && a.file) {
+                // describe local (unsent) file
+                const text = await describeLocalFile(a.file);
+                await handleSpeak(text, a.id ?? a.url ?? 'local');
+                return;
+            }
+            if (!url) return;
+            const userPrompt = input.trim() || undefined;
+            const text = await describeImage(userPrompt, url);
+            await handleSpeak(text, a.id ?? a.url ?? 'local');
+        } finally {
+            setDescBusyId(null);
+        }
     }
 
     async function handleAvatarSubmit(file: File | null) {
@@ -765,9 +1026,6 @@ function AIPageInner() {
         setTimeout(() => { window.location.replace('/auth/signin?next=/ai'); }, 20);
     };
 
-    // --- put these near the top of AIPage(), with other state ---
-    const [speaking, setSpeaking] = useState(false);
-
     const FREE_MAX_TTS = 6;
     const ttsKey = () => `6ix:tts:${new Date().toISOString().slice(0, 10)}`;
     const ttsUsed = () => { try { return Number(localStorage.getItem(ttsKey()) || '0'); } catch { return 0; } };
@@ -776,17 +1034,12 @@ function AIPageInner() {
 
     // ---- paste your function right here ----
     // replace your handleSpeak with this quota-aware version:
-    async function handleSpeak(text: string) {
-        if (plan === 'free' && ttsUsed() >= FREE_MAX_TTS) {
-            setTtsLimitOpen(true); // <<— show the tailored modal (not the generic premium modal)
-            maybeNudge('tts_limit');
-            return;
-        }
-        setSpeaking(true);
+    async function handleSpeak(text: string, forId?: string) {
+        if (!text?.trim()) return;
+        setSpeakingFor(forId || 'global'); // only the clicked one spins
         try { await playTTS(text, plan, profile?.displayName ?? null); }
-        finally { setSpeaking(false); }
+        finally { setSpeakingFor(null); }
     }
-
     function maybeNudge(reason: 'image_limit' | 'chat_limit' | 'tts_limit' | 'feature_locked' | 'general' = 'general') {
         // Only free plan should ever see nudges
         if (plan !== 'free') return;
@@ -965,7 +1218,7 @@ function AIPageInner() {
     /* premium modal */
     const [premiumModal, setPremiumModal] = useState<{ open: boolean; required: Plan }>({ open: false, required: 'pro' });
     // PRE-ANALYSIS cache for Pro/Max
-    const preAnalysisRef = useRef<{ summary: string; followups?: string[]; links?: { title: string; url: string }[]; blank?: boolean } | null>(null);
+    const preAnalysisRef = useRef<PreAnalysis | null>(null);
 
     // --- iOS-safe file picker ---
     const textRef = useRef<HTMLTextAreaElement | null>(null);
@@ -973,6 +1226,28 @@ function AIPageInner() {
         const vv = (typeof window !== 'undefined' ? window.visualViewport : null);
         return !!vv && (window.innerHeight - vv.height > 120);
     };
+
+
+    // ---- one-time "tap the speaker" tip for image uploads ----
+    function speakerTipKey() {
+        const day = new Date().toISOString().slice(0, 10);
+        // include user id when known so we don't spam across users on shared devices
+        return `6ix:tip:speaker:${profile?.id || 'anon'}:${day}`;
+    }
+    function hasShownSpeakerTip() {
+        try { return localStorage.getItem(speakerTipKey()) === '1'; } catch { return false; }
+    }
+    function markSpeakerTipShown() {
+        try { localStorage.setItem(speakerTipKey(), '1'); } catch { }
+    }
+    function buildSpeakerTip(displayName?: string | null): ChatMessage {
+        const first = (displayName || 'Friend').split(' ')[0];
+        return {
+            id: safeUUID(),
+            role: 'assistant',
+            content: `**Tip:** ${first}, tap the 🔊 on your uploaded image to hear me describe it out loud. You can also ask me follow-ups about the picture.`,
+        };
+    }
 
     async function waitForKeyboardToHide(timeoutMs = 800) {
         const start = Date.now();
@@ -989,24 +1264,13 @@ function AIPageInner() {
     }
 
     async function openFilePickerSafely() {
+        // prepare only: mark open and hide the keyboard so iOS anchors correctly
         pickerOpenRef.current = true;
-        // close the keyboard first so the native sheet anchors to the + button
         if (isKbOpen()) textRef.current?.blur();
         await waitForKeyboardToHide();
-
-        const el = fileInputRef.current as HTMLInputElement | null;
-        if (!el) { pickerOpenRef.current = false; return; }
-
-        // Prefer showPicker (anchors correctly on iOS 17+)
-        if (typeof (el as any).showPicker === 'function') {
-            try { (el as any).showPicker(); }
-            catch { el.click(); }
-        } else {
-            el.click();
-        }
+        // ✅ DO NOT click here. FloatingComposer will click once.
     }
 
-    // ---- STREAM-SAFE LIFECYCLE (restore + persist + cross-tab) ----
 
     // Treat any in-flight work as "busy" so we don't overwrite the ghost reply
     const busy = streaming || imgInFlightRef.current || transcribing || attachments.some(a => !a.remoteUrl);
@@ -1028,39 +1292,7 @@ function AIPageInner() {
             forceLite(on: boolean) { root.classList.toggle('perf-lite', !!on); }
         };
     }, []);
-    // Restore ONCE on mount, then (optionally) repair only image placeholders.
-    // This never runs again, so it cannot clobber an in-flight turn.
-    useEffect(() => {
-        let alive = true;
-        (async () => {
-            const restored = await restoreChat();
-            if (!alive || !restored?.length) return;
 
-            // Apply restore once before any turn has started
-            setMessages(restored as any);
-
-            // One-shot image repair (only if placeholders were restored)
-            const pend = restored
-                .map((m, i) => ({ m, i }))
-                .filter(x => x.m?.kind === 'image' && !x.m?.url && x.m?.prompt);
-
-            for (const { i, m } of pend) {
-                try {
-                    const url = await createImage(m.prompt!, plan);
-                    if (!alive) return;
-                    setMessages(ms => {
-                        const nx = ms.slice();
-                        if (nx[i]?.kind === 'image' && !nx[i].url) {
-                            nx[i] = { ...(nx[i] as any), url, remoteUrl: url };
-                        }
-                        return nx;
-                    });
-                } catch { /* leave placeholder; user can recreate */ }
-            }
-        })();
-        return () => { alive = false; };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
 
     // Single, guarded persist. Do NOT persist while busy (streaming/creating images/uploads).
     useEffect(() => {
@@ -1092,7 +1324,11 @@ function AIPageInner() {
         };
     }, []);
 
-
+    React.useEffect(() => {
+        const onResize = () => scrollToBottom(false);
+        window.addEventListener('resize', onResize);
+        return () => window.removeEventListener('resize', onResize);
+    }, []);
     // don't persist/restore/merge while busy
     useEffect(() => {
         if (busy) return;
@@ -1100,76 +1336,108 @@ function AIPageInner() {
         return () => clearTimeout(t);
     }, [messages, busy]);
 
-    useEffect(() => {
-        const onStorage = async (e: StorageEvent) => {
-            if (busy) return;
-            if (e.key === '6ixai:chat:v3') setMessages(await restoreChat() as any);
-        };
-        window.addEventListener('storage', onStorage);
-        return () => window.removeEventListener('storage', onStorage);
-    }, [busy]);
-
-    // run restore/repair only once
-    const didInit = useRef(false);
-    useEffect(() => {
-        if (didInit.current) return;
-        didInit.current = true;
-        (async () => setMessages(await restoreChat() as any))();
-    }, []);
-
-
     // Auto-ingest anything pending
     useEffect(() => {
-        const pending = attachments.filter(a => a.file && !a.remoteUrl && a.status !== 'uploading' && a.status !== 'ready');
+        const pending = attachments.filter(a =>
+            a.file && !a.remoteUrl && a.status !== 'uploading' && a.status !== 'ready'
+        );
         if (!pending.length) return;
 
         let alive = true;
         (async () => {
             try {
-                // mark as uploading
-                setAttachments(cur => cur.map(a => pending.find(p => p.id === a.id) ? { ...a, status: 'uploading', error: null } : a));
+                // 1) mark uploading
+                setAttachments(cur => cur.map(a =>
+                    pending.find(p => p.id === a.id) ? { ...a, status: 'uploading', error: null } : a
+                ));
 
+                // 2) upload to /api/files/ingest
                 const files = pending.map(p => p.file!) as File[];
                 const uploaded = await ingestFiles(files, plan);
 
-                // merge urls + mark ready
+                // 3) merge urls + mark ready + set analysis pending
                 setAttachments(cur => cur.map(a => {
                     const m = uploaded.find(u => u.name === a.name && u.size === a.size);
                     if (!m) return a;
                     if (a.previewUrl) { try { URL.revokeObjectURL(a.previewUrl); } catch { } }
-                    return { ...a, remoteUrl: m.url, status: 'ready', file: undefined };
+                    return { ...a, remoteUrl: m.url, status: 'ready', analysisStatus: 'pending', file: undefined };
                 }));
 
-                // quota: each successful file counts as one use for Free
+                // 4) analyze every ready file (background)
+                const batch = uploaded.map(u => ({
+                    url: u.url, mime: u.mime, name: u.name, size: u.size,
+                    kind: detectKind(u.mime, u.name)
+                }));
+
+                const result = await analyzeFiles({ files: batch as any, plan, model });
+                const hints = (result?.followups || []) as string[];
+
+                // 5) stash per-file analysis + composer hints
+                setAttachments(cur => cur.map(a =>
+                    batch.find(b => b.name === a.name) ? {
+                        ...a,
+                        analysisStatus: 'done',
+                        analysis: {
+                            summary: result?.summary || '',
+                            followups: hints
+                        }
+                    } : a
+                ));
+
+                // merge unique hints for the composer
+                setComposerHints(prev => {
+                    const merged = new Set<string>([...prev, ...(hints || [])]);
+                    // add a couple of generic file-driven prompts if none came back
+                    if (!merged.size) {
+                        merged.add('Summarize this file');
+                        merged.add('Describe key facts');
+                        merged.add('What should I do with it?');
+                    }
+                    return Array.from(merged).slice(0, 8);
+                });
+
+                // bump quota for free uploads
                 if (plan === 'free') { try { for (let i = 0; i < uploaded.length; i++) bumpChat(); } catch { } }
             } catch (e) {
-                setAttachments(cur => cur.map(a => pending.find(p => p.id === a.id) ? { ...a, status: 'error', error: 'Upload failed' } : a));
+                setAttachments(cur => cur.map(a =>
+                    pending.find(p => p.id === a.id) ? { ...a, status: 'error', analysisStatus: 'error', error: 'Upload failed' } : a
+                ));
             }
         })();
 
         return () => { alive = false; };
-    }, [attachments, plan]);
+    }, [attachments, plan, model]);
 
     // Pre-analyze as the user types (Pro/Max only, debounce)
     useEffect(() => {
         if (plan === 'free') return;
+
         const ready = attachments.filter(a => a.status === 'ready' && a.remoteUrl);
         if (!ready.length && !input.trim()) { preAnalysisRef.current = null; return; }
 
-        const t = setTimeout(async () => {
+        const t = window.setTimeout(async () => {
             try {
                 const payload = {
                     files: ready.map(a => ({ url: a.remoteUrl!, mime: a.mime, name: a.name, size: a.size, kind: a.kind })),
                     prompt: input || undefined,
                     plan,
-                    model
+                    model,
                 };
-                preAnalysisRef.current = await analyzeFiles(payload);
-            } catch { preAnalysisRef.current = null; }
+                const res = await analyzeFiles(payload);
+                preAnalysisRef.current = {
+                    summary: res.summary ?? '',
+                    followups: res.followups ?? [],
+                    blank: !!res.blank,
+                    // links: res.links, // include only if your API returns it and you use it
+                };
+            } catch {
+                preAnalysisRef.current = null;
+            }
         }, plan === 'max' ? 350 : 700);
 
-        return () => clearTimeout(t);
+        return () => window.clearTimeout(t);
     }, [attachments, input, plan, model]);
+
 
     // ——— header & composer sizing
     useIsoLayoutEffect(() => {
@@ -1208,16 +1476,29 @@ function AIPageInner() {
 
     const scrollToBottom = (smooth = false) => {
         const el = listRef.current; if (!el) return;
-        el.scrollTo({ top: el.scrollHeight, behavior: smooth ? 'smooth' : 'auto' });
+
+        // force bottom (works even if images/fonts resize later)
+        if (smooth) {
+            el.scrollTo({ top: el.scrollHeight + 1_000_000, behavior: 'smooth' });
+        } else {
+            el.scrollTop = el.scrollHeight + 1_000_000;
+        }
+        // sentinel as a second nudge for mobile/safari
         endRef.current?.scrollIntoView({ block: 'end' });
     };
-    useEffect(() => {
-        const el = listRef.current; if (!el) return;
-        const atBottom = el.scrollHeight - (el.scrollTop + el.clientHeight) < 120;
-        if (atBottom) scrollToBottom(false);
-    }, [messages]);
 
+    // after boot, ensure we’re at bottom once UI is ready
+    React.useEffect(() => {
+        if (!booted || didInitialScrollRef.current) return;
+        // one extra safety scroll after boot
+        requestAnimationFrame(() => scrollToBottom(false));
+        didInitialScrollRef.current = true;
+    }, [booted]);
 
+    // whenever a new message is added (send/receive), glide to bottom
+    React.useEffect(() => {
+        requestAnimationFrame(() => scrollToBottom(true));
+    }, [messages.length]);
 
     // persist whenever messages change (small debounce to avoid thrashing)
     useEffect(() => {
@@ -1414,7 +1695,14 @@ function AIPageInner() {
         return () => { if (expiredTimerRef.current) clearInterval(expiredTimerRef.current); expiredTimerRef.current = null; };
     }, [profile, shouldRunExpiredNudges]);
 
-
+    useEffect(() => {
+        return () => {
+            // safety: stop any HUD timers when the page unmounts
+            try {
+                Object.keys(imageTimersRef.current).forEach((id) => stopHud(id));
+            } catch { }
+        };
+    }, []);
 
     /* -------- helpers: gated actions -------- */
     const requirePlanOrModal = (required: Plan, action: () => void) => {
@@ -1426,6 +1714,9 @@ function AIPageInner() {
     };
 
     function startNewChat() {
+        try {
+            Object.keys(imageTimersRef.current).forEach((id) => stopHud(id));
+        } catch { }
         try {
             // 1) Save the current transcript to History (only if there’s something meaningful)
             const nonSystem = messages.filter(m => m.role !== 'system');
@@ -1451,29 +1742,38 @@ function AIPageInner() {
             return nx;
         });
     }
-    async function regenerateImageAt(i: number) {
+    async function regenerateImageById(targetId: string) {
+        const i = messages.findIndex(m => m.id === targetId);
+        if (i < 0) return;
         const msg = messages[i];
         if (!msg?.prompt) return;
+
         if (plan === 'free' && imgUsed() >= IMG_LIMITS.free) {
             setPremiumModal({ open: true, required: 'pro' });
             maybeNudge('image_limit');
             return;
         }
-        // show loading state again
+
+        setRecreatingId(targetId);
         setMessages(ms => {
             const nx = ms.slice();
-            nx[i] = { ...nx[i], url: '' }; // triggers skeleton
+            const j = nx.findIndex(m => m.id === targetId);
+            if (j !== -1) nx[j] = { ...nx[j], url: '' };
             return nx;
         });
+
         try {
             const url = await createImage(msg.prompt, plan);
             bumpImg();
             setMessages(ms => {
                 const nx = ms.slice();
-                nx[i] = { ...nx[i], url };
+                const j = nx.findIndex(m => m.id === targetId);
+                if (j !== -1) nx[j] = { ...nx[j], url };
                 return nx;
             });
-        } catch { }
+        } finally {
+            setRecreatingId(null);
+        }
     }
 
     async function handleLikeAt(i: number) {
@@ -1678,21 +1978,14 @@ function AIPageInner() {
     // Regenerate only the assistant reply at index i (do NOT re-send the user prompt)
     async function recreateAssistantById(targetId: string) {
         const i = messages.findIndex(mm => mm.id === targetId);
-        if (i < 0) return; // not found or no id
+        if (i < 0) return;
+
         const before = messages.slice(0, i).filter(m => m.role !== 'system');
-
-        const lastUserIndex = [...before]
-            .map((m, idx) => ({ idx, m }))
-            .reverse()
-            .find(x => x.m.role === 'user')?.idx;
-
+        const lastUserIndex = [...before].map((m, idx) => ({ idx, m })).reverse().find(x => x.m.role === 'user')?.idx;
         if (lastUserIndex == null) return;
 
         const style = ALT_STYLES[Math.floor(Math.random() * ALT_STYLES.length)];
-        const ALT_NOTE =
-            `You are generating an ALTERNATIVE answer. ` +
-            `Do NOT reuse sentences or phrasing from the earlier reply. ` +
-            `Change structure and word choice. Use this style: ${style}.`;
+        const ALT_NOTE = `You are generating an ALTERNATIVE answer. Do NOT reuse sentences or phrasing from the earlier reply. Change structure and word choice. Use this style: ${style}.`;
 
         const ctx: ChatMessage[] = [
             { role: 'system', content: systemRef.current || '' },
@@ -1706,6 +1999,7 @@ function AIPageInner() {
         const controller = new AbortController();
         abortRef.current = controller;
         setStreaming(true);
+        setRecreatingId(targetId);
 
         try {
             await streamLLM(
@@ -1725,6 +2019,7 @@ function AIPageInner() {
         } finally {
             setStreaming(false);
             abortRef.current = null;
+            setRecreatingId(null);
         }
     }
 
@@ -1778,12 +2073,19 @@ function AIPageInner() {
             }
             return nx;
         });
-
+        try {
+            Object.keys(imageTimersRef.current).forEach((id) => stopHud(id));
+        } catch { }
         // abort in-flight work
         try { abortRef.current?.abort(); } catch { }
         try { imgAbortRef.current?.abort(); } catch { }
         setStreaming(false);
     };
+
+
+
+
+
 
     // ---- Image + file intent helpers (place above "/* -------- send & stop -------- */") ----
     function classifyImageIntent(raw: string): 'explicit' | 'ambiguous' | 'none' {
@@ -1810,6 +2112,56 @@ function AIPageInner() {
         return 'none';
     }
 
+    // NEW — detect "describe the visual" in many phrasings
+    function isDescribeVisualIntent(raw: string): boolean {
+        const t = (raw || '').toLowerCase().replace(/\s+/g, ' ');
+        const tests: RegExp[] = [
+            /\b(what('?s)?\s+this|what\s+is\s+this|tell\s+me\s+what('?s)?\s+this)\b/,
+            /\b(describe|explain|analyze)\s+(this|the)\s*(image|picture|photo|pic|screenshot|file)?\b/,
+            /\b(what\s+does\s+(this|the)\s+(image|picture|photo|screenshot)\s+(show|mean|say|depict))\b/,
+            /\b(read|ocr|extract)\s+(the\s+)?text\s+(from|in)\s+(this|the)\s+(image|picture|photo|screenshot)\b/
+        ];
+        return tests.some(re => re.test(t));
+    }
+
+    // NEW — find the most recent visual that the user might mean by "this"
+    function pickLatestVisualFromThread(msgs: ChatMessage[]): null | {
+        url: string; name: string; mime: string; size: number;
+        kind: 'image' | 'video' | 'pdf' | 'other';
+    } {
+        // walk backwards through the transcript
+        for (let i = msgs.length - 1; i >= 0; i--) {
+            const m = msgs[i];
+
+            // assistant-created image bubble
+            if (m?.kind === 'image' && m.url) {
+                return {
+                    url: m.url,
+                    name: (m.prompt ? (m.prompt.slice(0, 40) + '.png') : 'image.png'),
+                    mime: 'image/png',
+                    size: 0,
+                    kind: 'image'
+                };
+            }
+
+            // user message with attachments
+            if (m?.attachments?.length) {
+                const img = m.attachments.find(a => a.kind === 'image' && a.url);
+                if (img) {
+                    return {
+                        url: img.url,
+                        name: img.name || 'image.png',
+                        mime: img.mime || 'image/png',
+                        size: img.size ?? 0,
+                        kind: 'image'
+                    };
+                }
+            }
+        }
+        return null;
+    }
+
+
     function chooseTypingLabel(opts: {
         plan: Plan;
         text: string;
@@ -1820,6 +2172,14 @@ function AIPageInner() {
         if (plan === 'free') return '6IX AI is typing';
         if (hasPendingUpload) return 'Uploading files…';
         if (hasReadyFiles) return 'Analyzing files…';
+
+        // NEW — show "Analyzing image…" for follow-up describe intents
+        if (isDescribeVisualIntent(text) && pickLatestVisualFromThread(messages)) {
+            return 'Analyzing image…';
+        }
+
+        const ask = sniffImageRequest(text);
+        if (ask.isImage) return 'Preparing to generate an image…';
 
         const imgIntent = classifyImageIntent(text);
         if (imgIntent === 'explicit') return 'Preparing to generate an image…';
@@ -1832,7 +2192,18 @@ function AIPageInner() {
         return 'Thinking…';
     }
 
-
+    // Clean analyzer echoes like "Your prompt: ..." / "File quick read ..."
+    function cleanAnalyzerText(s?: string) {
+        if (!s) return '';
+        return s
+            // drop a “Your prompt: …” paragraph
+            .replace(/^Your\s+prompt:\s*[\s\S]*?(?:\n{2,}|$)/im, '')
+            // drop a “File quick read …” section
+            .replace(/^File\s+quick\s+read[\s\S]*?(?:\n{2,}|$)/im, '')
+            // drop bullets that are pure file rows
+            .replace(/^- .*?\(image asset.*\)\s*$/gim, '')
+            .trim();
+    }
 
     function detectKind(mime: string, name: string): Attachment['kind'] {
         const ext = name.toLowerCase().split('.').pop() || '';
@@ -1854,36 +2225,76 @@ function AIPageInner() {
     // ---- minimal uploader (FormData) → server should store & return URLs
     async function ingestFiles(files: File[], plan: Plan, signal?: AbortSignal) {
         const fd = new FormData();
-        files.forEach((f, i) => fd.append('files', f, f.name));
-        fd.append('plan', plan);
-        const r = await fetch('/api/files/ingest', { method: 'POST', body: fd, signal });
+        files.forEach((f) => fd.append('files', f, f.name));
+        fd.append('plan', plan); // keep this for back-compat
+
+        const r = await fetch('/api/files/ingest', {
+            method: 'POST',
+            body: fd,
+            signal,
+            headers: { 'x-plan': plan } // NEW: some servers read plan from header
+        });
         if (!r.ok) throw new Error('ingest_failed');
-        // expected: [{name,mime,size,url}]
         return (await r.json()) as Array<{ name: string; mime: string; size: number; url: string }>;
     }
 
+    async function describeLocalFile(file: File) {
+        const form = new FormData();
+        form.append('image', file);
+        form.append('userName', displayName);
+        const res = await fetch('/api/vision/describe', { method: 'POST', body: form });
+        if (!res.ok) throw new Error('Vision failed');
+        return (await res.json()).description as string;
+    }
 
-    // ---- analysis call (server should do OCR/ASR/vision/NLP depending on MIME)
-    async function analyzeFiles(payload: {
-        files: { url: string; mime: string; name: string; kind: string; size: number }[];
-        prompt?: string;
-        plan: 'free' | 'pro' | 'max';
-        model: UiModelId;
-    }): Promise<AnalysisResponse> {
-        const r = await fetch('/api/files/analyze', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
-        });
-        if (!r.ok) throw new Error('analyze_failed');
-        return r.json();
+    async function describeOneAttachment(
+        a: { id?: string; url: string; name: string; mime: string; size: number; kind: string },
+        mode: 'audio' | 'text' = 'text'
+    ) {
+        setDescBusyId(a.id ?? a.url);
+        try {
+            const res = await analyzeFiles({
+                files: [{ url: a.url, mime: a.mime, name: a.name, size: a.size, kind: a.kind }],
+                plan,
+                model,
+                prompt:
+                    'Describe the upload clearly for a general audience. If images, narrate what is visible in a neutral, non-graphic tone. Avoid explicit sexual language; use clinical phrasing when necessary.'
+            });
+
+            const desc = cleanAnalyzerText((res?.reply || res?.summary || '').trim());
+            if (!desc) return;
+
+            if (mode === 'audio') {
+                await handleSpeak(desc);
+            } else {
+                setMessages(ms => [...ms, { id: safeUUID(), role: 'assistant', content: desc }]);
+            }
+        } catch {/* non-fatal */ }
+        finally { setDescBusyId(null); }
     }
 
     // ---- add/remove files (pre-send)
     function addFiles(list: FileList) {
+        const limit = maxFilesFor(plan);
+
+        // enforce plan + count + kind
+        const current = attachments.length;
+        const room = Math.max(0, limit - current);
+        const incoming = Array.from(list).slice(0, room);
+
+        if (incoming.length < Array.from(list).length) {
+            alert(`You can attach up to ${limit} file(s) on your plan.`);
+        }
+
         const next: Attachment[] = [];
-        for (const f of Array.from(list)) {
+        for (const f of incoming) {
             const kind = detectKind(f.type || '', f.name);
+
+            if (!isAllowedForPlan(plan, f.type || '', kind)) {
+                alert('Free plan can only attach pictures. Upgrade for docs, videos, audio, PDFs, spreadsheets, etc.');
+                continue;
+            }
+
             next.push({
                 id: safeUUID(),
                 name: f.name,
@@ -1893,11 +2304,12 @@ function AIPageInner() {
                 previewUrl: makePreviewUrl(f, kind),
                 remoteUrl: null,
                 status: 'pending',
+                analysisStatus: 'idle',
                 error: null,
                 file: f,
             });
         }
-        setAttachments(cur => [...cur, ...next]);
+        if (next.length) setAttachments(cur => [...cur, ...next]);
     }
 
 
@@ -1937,7 +2349,7 @@ function AIPageInner() {
     // Updated `send` function wired with Kids flow (guardian check + grade capture)
     const send = async () => {
         const text = input.trim();
-        if (!text || streaming) return;
+        if (((!text && attachments.length === 0) || streaming)) return;
 
         // ---- Kids flow: quick grade capture (no-op if no match) ----
         (() => {
@@ -2014,13 +2426,466 @@ function AIPageInner() {
             }
         } catch { /* non-fatal */ }
 
-        // 2) Build user + (optional) quick ACK bubble for visible feedback
+        // ---------- IMAGE GENERATION TURN (slash/img style) ----------
+        {
+            const sniff = sniffImageRequest(text);
+            if (sniff.isImage) {
+                if (plan === 'free' && imgUsed() >= IMG_LIMITS.free) {
+                    setPremiumModal({ open: true, required: 'pro' });
+                    maybeNudge('image_limit');
+                    return;
+                }
+
+                const cleanPrompt = sniff.prompt; // ← use cleaned prompt
+
+                // create assistant image placeholder with HUD meta
+                const id = safeUUID();
+                const steps = buildImageSteps(cleanPrompt);
+                const firstOverlay = steps[0];
+
+                const imgGhost: ChatMessage = {
+                    id,
+                    role: 'assistant',
+                    content: '',
+                    kind: 'image',
+                    url: '', // empty → skeleton mode
+                    prompt: cleanPrompt,
+                    meta: { overlay: firstOverlay, step: 0, steps }
+                };
+
+                // push user + placeholder (no text streaming)
+                const userMsg: ChatMessage = { id: safeUUID(), role: 'user', content: text };
+                setMessages(m => [...m, userMsg, imgGhost]);
+                setInput('');
+
+                // run the HUD while we call the image API
+                imgInFlightRef.current = true;
+                const controller = new AbortController();
+                imgAbortRef.current = controller;
+                startHud(id);
+
+                try {
+                    const url = await createImage(cleanPrompt, plan, controller.signal);
+                    bumpImg(); // quota
+                    stopHud(id);
+
+                    // update final image + finish overlay once loaded (ImageMsg fades it)
+                    setImageOverlay(id, (prev) => ({
+                        ...prev,
+                        url,
+                        meta: prev.meta ? { ...prev.meta, overlay: undefined } : undefined
+                    }));
+                } catch (e: any) {
+                    stopHud(id);
+                    // friendly failure bubble in place of the ghost
+                    setImageOverlay(id, (prev) => ({
+                        ...prev,
+                        kind: 'text',
+                        content: `I couldn't generate the image (${e?.message || 'error'}). Try a simpler phrasing or a different style.`,
+                        url: undefined,
+                        prompt: undefined,
+                    }));
+                } finally {
+                    imgInFlightRef.current = false;
+                    imgAbortRef.current = null;
+                    setStreaming(false);
+                    setTurnLabel('');
+                    setStatus(null);
+                }
+                return; // handled as an image turn
+            }
+        }
+
+        // ===========================
+        // FILE TURN (attachments)
+        // ===========================
+        const pending = attachments.filter(
+            a => a.status === 'pending' || a.status === 'uploading'
+        );
+        const readyFiles = attachments.filter(
+            a => a.status === 'ready' && a.remoteUrl
+        );
+        // NEW: user intends "describe" (or sent empty message)
+        const _t = (text || '').toLowerCase();
+        const wantsImageDescription =
+            readyFiles.length > 0 && (
+                _t === '' || (
+                    /\b(describe|explain|analyze|caption|what(?:'s| is)|tell me)\b/.test(_t) &&
+                    /\b(image|picture|photo|file|this|the|it)\b/.test(_t)
+                )
+            );
+
+        if (attachments.length > 0) {
+            // optional: show a quick overlay while nothing is ready yet
+            if (pending.length && !readyFiles.length) {
+                setOverlay({ open: true, text: `Uploading ${pending.length} file${pending.length > 1 ? 's' : ''}…` });
+                setTimeout(() => setOverlay({ open: false, text: '' }), 2500);
+                return; // stop here until at least one file is ready
+            }
+
+            // brief files-context
+            const KB = (n: number) => Math.max(1, Math.round((n || 0) / 1024));
+            const filesContext = readyFiles.length
+                ? [
+                    '## FILES_CONTEXT',
+                    ...readyFiles.map(a => `- ${a.name} • ${a.kind} • ~${KB(a.size)} KB`),
+                    (preAnalysisRef.current?.summary ? `\n${preAnalysisRef.current.summary}` : '')
+                ].join('\n')
+                : '';
+
+            // compose user message with attachments
+            const userMsg: ChatMessage = {
+                id: safeUUID(),
+                role: 'user',
+                content: text || (readyFiles.length ? 'See attached files.' : ''),
+                attachments: readyFiles.length
+                    ? readyFiles.map(a => ({
+                        id: a.id,
+                        name: a.name,
+                        mime: a.mime,
+                        size: a.size,
+                        kind: a.kind,
+                        url: a.remoteUrl!
+                    }))
+                    : undefined
+            };
+            // ---------- Fast path when user asked to describe the image(s) ----------
+           
+            // ghost assistant with pre-analysis
+            const pre = preAnalysisRef.current;
+            const hintMd =
+                pre?.summary
+                    ? pre.summary +
+                    (pre.followups?.length
+                        ? `\n\n<suggested>\n${pre.followups.map((f: string) => `- "${f}"`).join('\n')}\n</suggested>`
+                        : '')
+                    : (readyFiles.length
+                        ? `### Files ready\n${readyFiles.map(a => `• **${a.name}** — ${a.kind} · ~${KB(a.size)} KB`).join('\n')}`
+                        : '');
+            const ghostId = safeUUID();
+            const ghost: ChatMessage = {
+                id: ghostId,
+                role: 'assistant',
+                content: wantsImageDescription ? '' : hintMd, // NEW: empty => shows typing spinner
+            };
+
+            // Speaker tip: show once/day when the turn includes at least one image
+            const hasImage = readyFiles.some(a => a.kind === 'image');
+            const tip = hasImage && !hasShownSpeakerTip() ? buildSpeakerTip(displayName) : null;
+
+            // Fast "ghost" like ChatGPT, then optional tip
+            setMessages(m => tip ? [...m, userMsg, ghost, tip] : [...m, userMsg, ghost]);
+            if (tip) markSpeakerTipShown();
+            requestAnimationFrame(() => scrollToBottom(true));
+
+            setInput('');
+            setTurnLabel(wantsImageDescription ? 'Analyzing image…' : '');
+            setStatus(wantsImageDescription ? 'Analyzing image…' : null);
+            setStreaming(true);
+            setError(null);
+
+            // clear composer attachments immediately
+            // NEW: keep pending/uploading files in the composer after sending the ready ones
+            setAttachments(cur => {
+                const keep = cur.filter(a => a.status !== 'ready'); // retain pending/uploading
+                // free preview blobs for those we already sent
+                cur.forEach(a => {
+                    if (a.status === 'ready' && a.previewUrl) {
+                        try { URL.revokeObjectURL(a.previewUrl); } catch { }
+                    }
+                });
+                return keep;
+            });
+            try { if (fileInputRef.current) fileInputRef.current.value = ''; } catch { }
+            setComposerHints([]);
+            setHintTick(0);
+
+
+            if (wantsImageDescription) {
+                try {
+                    const j = await analyzeFiles({
+                        files: readyFiles.map(a => ({
+                            url: a.remoteUrl!, mime: a.mime, name: a.name, size: a.size, kind: a.kind
+                        })),
+                        plan,
+                        model,
+                        prompt: text || undefined, // <-- use text, not prompt()
+                    });
+                    const raw = (j?.reply || j?.summary || '').trim();
+                    const desc = cleanAnalyzerText(raw) || 'I couldn’t get a description just now.';
+                    setMessages(ms => {
+                        const nx = ms.slice();
+                        const i = nx.findIndex(m => m.id === ghostId);
+                        if (i !== -1) nx[i] = { ...nx[i], content: desc };
+                        return nx;
+                    });
+                } catch {
+
+                } finally {
+                    setStreaming(false);
+                    setTurnLabel('');
+                    setStatus(null);
+                    abortRef.current = null;
+                }
+                return; // file turn completed via analyzer
+            }
+            // ---------- END fast describe ----------
+
+            // TURN-LEVEL language & system
+            const tz = typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : undefined;
+            const browserLang = typeof navigator !== 'undefined' ? (navigator.language || 'en') : 'en';
+            const hints: ProfileHints = {
+                firstName: displayName || null,
+                age: null,
+                grade: kids?.grade ?? null,
+                kidMode: kids?.mode ?? 'unknown',
+                location: null,
+                timezone: tz || null,
+                language: browserLang,
+                bio: null
+            };
+            const convHint = detectConversationLanguage([...messages, userMsg], browserLang);
+            const nameHint = nameLangHint(displayName || '');
+            const chosenLang =
+                (prefsNow as any).useLanguage ??
+                (profile?.language as any) ??
+                choosePreferredLang(plan, convHint, nameHint, browserLang);
+
+            const turnPrefs: UserPrefs = { ...prefsNow, useLanguage: chosenLang };
+
+            systemRef.current = build6IXSystem({
+                displayName,
+                plan,
+                model,
+                userText: text || 'See attached files.',
+                hints,
+                prefs: turnPrefs,
+                speed,
+                mood: 'neutral'
+            });
+
+            // ---------- tighten history ----------
+            const history = messages
+                .filter(m => m.role !== 'system')
+                .slice(-8)
+                .filter(m => !(m.role === 'assistant' && /^\s*##IMAGE_REQUEST:/i.test(m.content || '')));
+
+            const ctx: ChatMessage[] = [
+                { role: 'system', content: systemRef.current || 'You are a helpful assistant.' },
+                ...(filesContext ? ([{ role: 'system', content: filesContext }] as ChatMessage[]) : []),
+                ...history,
+                userMsg
+            ];
+
+            const controller = new AbortController();
+            abortRef.current = controller;
+            const providerModel = resolveModel(model, plan);
+            const caps = capabilitiesForPlan(plan);
+            let streamedText = '';
+
+            try {
+                await streamLLM(
+                    { plan, model, resolvedModel: providerModel, capabilities: caps, mode: speed, contentMode: 'text', messages: ctx, allowControlTags: plan !== 'free' },
+                    {
+                        signal: controller.signal,
+                        onDelta: (full) => {
+                            streamedText = full;
+                            setMessages(m => {
+                                const next = m.slice();
+                                for (let i = next.length - 1; i >= 0; i--) {
+                                    if (next[i].role === 'assistant' && !next[i].kind) {
+                                        next[i] = { ...next[i], content: full };
+                                        break;
+                                    }
+                                }
+                                return next;
+                            });
+                        }
+                    }
+                );
+
+                // --- Tool tags (WEB / STOCKS / WEATHER) ---
+                const mWeb = streamedText.match(/^\s*##WEB_SEARCH:\s*(.+)$/mi);
+                const mStk = streamedText.match(/^\s*##STOCKS:\s*([A-Za-z0-9.,\s_-]+)$/mi);
+                const mWth = streamedText.match(/^\s*##WEATHER:\s*(.+)$/mi);
+
+                const replaceLastAssistant = (content: string) => {
+                    setMessages(ms => {
+                        const nx = ms.slice();
+                        for (let i = nx.length - 1; i >= 0; i--) {
+                            if (nx[i].role === 'assistant' && !nx[i].kind) { nx[i] = { ...nx[i], content }; break; }
+                        }
+                        return nx;
+                    });
+                };
+
+                const continueWithResults = async (toolBlock: string) => {
+                    const ctx2: ChatMessage[] = [
+                        { role: 'system', content: systemRef.current || '' },
+                        ...(filesContext ? ([{ role: 'system', content: filesContext }] as ChatMessage[]) : []),
+                        ...history,
+                        userMsg,
+                        { role: 'assistant', content: streamedText },
+                        {
+                            role: 'system',
+                            content:
+                                '# Tool results\n' +
+                                'You emitted a tool tag. Incorporate these results and produce the final answer.\n' +
+                                'At the end, include a **Sources** section with the same numbered links.\n\n' +
+                                toolBlock
+                        }
+                    ];
+
+                    const controller2 = new AbortController();
+                    abortRef.current = controller2;
+                    const providerModel = resolveModel(model, plan);
+                    const caps = capabilitiesForPlan(plan);
+
+                    setStreaming(true);
+
+                    await streamLLM(
+                        { plan, model, resolvedModel: providerModel, capabilities: caps, mode: speed, contentMode: 'text', messages: ctx2, allowControlTags: false },
+                        { signal: controller2.signal, onDelta: (full) => replaceLastAssistant(full) }
+                    );
+                };
+
+                if (mWeb) {
+                    if (!caps.webSearch) {
+                        setPremiumModal({ open: true, required: 'pro' });
+                    } else {
+                        const q = mWeb[1].trim();
+                        const results: WebSearchResult[] = await webSearch(q, 6);
+                        const sourcesMd =
+                            results.length
+                                ? results.map((r, i) => `**${i + 1}. [${r.title}](${r.url})**\n${r.snippet}`).join('\n\n')
+                                : '_No results found._';
+                        const toolBlock =
+                            `## WEB_SEARCH\nQuery: ${q}\n\n` +
+                            results.map((r, i) => `[${i + 1}] ${r.title}\nURL: ${r.url}\nSnippet: ${r.snippet}`).join('\n\n') +
+                            `\n\n### Sources\n${sourcesMd}`;
+                        await continueWithResults(toolBlock);
+                    }
+                }
+
+                if (mStk) {
+                    if (!caps.webSearch) {
+                        setPremiumModal({ open: true, required: 'pro' });
+                    } else {
+                        const symbols = mStk[1].split(/[,\s]+/).map(s => s.trim()).filter(Boolean).slice(0, 8).join(',');
+                        const quotes = await fetchQuotes(symbols);
+                        const block =
+                            (quotes || []).length
+                                ? quotes.map(q => `${q.symbol}: ${q.price} ${q.currency} (${q.change >= 0 ? '+' : ''}${q.change} | ${q.changePct.toFixed?.(2) ?? q.changePct}% | ${q.marketTime || 'now'})`).join('\n')
+                                : 'No quotes.';
+                        await continueWithResults(`## STOCKS\nSymbols: ${symbols}\n\n${block}`);
+                    }
+                }
+
+                if (mWth) {
+                    if (!caps.webSearch) {
+                        setPremiumModal({ open: true, required: 'pro' });
+                    } else {
+                        const arg = mWth[1].trim();
+                        let weather: any = null;
+                        const m = arg.match(/^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$/);
+                        if (m) { const lat = parseFloat(m[1]); const lon = parseFloat(m[2]); weather = await fetchWeather(lat, lon); }
+                        const block = weather
+                            ? `Location: ${weather.name || '—'}\nTemp: ${weather.main?.temp ?? '—'}\nConditions: ${weather.weather?.[0]?.description ?? '—'}`
+                            : `Weather lookup failed for: ${arg}`;
+                        await continueWithResults(`## WEATHER\n${block}`);
+                        setAssistantTurns((t) => t + 1);
+                        maybeNudge('general');
+                    }
+                }
+
+            } catch (err: any) {
+                console.error(err);
+                setError('stream_failed');
+            } finally {
+                setStreaming(false);
+                setTurnLabel('');
+                setStatus(null);
+                abortRef.current = null;
+            }
+
+            return; // file turn completed
+        }
+
+        // For later use (auto-describe after normal text turn if user asked)
+        const readyAttachments = attachments.filter(a => a.status === 'ready' && a.remoteUrl);
+        const describeWanted =
+            readyAttachments.length > 0 &&
+            /\b(describe|explain (?:this )?(image|file)|what(?:'s| is) (?:in|inside)\b)/i.test(text);
+
+        // ---------- Follow-up visual description turn (no new attachments) ----------
+        if (!readyFiles.length && isDescribeVisualIntent(text)) {
+            const target = pickLatestVisualFromThread(messages);
+            if (target) {
+                const userMsg: ChatMessage = { id: safeUUID(), role: 'user', content: text };
+                const ghostId = safeUUID();
+                const ghost: ChatMessage = { id: ghostId, role: 'assistant', content: 'Analyzing image…' };
+
+                setMessages(m => [...m, userMsg, ghost]);
+                requestAnimationFrame(() => scrollToBottom(true));
+
+                setInput('');
+                setStreaming(true);
+                setTurnLabel('Analyzing image…');
+                setStatus(null);
+
+                const toFileObj = (a: any) => ({
+                    url: a.remoteUrl || a.url,
+                    mime: a.mime,
+                    name: a.name,
+                    size: a.size || 0,
+                    kind: a.kind || 'image',
+                });
+                const filesFromTarget =
+                    Array.isArray((target as any).attachments)
+                        ? (target as any).attachments.filter((a: any) => a.remoteUrl || a.url).map(toFileObj)
+                        : [toFileObj(target)];
+
+                try {
+                    const j = await analyzeFiles({
+                        files: filesFromTarget,
+                        plan,
+                        model,
+                        prompt: text || undefined,
+                    });
+                    const raw = (j?.reply || j?.summary || '').trim();
+                    const desc = cleanAnalyzerText(raw) || 'I couldn’t get a description just now.';
+                    setMessages(ms => {
+                        const nx = ms.slice();
+                        const i = nx.findIndex(m => m.id === ghostId);
+                        if (i !== -1) nx[i] = { ...nx[i], content: desc };
+                        return nx;
+                    });
+                } catch {
+                    setMessages(ms => {
+                        const nx = ms.slice();
+                        const i = nx.findIndex(m => m.id === ghostId);
+                        if (i !== -1) nx[i] = { ...nx[i], content: 'I couldn’t analyze an image from this chat just now.' };
+                        return nx;
+                    });
+                } finally {
+                    setStreaming(false);
+                    setTurnLabel('');
+                    setStatus(null);
+                    abortRef.current = null;
+                }
+                return; // handled as a follow-up describe turn
+            }
+        }
+
+        // ===========================
+        // STANDARD TEXT TURN
+        // ===========================
         const userMsg: ChatMessage = { id: safeUUID(), role: 'user', content: text };
         const ghost: ChatMessage = { id: safeUUID(), role: 'assistant', content: '' };
         const initialLabel = chooseTypingLabel({
             plan,
             text,
-            hasPendingUpload,
+            hasPendingUpload: attachments.some(a => a.status === 'pending' || a.status === 'uploading'),
             hasReadyFiles: attachments.some(a => a.status === 'ready' && a.remoteUrl),
         });
         setTurnLabel(plan === 'free' ? '6IX AI is typing' : initialLabel);
@@ -2086,166 +2951,191 @@ function AIPageInner() {
             userMsg
         ];
 
-        const controller = new AbortController();
-        abortRef.current = controller;
-        const providerModel = resolveModel(model, plan);
-        const caps = capabilitiesForPlan(plan);
+        {
+            const controller = new AbortController();
+            abortRef.current = controller;
+            const providerModel = resolveModel(model, plan);
+            const caps = capabilitiesForPlan(plan);
 
-        // capture streamed text to inspect for tool tags
-        let streamedText = '';
+            // capture streamed text to inspect for tool tags
+            let streamedText = '';
 
-        try {
-            await streamLLM(
-                { plan, model, resolvedModel: providerModel, capabilities: caps, mode: speed, contentMode: 'text', messages: ctx, allowControlTags: plan !== 'free' },
-                {
-                    signal: controller.signal,
-                    onDelta: (full: string) => {
-                        streamedText = full;
-                        setMessages(m => {
-                            const next = m.slice();
-                            for (let i = next.length - 1; i >= 0; i--) {
-                                if (next[i].role === 'assistant' && !next[i].kind) {
-                                    next[i] = { ...next[i], content: full };
-                                    break;
+            try {
+                await streamLLM(
+                    { plan, model, resolvedModel: providerModel, capabilities: caps, mode: speed, contentMode: 'text', messages: ctx, allowControlTags: plan !== 'free' },
+                    {
+                        signal: controller.signal,
+                        onDelta: (full: string) => {
+                            streamedText = full;
+                            setMessages(m => {
+                                const next = m.slice();
+                                for (let i = next.length - 1; i >= 0; i--) {
+                                    if (next[i].role === 'assistant' && !next[i].kind) {
+                                        next[i] = { ...next[i], content: full };
+                                        break;
+                                    }
                                 }
-                            }
-                            return next;
-                        });
-                    }
-                }
-            );
-
-            // ---------- Post-stream: detect tool intents ----------
-            const mWeb = streamedText.match(/^\s*##WEB_SEARCH:\s*(.+)$/mi);
-            const mStk = streamedText.match(/^\s*##STOCKS:\s*([A-Za-z0-9.,\s_-]+)$/mi);
-            const mWth = streamedText.match(/^\s*##WEATHER:\s*(.+)$/mi);
-
-
-            const replaceLastAssistant = (content: string) => {
-                setMessages(ms => {
-                    const nx = ms.slice();
-                    for (let i = nx.length - 1; i >= 0; i--) {
-                        if (nx[i].role === 'assistant' && !nx[i].kind) {
-                            nx[i] = { ...nx[i], content };
-                            break;
+                                return next;
+                            });
                         }
                     }
-                    return nx;
-                });
-            };
-
-            const continueWithResults = async (toolBlock: string) => {
-                const ctx2: ChatMessage[] = [
-                    { role: 'system', content: systemRef.current || '' },
-                    ...messages.filter(m => m.role !== 'system'),
-                    userMsg,
-                    { role: 'assistant', content: streamedText },
-                    {
-                        role: 'system',
-                        content:
-                            `# Tool results\n` +
-                            `You emitted a tool tag. Incorporate these results and produce the final answer.\n` +
-                            `At the end, include a **Sources** section with the same numbered links.\n\n` +
-                            toolBlock
-                    }
-                ];
-
-                const controller2 = new AbortController();
-                abortRef.current = controller2;
-                const providerModel = resolveModel(model, plan);
-                const caps = capabilitiesForPlan(plan);
-
-                setStreaming(true);
-
-                await streamLLM(
-                    { plan, model, resolvedModel: providerModel, capabilities: caps, mode: speed, contentMode: 'text', messages: ctx2, allowControlTags: false },
-                    {
-                        signal: controller2.signal,
-                        onDelta: (full: string) => replaceLastAssistant(full),
-                    }
                 );
-            };
 
-            // ---- WEB SEARCH (Pro/Max) ----
-            if (mWeb) {
-                if (!caps.webSearch) {
-                    setPremiumModal({ open: true, required: 'pro' });
-                } else {
-                    const q = mWeb[1].trim();
-                    const results: WebSearchResult[] = await webSearch(q, 6);
+                // ---------- Post-stream: detect tool intents ----------
+                const mWeb = streamedText.match(/^\s*##WEB_SEARCH:\s*(.+)$/mi);
+                const mStk = streamedText.match(/^\s*##STOCKS:\s*([A-Za-z0-9.,\s_-]+)$/mi);
+                const mWth = streamedText.match(/^\s*##WEATHER:\s*(.+)$/mi);
 
-                    // Renderable markdown “Sources” block (clickable links)
-                    const sourcesMd =
-                        results.length
-                            ? results
-                                .map((r, i) => `**${i + 1}. [${r.title}](${r.url})**\n${r.snippet}`)
-                                .join('\n\n')
-                            : '_No results found._';
+                const replaceLastAssistant = (content: string) => {
+                    setMessages(ms => {
+                        const nx = ms.slice();
+                        for (let i = nx.length - 1; i >= 0; i--) {
+                            if (nx[i].role === 'assistant' && !nx[i].kind) {
+                                nx[i] = { ...nx[i], content };
+                                break;
+                            }
+                        }
+                        return nx;
+                    });
+                };
 
-                    // Hand off to model with the structured data + sources markdown
-                    const toolBlock =
-                        `## WEB_SEARCH\nQuery: ${q}\n\n` +
-                        results.map((r, i) =>
-                            `[${i + 1}] ${r.title}\nURL: ${r.url}\nSnippet: ${r.snippet}`
-                        ).join('\n\n') +
-                        `\n\n### Sources\n${sourcesMd}`;
+                const continueWithResults = async (toolBlock: string) => {
+                    const ctx2: ChatMessage[] = [
+                        { role: 'system', content: systemRef.current || '' },
+                        ...messages.filter(m => m.role !== 'system'),
+                        userMsg,
+                        { role: 'assistant', content: streamedText },
+                        {
+                            role: 'system',
+                            content:
+                                `# Tool results\n` +
+                                `You emitted a tool tag. Incorporate these results and produce the final answer.\n` +
+                                `At the end, include a **Sources** section with the same numbered links.\n\n` +
+                                toolBlock
+                        }
+                    ];
 
-                    await continueWithResults(toolBlock);
-                }
-            }
+                    const controller2 = new AbortController();
+                    abortRef.current = controller2;
+                    const providerModel = resolveModel(model, plan);
+                    const caps = capabilitiesForPlan(plan);
 
-            // ---- STOCKS (Pro/Max) ----
-            if (mStk) {
-                if (!caps.webSearch) {
-                    setPremiumModal({ open: true, required: 'pro' });
-                } else {
-                    const symbols = mStk[1].split(/[,\s]+/).map(s => s.trim()).filter(Boolean).slice(0, 8).join(',');
-                    const quotes = await fetchQuotes(symbols);
-                    const block =
-                        (quotes || []).length
-                            ? quotes.map(q =>
-                                `${q.symbol}: ${q.price} ${q.currency} (${q.change >= 0 ? '+' : ''}${q.change} | ${q.changePct.toFixed?.(2) ?? q.changePct}% | ${q.marketTime || 'now'})`
-                            ).join('\n')
-                            : 'No quotes.';
-                    await continueWithResults(`## STOCKS\nSymbols: ${symbols}\n\n${block}`);
-                }
-            }
+                    setStreaming(true);
 
-            // ---- WEATHER (Pro/Max) ----
-            if (mWth) {
-                if (!caps.webSearch) {
-                    setPremiumModal({ open: true, required: 'pro' });
-                } else {
-                    const arg = mWth[1].trim();
-                    let weather: any = null;
-                    const m = arg.match(/^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$/);
-                    if (m) {
-                        const lat = parseFloat(m[1]); const lon = parseFloat(m[2]);
-                        weather = await fetchWeather(lat, lon);
+                    await streamLLM(
+                        { plan, model, resolvedModel: providerModel, capabilities: caps, mode: speed, contentMode: 'text', messages: ctx2, allowControlTags: false },
+                        {
+                            signal: controller2.signal,
+                            onDelta: (full: string) => replaceLastAssistant(full),
+                        }
+                    );
+                };
+
+                // ---- WEB SEARCH (Pro/Max) ----
+                if (mWeb) {
+                    if (!caps.webSearch) {
+                        setPremiumModal({ open: true, required: 'pro' });
                     } else {
-                        weather = null; // (add a city-based route later if you like)
+                        const q = mWeb[1].trim();
+                        const results: WebSearchResult[] = await webSearch(q, 6);
+
+                        const sourcesMd =
+                            results.length
+                                ? results
+                                    .map((r, i) => `**${i + 1}. [${r.title}](${r.url})**\n${r.snippet}`)
+                                    .join('\n\n')
+                                : '_No results found._';
+
+                        const toolBlock =
+                            `## WEB_SEARCH\nQuery: ${q}\n\n` +
+                            results.map((r, i) =>
+                                `[${i + 1}] ${r.title}\nURL: ${r.url}\nSnippet: ${r.snippet}`
+                            ).join('\n\n') +
+                            `\n\n### Sources\n${sourcesMd}`;
+
+                        await continueWithResults(toolBlock);
                     }
-
-                    const block = weather
-                        ? `Location: ${weather.name || '—'}\nTemp: ${weather.main?.temp ?? '—'}\nConditions: ${weather.weather?.[0]?.description ?? '—'}`
-                        : `Weather lookup failed for: ${arg}`;
-                    await continueWithResults(`## WEATHER\n${block}`);
-                    setAssistantTurns((t) => t + 1);
-                    maybeNudge('general');
                 }
-            }
-            if (mWeb) setTurnLabel(plan === 'free' ? '6IX AI is typing' : 'Searching the web…');
-            if (mStk) setTurnLabel(plan === 'free' ? '6IX AI is typing' : 'Fetching market data…');
-            if (mWth) setTurnLabel(plan === 'free' ? '6IX AI is typing' : 'Fetching weather…');
 
-        } catch (err: any) {
-            console.error(err);
-            setError('stream_failed');
-        } finally {
-            setStreaming(false);
-            setTurnLabel('');
-            setStatus(null);
-            abortRef.current = null;
+                // ---- STOCKS (Pro/Max) ----
+                if (mStk) {
+                    if (!caps.webSearch) {
+                        setPremiumModal({ open: true, required: 'pro' });
+                    } else {
+                        const symbols = mStk[1].split(/[,\s]+/).map(s => s.trim()).filter(Boolean).slice(0, 8).join(',');
+                        const quotes = await fetchQuotes(symbols);
+                        const block =
+                            (quotes || []).length
+                                ? quotes.map(q =>
+                                    `${q.symbol}: ${q.price} ${q.currency} (${q.change >= 0 ? '+' : ''}${q.change} | ${q.changePct.toFixed?.(2) ?? q.changePct}% | ${q.marketTime || 'now'})`
+                                ).join('\n')
+                                : 'No quotes.';
+                        await continueWithResults(`## STOCKS\nSymbols: ${symbols}\n\n${block}`);
+                    }
+                }
+
+                // ---- WEATHER (Pro/Max) ----
+                if (mWth) {
+                    if (!caps.webSearch) {
+                        setPremiumModal({ open: true, required: 'pro' });
+                    } else {
+                        const arg = mWth[1].trim();
+                        let weather: any = null;
+                        const m = arg.match(/^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$/);
+                        if (m) {
+                            const lat = parseFloat(m[1]); const lon = parseFloat(m[2]);
+                            weather = await fetchWeather(lat, lon);
+                        } else {
+                            weather = null;
+                        }
+
+                        const block = weather
+                            ? `Location: ${weather.name || '—'}\nTemp: ${weather.main?.temp ?? '—'}\nConditions: ${weather.weather?.[0]?.description ?? '—'}`
+                            : `Weather lookup failed for: ${arg}`;
+                        await continueWithResults(`## WEATHER\n${block}`);
+                        setAssistantTurns((t) => t + 1);
+                        maybeNudge('general');
+                    }
+                }
+
+                // After a normal reply, optionally auto-describe attachments (if user asked)
+                if (describeWanted && readyAttachments.length) {
+                    try {
+                        const wantsAudio = window.confirm('Would you like the description as audio? Press OK for audio, or Cancel for text.');
+                        const payload = {
+                            plan,
+                            model,
+                            files: readyAttachments.map(a => ({
+                                url: a.remoteUrl!,
+                                mime: a.mime,
+                                name: a.name,
+                                size: a.size,
+                                kind: a.kind,
+                            })),
+                            prompt:
+                                'Describe the upload clearly for a general audience. If images, narrate what is visible in a neutral, non-graphic tone. Avoid explicit sexual language; use clinical phrasing when necessary.'
+                        };
+                        const j = await analyzeFiles(payload as any);
+                        const desc = (j?.summary || j?.reply || '').trim();
+                        if (desc) {
+                            if (wantsAudio) {
+                                await handleSpeak(desc);
+                            } else {
+                                setMessages(ms => [...ms, { id: safeUUID(), role: 'assistant', content: desc }]);
+                            }
+                        }
+                    } catch { /* non-fatal */ }
+                }
+
+            } catch (err: any) {
+                console.error(err);
+                setError('stream_failed');
+            } finally {
+                setStreaming(false);
+                setTurnLabel('');
+                setStatus(null);
+                abortRef.current = null;
+            }
         }
     };
 
@@ -2296,7 +3186,7 @@ function AIPageInner() {
     return (
         <ThemeProvider plan={effPlan}>
             <div
-                className="min-h-svh flex flex-col"
+                className="fixed inset-0 flex flex-col overflow-hidden"
                 style={{
                     background: 'var(--page-bg, var(--th-bg, #000))',
                     color: 'var(--th-text, #fff)',
@@ -2377,47 +3267,137 @@ function AIPageInner() {
 
                 {helpOpen && <HelpOverlay onClose={() => setHelpOpen(false)} />}
 
-                <FeedbackTicker
-                    active={hasFiles}
-                    messages={tickerMessages}
-                    intervalMs={3000}
-                />
+                {reMenu.open && portalRoot && createPortal(
+                    <>
+                        <div className="fixed inset-0 z-[200]" onClick={closeRecreateMenu} />
+
+                        <div
+                            className="z-[201] rounded-2xl border border-white/15 bg-black/90 text-white/90 shadow-2xl"
+                            style={{ position: 'fixed', top: reMenu.pos?.top ?? 0, left: reMenu.pos?.left ?? 0, minWidth: 240 }}
+                            role="menu"
+                            aria-label="Options"
+                        >
+                            {/* caption */}
+                            <div className="px-3 pt-2 pb-1 text-[11px] opacity-70">
+                                {reMenu.mode === 'image' ? `Using: ${currentImageModelCaption(plan)}` : `Edit reply`}
+                            </div>
+
+                            {/* Try again */}
+                            <button
+                                className="w-full text-left px-3 py-2 hover:bg-white/10 text-[14px]"
+                                onClick={() => {
+                                    const targetId = reMenu.id;
+                                    closeRecreateMenu();
+                                    if (!targetId) return;
+                                    if (reMenu.mode === 'image') {
+                                        regenerateImageById(targetId);
+                                    } else {
+                                        recreateAssistantById(targetId);
+                                    }
+                                }}
+                            >
+                                Try again
+                            </button>
+
+                            {/* Add details (prefill input with the originating prompt) */}
+                            <button
+                                className="w-full text-left px-3 py-2 hover:bg-white/10 text-[14px]"
+                                onClick={() => {
+                                    closeRecreateMenu();
+                                    setInput(reMenu.prompt || '');
+                                    setTimeout(() => textRef.current?.focus({ preventScroll: true }), 0);
+                                }}
+                            >
+                                Add details
+                            </button>
+
+                            {/* Pro/Max only actions (visible but gated for Free) */}
+                            <button
+                                className="w-full text-left px-3 py-2 hover:bg-white/10 text-[14px]"
+                                onClick={() =>
+                                    requirePlanOrModal('pro', () => {
+                                        closeRecreateMenu();
+                                        setInput((reMenu.prompt ? reMenu.prompt + ' ' : '') + 'Add more detail, texture and realism.');
+                                        setTimeout(() => textRef.current?.focus({ preventScroll: true }), 0);
+                                    })
+                                }
+                                style={{ opacity: plan === 'free' ? 0.45 : 1 }}
+                            >
+                                Elucidate more
+                            </button>
+
+                            {/* Switch model — only relevant for images */}
+                            {reMenu.mode === 'image' && (
+                                <div>
+                                    <button
+                                        className="w-full text-left px-3 py-2 hover:bg-white/10 text-[14px]"
+                                        onClick={() => requirePlanOrModal('pro', () => setReMenu(s => ({ ...s, switchOpen: !s.switchOpen })))}
+                                        style={{ opacity: plan === 'free' ? 0.45 : 1 }}
+                                    >
+                                        Switch model
+                                    </button>
+
+                                    {reMenu.switchOpen && (
+                                        <div className="pb-2">
+                                            <button
+                                                className="w-full text-left px-5 py-2 hover:bg-white/10 text-[13px]"
+                                                onClick={() => requirePlanOrModal('pro', () => { if (!reMenu.id) return; closeRecreateMenu(); regenerateImageWithModelById(reMenu.id, 'dall-e-3'); })}
+                                            >
+                                                Photoreal (DALL·E 3)
+                                            </button>
+                                            <button
+                                                className="w-full text-left px-5 py-2 hover:bg-white/10 text-[13px]"
+                                                onClick={() => requirePlanOrModal('pro', () => { if (!reMenu.id) return; closeRecreateMenu(); regenerateImageWithModelById(reMenu.id, 'gpt-image-1'); })}
+
+                                            >
+                                                Artistic (GPT-Image-1)
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    </>,
+                    portalRoot
+                )}
+
+
                 {/* message LIST */}
                 <div
                     ref={listRef}
                     className="
 chat-list mx-auto w-full px-3 pt-2 pb-8 space-y-2 will-change-scroll
-md:h-[calc(100svh-var(--header-h,120px)-var(--composer-h,220px))]
-md:overflow-y-auto md:scroll-pb-[160px]
-max-w-[min(900px,92vw)]
+flex-1 overflow-y-auto scroll-pb-[160px]
+max-w-[min(1200px,92vw)]
 "
                     style={{ paddingBottom: 'calc(var(--composer-h,260px) + env(safe-area-inset-bottom,0px) + 120px)' }}
                     suppressHydrationWarning
                 >
+
                     {messages.filter(m => m.role !== 'system').map((m, i) => {
                         if (m.kind === 'image') {
-
                             return (
                                 <div key={i} className="flex justify-start">
                                     <ImageMsg
+                                        plan={plan}
                                         url={m.url}
                                         prompt={m.prompt || ''}
+                                        overlay={m.meta?.overlay} // NEW
                                         displayName={profile?.displayName}
-                                        busy={descAt === i}// ← spinner condition
-                                        onOpen={() => setLightbox({ open: true, url: m.url!, prompt: m.prompt || '' })}
-                                        onShare={() => smartShare(m.url!)}
+                                        busy={descAt === i || recreatingId === m.id}
+                                        onOpen={() => m.url && setLightbox({ open: true, url: m.url, prompt: m.prompt || '' })}
+                                        onShare={() => m.url && smartShare(m.url)}
                                         onDescribe={async () => {
+                                            if (!m.url) return;
                                             setDescAt(i);
                                             try {
-                                                const text = await describeImage(m.prompt, m.url!); // network call
-                                                await handleSpeak(text); // sets speaking true/false
-                                            } finally {
-                                                setDescAt(null);
-                                            }
+                                                const text = await describeImage(m.prompt, m.url);
+                                                await handleSpeak(text);
+                                            } finally { setDescAt(null); }
                                         }}
-                                        onRecreate={() => regenerateImageAt(i)}
-                                    />
+                                        onRecreate={(e) => openRecreateMenu(i, m.prompt || '', e.currentTarget as HTMLElement)}
 
+                                    />
                                 </div>
                             );
                         }
@@ -2425,6 +3405,13 @@ max-w-[min(900px,92vw)]
                         const { visible, suggestions } = splitVisibleAndSuggestions(m.content);
                         const isAssistant = m.role === 'assistant';
                         const isLast = i === messages.length - 1;
+                        // compute the previous user prompt for this assistant message
+                        const prevUserPrompt = (() => {
+                            for (let j = i - 1; j >= 0; j--) {
+                                if (messages[j]?.role === 'user') return messages[j]?.content || '';
+                            }
+                            return '';
+                        })();
 
                         return (
                             <div key={i} className="space-y-1" data-kind="text" suppressHydrationWarning>
@@ -2433,30 +3420,30 @@ max-w-[min(900px,92vw)]
                                         {/* Attachments row (for user message) */}
                                         {m.attachments && m.attachments.length > 0 && (
                                             <div className="mb-2 flex flex-wrap gap-2">
-                                                {m.attachments.map(a => {
-                                                    const thumb = a.remoteUrl ?? a.previewUrl; // ← compute per item
-                                                    return (
-                                                        <div key={a.id} className="rounded-lg border border-white/15 bg-white/5 px-2 py-1 flex items-center gap-2">
-                                                            {thumb ? (
-                                                                a.kind === 'image'
-                                                                    ? <Image src={thumb} alt={a.name} width={40} height={40} className="h-10 w-10 rounded object-cover" unoptimized />
-                                                                    : a.kind === 'video'
-                                                                        ? <video src={thumb} className="h-10 w-10 rounded object-cover" />
-                                                                        : <span className="text-[10px] opacity-70">{a.kind}</span>
-                                                            ) : <span className="text-[10px] opacity-70">FILE</span>}
-                                                            <div className="text-[12px] max-w-[200px] truncate">{a.name}</div>
-                                                        </div>
-                                                    );
-                                                })}
+                                                {m.attachments.map(a => (
+                                                    <UserFileMsg
+                                                        key={a.id}
+                                                        attachments={[a]}
+                                                        disabledUntilReplyDone={streaming || hasPendingUpload}
+                                                        plan={plan}
+                                                        onDescribe={() => handleDescribeAttachment(a)}
+                                                        busyId={descBusyId}
+                                                    />
+                                                ))}
                                             </div>
                                         )}
-
                                         <div
                                             className={[
                                                 'inline-block px-3 py-[7px] text-[15px] leading-[1.35] border rounded-2xl',
                                                 'msg-body',
-                                                'bg-white/10 border-white/15', // same fill for assistant + user
+                                                'bg-white/10 border-white/15',
                                             ].join(' ')}
+                                            // NEW: tap the bubble to open the same menu (assistant only)
+                                            onClick={isAssistant ? (e) =>
+                                                openRecreateMenu(i, prevUserPrompt, e.currentTarget as HTMLElement, 'chat')
+                                                : undefined}
+                                            role={isAssistant ? 'button' : undefined}
+                                            title={isAssistant ? 'Options' : undefined}
                                         >
                                             {(() => {
                                                 // pull any control tags from top of the message
@@ -2514,8 +3501,8 @@ If a message is still streaming and it's the last one, hide until it finishes. *
                                         {isAssistant && (!streaming || !isLast) && (
                                             <MsgActions
                                                 textToCopy={visible}
-                                                onSpeak={() => handleSpeak(visible)}
-                                                speaking={speaking}
+                                                onSpeak={() => handleSpeak(visible, m.id)}
+                                                speaking={speakingFor === m.id}
                                                 speakDisabled={speakDisabled}
 
                                                 liked={m.feedback === 1}
@@ -2523,7 +3510,7 @@ If a message is still streaming and it's the last one, hide until it finishes. *
                                                 onLike={() => handleLikeAt(i)}
                                                 onDislike={() => handleDislikeAt(i)}
 
-                                                onRefresh={() => recreateAssistantById(m.id!)}
+                                                onRecreate={(e) => openRecreateMenu(i, prevUserPrompt, e.currentTarget as HTMLElement, 'chat')}
                                                 onShare={() => handleShareAt(i, visible)}
                                                 sharing={sharingIndex === i}
                                             />
@@ -2559,9 +3546,17 @@ If a message is still streaming and it's the last one, hide until it finishes. *
                     send={send}
                     handleStop={handleStop}
                     streaming={streaming}
-                    isBusy={imgInFlightRef.current}
+                    isBusy={isSendingOrBusy}
                     transcribing={transcribing}
                     hasPendingUpload={hasPendingUpload}
+                    busyLabel={chooseTypingLabel({ // <- human-friendly status line
+                        plan,
+                        text: input,
+                        hasPendingUpload,
+                        hasReadyFiles: attachments.some(a => a.status === 'ready' && a.remoteUrl),
+                    })}
+                    phase={phase} // 'uploading' | 'analyzing' | 'ready'
+                    tickerMessages={tickerMessages} // <- the rotating feedback you already built
                     recState={recState}
                     startRecording={startRecording}
                     stopRecording={stopRecording}
@@ -2574,6 +3569,9 @@ If a message is still streaming and it's the last one, hide until it finishes. *
                     fileInputRef={fileInputRef}
                     pickerOpenRef={pickerOpenRef}
                     focusLockRef={focusLockRef}
+                    plan={plan} // NEW: so input can set accept="image/*" for free
+                    hints={composerHints} // NEW: rotate in-composer hints
+                    hintTick={hintTick} // NEW: which hint to show
                 />
 
 
@@ -2608,8 +3606,12 @@ If a message is still streaming and it's the last one, hide until it finishes. *
                     onFallback={fallbackToFreeNow}
                 />
             </div>
+
+
         </ThemeProvider>
+
     );
+
 }
 
 // keep your signature
