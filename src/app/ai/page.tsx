@@ -49,6 +49,7 @@ import { upsertCloudItem } from '@/lib/historyCloud';
 import { saveFromMessages, type ChatMessage as HistMsg } from '@/lib/history';
 import HistoryOverlay from '@/components/HistoryOverlay';
 import NextDynamic from 'next/dynamic';
+import ImageMsg from '@/components/ImageMsg';
 import FloatingComposer from '@/components/FloatingComposer';
 import { effectivePlan, fetchSubscription } from '@/lib/planState';
 import { updateProfileAvatar } from '@/lib/profileAvatar';
@@ -58,7 +59,6 @@ import AppHeader from '@/components/AppHeader';
 import { imagePlanFor } from '@/lib/imagePlan';
 import { sniffImageRequest } from '@/lib/imageSniffer';
 import UserFileMsg from '@/components/UserFileMsg';
-import ImageMsg from '@/components/ImageMsg';
 import { analyzeFiles } from '@/lib/analyzer';
 const HelpOverlay = NextDynamic(() => import('@/components/HelpOverlay'), { ssr: false });
 
