@@ -9,6 +9,7 @@ const useIsoLayoutEffect =
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import '@/styles/6ix.css';
+import '@/styles/music.css';
 import { build6IXSystem, ProfileHints } from '@/prompts/6ixai-prompts';
 import BackStopper from '@/components/BackStopper';
 import BottomNav from '@/components/BottomNav';

@@ -2,11 +2,13 @@ export type Song = {
     id: string;
     title: string;
     artist: string;
-    album?: string | null;
-    year?: number | null;
-    label?: string | null;
-    artwork_url?: string | null;
+    album?: string;
+    year?: number;
+    label?: string;
+    artwork_url?: string;
     audio_url: string;
-    category: string; // 'afrobeat', ...
+    lyrics_url?: string;
+    category: string;
+    bio?: string;
     sort_order: number;
 };
