@@ -1,0 +1,128 @@
+/* styles/theme.css — import LAST */
+@layer six-theme {
+    html {
+        color-scheme: light dark !important;
+    }
+
+    /* Light */
+    html:not(.dark) {
+        --th-bg: #ffffff !important;
+        --th-text: #0b0b0c !important;
+        --th-border: color-mix(in oklab, #000 13%, transparent) !important;
+        --page-bg: var(--th-bg) !important;
+    }
+
+    html:not(.dark) body {
+        background: var(--page-bg) !important;
+        color: var(--th-text) !important;
+        border-color: var(--th-border) !important;
+    }
+
+    /* Dark */
+    html.dark {
+        --th-bg: #0b0b0c !important;
+        --th-text: #ffffff !important;
+        --th-border: color-mix(in oklab, #fff 14%, transparent) !important;
+        --page-bg: var(--th-bg) !important;
+    }
+
+    html.dark body {
+        background: var(--page-bg) !important;
+        color: var(--th-text) !important;
+        border-color: var(--th-border) !important;
+    }
+
+    /* shared tokens components can use */
+    :root {
+        --accent: #3b82f6;
+        --accent-fg: #fff;
+        --crescent: #000;
+        /* replaced at runtime */
+        --btn-bg: color-mix(in oklab, var(--th-bg) 86%, #000);
+        --btn-fg: var(--th-text);
+        --badge-bg: color-mix(in oklab, var(--th-text) 10%, transparent);
+        --overlay-bg: rgba(0, 0, 0, .35);
+        --surface-1: color-mix(in oklab, var(--th-bg) 92%, var(--th-text));
+    }
+
+    html.dark {
+        --btn-bg: color-mix(in oklab, var(--th-bg) 86%, #fff);
+        --badge-bg: color-mix(in oklab, var(--th-text) 18%, transparent);
+        --overlay-bg: rgba(255, 255, 255, .20);
+        --surface-1: color-mix(in oklab, var(--th-bg) 92%, var(--th-text));
+    }
+
+    /* Helpers: apply these classes to any panel/card/modal for instant theming */
+    .th-surface {
+        background: var(--th-bg);
+        color: var(--th-text);
+        border-color: var(--th-border);
+    }
+
+    .th-card {
+        background: var(--surface-1);
+        color: var(--th-text);
+        border-color: var(--th-border);
+    }
+
+    .th-chip {
+        background: var(--btn-bg);
+        color: var(--btn-fg);
+        border: 1px solid var(--th-border);
+    }
+}
+
+:root {
+    /* base */
+    --th-bg: #ffffff;
+    --th-text: #0b0b0b;
+    --th-border: rgba(0, 0, 0, 0.12);
+
+    /* surfaces */
+    --surface-1: rgba(255, 255, 255, 0.86);
+    --overlay-bg: rgba(0, 0, 0, 0.28);
+
+    /* buttons */
+    --btn-bg: rgba(0, 0, 0, 0.04);
+    --btn-fg: var(--th-text);
+
+    /* accent (overwritten by JS) */
+    --accent: #3b82f6;
+    --accent-fg: #ffffff;
+}
+
+/* Dark theme */
+html[data-theme="dark"] {
+    --th-bg: #0b0b0b;
+    --th-text: #ffffff;
+    --th-border: rgba(255, 255, 255, 0.14);
+
+    --surface-1: rgba(12, 12, 12, 0.86);
+    --overlay-bg: rgba(0, 0, 0, 0.45);
+
+    --btn-bg: rgba(255, 255, 255, 0.06);
+    --btn-fg: var(--th-text);
+}
+
+/* helper classes used in components */
+.th-surface {
+    background: var(--th-bg);
+    color: var(--th-text);
+    border-color: var(--th-border);
+}
+
+.th-card {
+    background: var(--surface-1);
+    color: var(--th-text);
+    border-color: var(--th-border);
+}
+
+.th-chip {
+    background: var(--btn-bg);
+    color: var(--btn-fg);
+    border: 1px solid var(--th-border);
+}
+
+.modal-overlay {
+    background: var(--overlay-bg);
+}

@@ -1,0 +1,70 @@
+:root {
+    --accent: #3b82f6;
+    --accent-fg: #fff;
+
+    /* surfaces */
+    --th-bg: #0b0b0e;
+    --th-bg-soft: #141418;
+    --th-text: #e7e7ea;
+    --th-subtle: rgba(231, 231, 234, .7);
+    --th-border: rgba(255, 255, 255, .14);
+
+    --surface: var(--th-bg-soft);
+    --surface-text: var(--th-text);
+    --backdrop: blur(12px) saturate(120%);
+}
+
+html[data-theme="light"] {
+    color-scheme: light;
+    --th-bg: #ffffff;
+    --th-bg-soft: #fafafa;
+    --th-text: #0b0b0e;
+    --th-subtle: rgba(0, 0, 0, .72);
+    --th-border: rgba(0, 0, 0, .12);
+    --surface: var(--th-bg-soft);
+    --surface-text: var(--th-text);
+}
+
+html[data-theme="dark"] {
+    color-scheme: dark;
+}
+
+/* When a live wallpaper is active, make surfaces glassy */
+html[data-live="1"] {
+    --th-bg: rgba(12, 12, 16, .30);
+    /* page background becomes translucent */
+    --th-bg-soft: rgba(20, 20, 26, .48);
+    /* card/modal background */
+    --th-border: rgba(255, 255, 255, .18);
+    --surface: var(--th-bg-soft);
+    --backdrop: blur(16px) saturate(140%);
+}
+
+/* universal building blocks */
+.themed-page {
+    background: var(--th-bg);
+    color: var(--th-text);
+}
+
+.card, .panel, .dropdown, .modal-surface {
+    background: var(--surface);
+    color: var(--surface-text);
+    border: 1px solid var(--th-border);
+    backdrop-filter: var(--backdrop);
+}
+
+/* accent usage helpers */
+.btn-accent {
+    background: var(--accent);
+    color: var(--accent-fg);
+    border-color: transparent;
+}
+
+.link-accent {
+    color: var(--accent);
+}
+
+.badge-accent {
+    background: color-mix(in oklab, var(--accent) 16%, transparent);
+    color: var(--accent);
+}

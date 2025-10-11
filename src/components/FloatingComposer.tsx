@@ -1,4 +1,4 @@
-// FloatingComposer.tsx
+// FloatingComposer.tsx (theme-adaptive)
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
@@ -19,24 +19,20 @@ type Attachment = {
 };
 
 type Props = {
-    // controlled text
     input: string;
     setInput: (s: string) => void;
 
-    // files
     attachments: Attachment[];
     onRemoveAttachment: (id: string) => void;
     onOpenFiles: () => void;
     onFilesChosen: (files: FileList) => void;
 
-    // refs (for your padding/measurement logic)
     compRef: React.RefObject<HTMLDivElement | null>;
     fileInputRef: React.RefObject<HTMLInputElement | null>;
     textRef: React.RefObject<HTMLTextAreaElement | null>;
     pickerOpenRef: React.MutableRefObject<boolean>;
     focusLockRef: React.MutableRefObject<boolean>;
 
-    // state from parent
     streaming: boolean;
     transcribing: boolean;
     isBusy: boolean;
@@ -45,19 +41,16 @@ type Props = {
     phase?: 'uploading' | 'analyzing' | 'ready';
     tickerMessages?: string[];
 
-    // voice
     recState: 'idle' | 'recording';
     startRecording: () => void;
     stopRecording: () => void;
 
-    // actions
     send: () => void;
     handleStop: () => void;
 
-    // NEW
-    plan: Plan;
-    hints?: string[]; // ok to leave unused for now
-    hintTick?: number; // ok to leave unused for now
+    plan: 'free' | 'pro' | 'max';
+    hints?: string[];
+    hintTick?: number;
 };
 
 /* ──────────────────────────────────────────────────────────── */
@@ -68,36 +61,13 @@ function MicWave({ active, level }: { active: boolean; level: number }) {
     return (
         <>
             <div className={`mic-wave ${active ? 'is-on' : ''}`} style={{ ['--amp' as any]: String(level || 0.15) }}>
-                {bars.map((_, i) => (
-                    <i key={i} style={{ ['--d' as any]: `${(i % 7) * 40}ms` }} />
-                ))}
+                {bars.map((_, i) => <i key={i} style={{ ['--d' as any]: `${(i % 7) * 40}ms` }} />)}
             </div>
             <style jsx>{`
-.mic-wave {
-display: inline-flex;
-height: 16px;
-align-items: flex-end;
-gap: 2px;
-color: var(--btn-fg, #fff);
-opacity: 0.55;
-}
-.mic-wave.is-on { opacity: 0.95; }
-.mic-wave i {
-width: 2px;
-background: currentColor;
-border-radius: 2px;
-transform-origin: bottom center;
-animation: micbar 800ms ease-in-out infinite;
-animation-delay: var(--d, 0ms);
-height: 22%;
-}
-@keyframes micbar {
-0%, 100% { transform: scaleY(calc(.35 + var(--amp) * .35)); }
-50% { transform: scaleY(calc(.6 + var(--amp) * 1.2)); }
-}
-@media (prefers-color-scheme: light) {
-.mic-wave { color: var(--btn-fg, #111); }
-}
+.mic-wave{display:inline-flex;height:16px;align-items:flex-end;gap:2px;color:var(--btn-fg);opacity:.55}
+.mic-wave.is-on{opacity:.95}
+.mic-wave i{width:2px;background:currentColor;border-radius:2px;transform-origin:bottom center;animation:micbar 800ms ease-in-out infinite;animation-delay:var(--d,0ms);height:22%}
+@keyframes micbar{0%,100%{transform:scaleY(calc(.35 + var(--amp)*.35))}50%{transform:scaleY(calc(.6 + var(--amp)*1.2))}}
 `}</style>
         </>
     );
@@ -114,41 +84,31 @@ export default function FloatingComposer({
 }: Props) {
     const [composerMax, setComposerMax] = useState(false);
 
-    // unified "busy" flag (replaces the missing isSendingOrBusy reference)
     const isSendingOrBusy = streaming || transcribing || hasPendingUpload || isBusy;
     const canSend = input.trim().length > 0 && !isSendingOrBusy;
 
-    // show maximize only when text is ~6+ lines tall
     const [showMaxBtn, setShowMaxBtn] = useState(false);
     useEffect(() => {
         const el = textRef.current;
         if (!el) { setShowMaxBtn(false); return; }
-        const lineHeight = 20; // matches leading-[20px]
+        const lineHeight = 20;
         const linesByNL = input.split('\n').length;
         const linesByScroll = Math.ceil(el.scrollHeight / lineHeight);
         setShowMaxBtn((linesByNL >= 6) || (linesByScroll >= 6));
     }, [input, textRef]);
 
-    // open hidden file input safely
     const openFiles = React.useCallback(() => {
         pickerOpenRef.current = true;
-        fileInputRef.current?.click(); // single click source
+        fileInputRef.current?.click();
     }, [pickerOpenRef, fileInputRef]);
 
-
-    // Helper: robust IME/composition detection (TS-safe)
     const isIMEComposing = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         const ne = e.nativeEvent as { isComposing?: boolean; keyCode?: number } | undefined;
         return Boolean(ne?.isComposing) || e.key === 'Process' || ne?.keyCode === 229;
     };
 
     const onTextareaKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-        // Enter → send (no modifiers, no IME)
-        if (
-            e.key === 'Enter' &&
-            !e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey &&
-            !isIMEComposing(e)
-        ) {
+        if (e.key === 'Enter' && !e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey && !isIMEComposing(e)) {
             e.preventDefault();
             if (!isSendingOrBusy && input.trim().length) {
                 focusLockRef.current = false;
@@ -156,8 +116,6 @@ export default function FloatingComposer({
             }
             return;
         }
-
-        // Tab → newline (keeps focus)
         if (e.key === 'Tab') {
             e.preventDefault();
             const el = e.currentTarget;
@@ -174,22 +132,20 @@ export default function FloatingComposer({
         }
     };
 
-    // use theme variables set by ThemeProvider → ensures dark icons on light themes
-    const chipStyle: React.CSSProperties = { background: 'var(--btn-bg)', color: 'var(--btn-fg)' };
+    /* Theme-adaptive chip */
+    const chipStyle: React.CSSProperties = {
+        background: 'var(--btn-bg)',
+        color: 'var(--btn-fg)',
+        border: '1px solid var(--th-border)'
+    };
 
-    /* ──────────────────────────────────────────────────────────── */
-    /* Local VU meter: listens ONLY while recState === 'recording' */
-    /* (does not replace your recorder; it's just for visualization)*/
-    /* ──────────────────────────────────────────────────────────── */
-    const [vu, setVu] = useState(0); // 0..1
-    // ---- VU refs (never nullable) ----
-    // ---- VU refs (float-based, avoids Uint8Array typing issues) ----
+    /* ──────────────────────────── VU meter ─────────────────────────── */
+    const [vu, setVu] = useState(0);
     const rafRef = React.useRef<number | null>(null);
     const audioCtxRef = React.useRef<AudioContext | null>(null);
     const analyserRef = React.useRef<AnalyserNode | null>(null);
-    const floatBufRef = React.useRef<Float32Array>(new Float32Array(0)); // ← Float buffer
+    const floatBufRef = React.useRef<Float32Array>(new Float32Array(0));
     const streamRef = React.useRef<MediaStream | null>(null);
-
 
     const stopVu = React.useCallback(() => {
         if (rafRef.current) cancelAnimationFrame(rafRef.current);
@@ -203,10 +159,8 @@ export default function FloatingComposer({
         setVu(0);
     }, []);
 
-
     useEffect(() => {
         if (recState !== 'recording') { stopVu(); return; }
-
         let cancelled = false;
         (async () => {
             try {
@@ -217,7 +171,7 @@ export default function FloatingComposer({
                 const Ctx = (window.AudioContext || (window as any).webkitAudioContext) as typeof AudioContext;
                 const ctx = new Ctx();
                 const analyser = ctx.createAnalyser();
-                analyser.fftSize = 1024; // smoother bars
+                analyser.fftSize = 1024;
 
                 const src = ctx.createMediaStreamSource(stream);
                 src.connect(analyser);
@@ -225,55 +179,40 @@ export default function FloatingComposer({
                 audioCtxRef.current = ctx;
                 analyserRef.current = analyser;
 
-                // Float buffer (avoids the Uint8Array type headaches entirely)
                 floatBufRef.current = new Float32Array(analyser.fftSize);
 
                 const tick = () => {
                     const a = analyserRef.current;
                     const f = floatBufRef.current;
-
                     if (!(a instanceof AnalyserNode) || f.length === 0) {
                         rafRef.current = requestAnimationFrame(tick);
                         return;
                     }
-
-                    // Make a view backed by an ArrayBuffer (what the DOM lib expects)
                     const view = new Float32Array(f.buffer as ArrayBuffer, f.byteOffset, f.length);
                     a.getFloatTimeDomainData(view);
-                    // ← Float32Array API
+
                     let sum = 0;
                     for (let i = 0; i < f.length; i++) sum += f[i] * f[i];
                     const rms = Math.sqrt(sum / f.length);
                     setVu(Math.min(1, Math.max(0, rms * 1.8)));
-
                     rafRef.current = requestAnimationFrame(tick);
                 };
-
                 tick();
             } catch {
-                // mic denied/unsupported → subtle idle animation
                 setVu(0.25);
             }
         })();
-
         return () => { cancelled = true; stopVu(); };
     }, [recState, stopVu]);
 
-    // When transcription begins, hide the live bars immediately
     useEffect(() => { if (transcribing) stopVu(); }, [transcribing, stopVu]);
-
 
     return (
         <>
-            {/* Floating, slim, single-ring pill */}
+            {/* Floating pill */}
             <div
                 ref={compRef}
-                className="
-fixed z-40
-bottom-4 md:bottom-6 left-1/2 -translate-x-1/2
-w-[min(96vw,760px)] md:w-[min(92vw,980px)]
-px-3 pointer-events-none
-"
+                className="fixed z-40 bottom-4 md:bottom-6 left-1/2 -translate-x-1/2 w-[min(96vw,760px)] md:w-[min(92vw,980px)] px-3 pointer-events-none"
             >
                 {/* attachments row */}
                 {attachments.length > 0 && (
@@ -281,30 +220,29 @@ px-3 pointer-events-none
                         {attachments.map(a => (
                             <div
                                 key={a.id}
-                                className={[
-                                    'relative overflow-hidden rounded-xl border border-white/12 bg-white/5',
-                                    'h-20 w-20 grid place-items-center', // smaller chips
-                                    a.status !== 'ready' ? 'opacity-80' : ''
-                                ].join(' ')}
+                                className="relative overflow-hidden rounded-xl h-20 w-20 grid place-items-center"
+                                style={{ background: 'var(--surface-1)', border: '1px solid var(--th-border)', color: 'var(--th-text)' }}
                             >
-                                {/* preview / type (NO NAMES/CAPTIONS) */}
+                                {/* preview / type */}
                                 {a.previewUrl ? (
                                     a.kind === 'image' ? (
                                         <img src={a.previewUrl} className="h-full w-full object-cover" alt="" />
                                     ) : a.kind === 'video' ? (
                                         <video src={a.previewUrl} className="h-full w-full object-cover" muted />
                                     ) : (
-                                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-black/30 text-white/90">
+                                        <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'var(--badge-bg)', color: 'var(--th-text)' }}>
                                             {a.kind.toUpperCase()}
                                         </span>
                                     )
                                 ) : (
-                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-black/30 text-white/90">FILE</span>
+                                    <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'var(--badge-bg)', color: 'var(--th-text)' }}>
+                                        FILE
+                                    </span>
                                 )}
 
                                 {/* spinner while ingest/analyze */}
                                 {a.status !== 'ready' && (
-                                    <div className="absolute inset-0 grid place-items-center">
+                                    <div className="absolute inset-0 grid place-items-center" style={{ color: 'var(--th-text)' }}>
                                         <svg viewBox="0 0 24 24" width="18" height="18" className="animate-spin opacity-90" fill="none" stroke="currentColor" strokeWidth="2">
                                             <circle cx="12" cy="12" r="9" opacity=".2" />
                                             <path d="M21 12a9 9 0 0 1-9 9" />
@@ -312,14 +250,14 @@ px-3 pointer-events-none
                                     </div>
                                 )}
 
-                                {/* remove (kept) */}
+                                {/* remove */}
                                 <button
                                     type="button"
                                     onClick={() => onRemoveAttachment(a.id)}
                                     className="absolute top-1.5 right-1.5 h-6 w-6 rounded-full grid place-items-center"
                                     title="Remove"
                                     aria-label="Remove"
-                                    style={{ background: 'rgba(0,0,0,.7)', color: '#fff' }}
+                                    style={{ background: 'var(--th-text)', color: 'var(--th-bg)' }}
                                 >
                                     <svg viewBox="0 0 24 24" width="13" height="13">
                                         <path d="M6 6L18 18M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
@@ -329,28 +267,23 @@ px-3 pointer-events-none
                         ))}
                     </div>
                 )}
-                {/* hidden file input — plan-aware accept + count cap */}
-                {/* hidden file input — plan-aware accept + count cap (SSR-safe) */}
+
+                {/* hidden file input */}
                 <input
                     ref={fileInputRef}
                     type="file"
                     multiple
                     hidden
-                    // Free: images only. Pro/Max: any file type.
                     accept={plan === 'free' ? 'image/*' : undefined}
                     onChange={(e) => {
                         const files = e.currentTarget.files;
                         if (!files || !files.length) return;
-
                         const cap = plan === 'free' ? 6 : plan === 'pro' ? 9 : 20;
-
                         if (files.length + attachments.length > cap) {
                             alert(`You can attach up to ${cap} ${plan === 'free' ? 'images' : 'files'} for your plan.`);
                             e.currentTarget.value = '';
                             return;
                         }
-
-                        // delegate – parent does: preview → POST /api/files/ingest (x-plan header) → /api/files/analyze
                         onFilesChosen(files);
                         e.currentTarget.value = '';
                         pickerOpenRef.current = false;
@@ -358,21 +291,12 @@ px-3 pointer-events-none
                     }}
                 />
 
-
-                {/* shell — single ring, glassy blur */}
+                {/* shell */}
                 <div
-                    className="
-pointer-events-auto relative
-sr-ring sr-20
-rounded-[9999px]
-min-h:[40px]
-backdrop-blur-md
-bg-transparent
-overflow-hidden
-"
+                    className="pointer-events-auto relative sr-ring sr-20 rounded-[9999px] min-h-[40px] backdrop-blur-md bg-transparent overflow-hidden"
                     style={{ backgroundColor: 'transparent' }}
                 >
-                    {/* Maximize (only when tall enough) */}
+                    {/* Maximize */}
                     {showMaxBtn && (
                         <button
                             type="button"
@@ -409,30 +333,18 @@ overflow-hidden
                         onChange={(e) => setInput(e.target.value)}
                         placeholder="Message 6IX AI"
                         rows={1}
-                        className="
-w-full bg-transparent outline-none
-text-[15px] md:text-[16px] leading-[20px]
-pl-12 pr-[96px] py-[8px]
-resize-none rounded-[9999px]
-"
+                        className="w-full bg-transparent outline-none text-[15px] md:text-[16px] leading-[20px] pl-12 pr-[96px] py-[8px] resize-none rounded-[9999px]"
                         onFocus={() => { focusLockRef.current = true; }}
-                        onBlur={() => {
-                            if (!pickerOpenRef.current && focusLockRef.current) {
-                                requestAnimationFrame(() => textRef.current?.focus({ preventScroll: true }));
-                            }
-                        }}
-                        onInput={(e) => {
-                            const el = e.currentTarget;
-                            el.style.height = 'auto';
-                            el.style.height = Math.min(160, el.scrollHeight) + 'px';
-                        }}
+                        onBlur={() => { if (!pickerOpenRef.current && focusLockRef.current) { requestAnimationFrame(() => textRef.current?.focus({ preventScroll: true })); } }}
+                        onInput={(e) => { const el = e.currentTarget; el.style.height = 'auto'; el.style.height = Math.min(160, el.scrollHeight) + 'px'; }}
                         onKeyDown={onTextareaKeyDown}
                         aria-keyshortcuts="Enter Tab"
+                        style={{ color: 'var(--th-text)' }}
                     />
 
                     {/* right chip controls */}
                     <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
-                        {/* mic (toggles to stop; shows live bars while rec) */}
+                        {/* mic */}
                         <button
                             type="button"
                             className={`h-8 rounded-full active:scale-95 flex items-center gap-2 px-2 ${recState === 'recording' ? 'min-w-[72px]' : 'w-8 justify-center'}`}
@@ -444,7 +356,7 @@ resize-none rounded-[9999px]
                         >
                             {recState === 'recording' ? (
                                 <>
-                                    <span className="inline-block h-[9px] w-[9px] rounded-full bg-red-500" />
+                                    <span className="inline-block h-[9px] w-[9px] rounded-full" style={{ background: '#ef4444' }} />
                                     <MicWave active level={vu} />
                                 </>
                             ) : (
@@ -459,10 +371,7 @@ resize-none rounded-[9999px]
 
                         {/* transcribing pill */}
                         {transcribing && (
-                            <span
-                                className="h-8 px-3 rounded-full border border-white/15 bg-white/5 text-[12px] inline-flex items-center gap-2"
-                                style={chipStyle}
-                            >
+                            <span className="h-8 px-3 rounded-full text-[12px] inline-flex items-center gap-2" style={chipStyle}>
                                 <svg width="14" height="14" viewBox="0 0 24 24" className="animate-spin opacity-80" fill="none" stroke="currentColor" strokeWidth="2">
                                     <path d="M12 2a10 10 0 1 1-7.07 2.93" />
                                 </svg>
@@ -470,17 +379,14 @@ resize-none rounded-[9999px]
                             </span>
                         )}
 
-                        {/* send / stop (⬆️) */}
+                        {/* send / stop */}
                         <button
                             type="button"
                             onClick={() => (streaming ? handleStop() : send())}
                             disabled={!canSend && !streaming}
                             aria-label={streaming ? 'Stop' : 'Send'}
                             title={streaming ? 'Stop' : 'Send (Enter)'}
-                            className={[
-                                'h-8 w-8 rounded-full grid place-items-center active:scale-95 transition',
-                                (!canSend && !streaming) ? 'opacity-60' : ''
-                            ].join(' ')}
+                            className={`h-8 w-8 rounded-full grid place-items-center active:scale-95 transition ${(!canSend && !streaming) ? 'opacity-60' : ''}`}
                             style={chipStyle}
                         >
                             {streaming ? (
@@ -488,7 +394,6 @@ resize-none rounded-[9999px]
                                     <rect x="6" y="6" width="12" height="12" rx="2" />
                                 </svg>
                             ) : (
-                                // UP ARROW (⬆️)
                                 <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
                                     <path d="M12 19V5" strokeLinecap="round" />
                                     <path d="M7 10l5-5 5 5" strokeLinecap="round" strokeLinejoin="round" />
@@ -502,15 +407,12 @@ resize-none rounded-[9999px]
             {/* Fullscreen modal editor */}
             {composerMax && createPortal(
                 <div
-                    className="fixed bottom-0 inset-x-0 z-[60] bg-black/60 backdrop-blur-sm grid place-items-center"
+                    className="fixed bottom-0 inset-x-0 z-[60] backdrop-blur-sm grid place-items-center"
+                    style={{ background: 'var(--overlay-bg)' }}
                     onClick={() => setComposerMax(false)}
                 >
                     <div
-                        className="
-relative w-[min(1100px,96vw)] h-[72vh] md:h-[78vh]
-sr-ring sr-20 rounded-2xl
-bg-transparent p-3
-"
+                        className="relative w-[min(1100px,96vw)] h-[72vh] md:h-[78vh] sr-ring sr-20 rounded-2xl bg-transparent p-3"
                         onClick={(e) => e.stopPropagation()}
                     >
                         {/* minimize */}
@@ -536,11 +438,7 @@ bg-transparent p-3
                                     placeholder="Message 6IX AI"
                                     className="absolute inset-0 w-full h-full bg-transparent outline-none text-[16px] leading-[1.4] rounded-xl p-4 pr-[112px] resize-none"
                                     onKeyDown={(e) => {
-                                        if (
-                                            e.key === 'Enter' &&
-                                            !e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey &&
-                                            !isIMEComposing(e)
-                                        ) {
+                                        if (e.key === 'Enter' && !e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey && !isIMEComposing(e)) {
                                             e.preventDefault();
                                             if (!isSendingOrBusy && input.trim().length) send();
                                             return;
@@ -551,12 +449,11 @@ bg-transparent p-3
                                             const { selectionStart, selectionEnd, value } = el;
                                             const next = value.slice(0, selectionStart) + '\n' + value.slice(selectionEnd);
                                             setInput(next);
-                                            requestAnimationFrame(() => {
-                                                try { el.selectionStart = el.selectionEnd = (selectionStart ?? 0) + 1; } catch { }
-                                            });
+                                            requestAnimationFrame(() => { try { el.selectionStart = el.selectionEnd = (selectionStart ?? 0) + 1; } catch { } });
                                         }
                                     }}
                                     aria-keyshortcuts="Enter Tab"
+                                    style={{ color: 'var(--th-text)' }}
                                 />
 
                                 <div className="absolute right-3 bottom-3 flex items-center gap-2">
@@ -572,7 +469,7 @@ bg-transparent p-3
                                     >
                                         {recState === 'recording' ? (
                                             <>
-                                                <span className="inline-block h-[10px] w-[10px] rounded-full bg-red-500" />
+                                                <span className="inline-block h-[10px] w-[10px] rounded-full" style={{ background: '#ef4444' }} />
                                                 <MicWave active level={vu} />
                                             </>
                                         ) : (
@@ -587,10 +484,7 @@ bg-transparent p-3
 
                                     {/* transcribing pill */}
                                     {transcribing && (
-                                        <span
-                                            className="h-9 px-3 rounded-full border border-white/15 bg-white/5 text-[12px] inline-flex items-center gap-2"
-                                            style={chipStyle}
-                                        >
+                                        <span className="h-9 px-3 rounded-full text-[12px] inline-flex items-center gap-2" style={chipStyle}>
                                             <svg width="14" height="14" viewBox="0 0 24 24" className="animate-spin opacity-80" fill="none" stroke="currentColor" strokeWidth="2">
                                                 <path d="M12 2a10 10 0 1 1-7.07 2.93" />
                                             </svg>
@@ -598,7 +492,7 @@ bg-transparent p-3
                                         </span>
                                     )}
 
-                                    {/* send (⬆️) */}
+                                    {/* send */}
                                     <button
                                         type="button"
                                         onClick={() => (streaming ? handleStop() : send())}
@@ -623,7 +517,7 @@ bg-transparent p-3
                                 </div>
                             </div>
 
-                            {/* modal footer: add files + current chips */}
+                            {/* modal footer */}
                             <div className="mt-3 flex items-center gap-2">
                                 <button
                                     type="button"
@@ -641,30 +535,31 @@ bg-transparent p-3
                                 {attachments.length > 0 && (
                                     <div className="flex flex-wrap gap-2">
                                         {attachments.map(a => (
-                                            <div
-                                                key={a.id}
-                                                className="relative h-16 w-16 rounded-lg overflow-hidden border border-white/12 bg-white/5 grid place-items-center"
-                                            >
+                                            <div key={a.id} className="relative h-16 w-16 rounded-lg overflow-hidden grid place-items-center"
+                                                style={{ background: 'var(--surface-1)', border: '1px solid var(--th-border)', color: 'var(--th-text)' }}>
                                                 {a.previewUrl ? (
                                                     a.kind === 'image' ? (
                                                         <img src={a.previewUrl} className="h-full w-full object-cover" alt="" />
                                                     ) : a.kind === 'video' ? (
                                                         <video src={a.previewUrl} className="h-full w-full object-cover" muted />
                                                     ) : (
-                                                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-black/30 text-white/90">
+                                                        <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'var(--badge-bg)', color: 'var(--th-text)' }}>
                                                             {a.kind.toUpperCase()}
                                                         </span>
                                                     )
                                                 ) : (
-                                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-black/30 text-white/90">FILE</span>
+                                                    <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'var(--badge-bg)', color: 'var(--th-text)' }}>
+                                                        FILE
+                                                    </span>
                                                 )}
 
                                                 <button
                                                     type="button"
                                                     onClick={() => onRemoveAttachment(a.id)}
-                                                    className="absolute top-1 right-1 h-5 w-5 rounded-full bg-black/80 text-white grid place-items-center"
+                                                    className="absolute top-1 right-1 h-5 w-5 rounded-full grid place-items-center"
                                                     title="Remove"
                                                     aria-label="Remove"
+                                                    style={{ background: 'var(--th-text)', color: 'var(--th-bg)' }}
                                                 >
                                                     <svg viewBox="0 0 24 24" width="11" height="11">
                                                         <path d="M6 6L18 18M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />

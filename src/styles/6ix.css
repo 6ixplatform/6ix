@@ -1,15 +1,5 @@
 /* ======================== 6IX — GLOBALS ======================== */
 
-/* Light/Dark tokens */
-html.theme-light {
-    --th-bg: #fff;
-    --th-text: #000;
-}
-
-html.theme-dark {
-    --th-bg: #000;
-    --th-text: #fff;
-}
 
 /* Base font & polish */
 html,
@@ -4125,7 +4115,6 @@ html.theme-light .orb-name-ink {
         background: rgba(0, 0, 0, .06);
     }
 }
-
 
 /* 6ix.css */
 .floating-composer .composer-ticker {

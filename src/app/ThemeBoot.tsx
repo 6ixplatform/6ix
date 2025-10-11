@@ -1,66 +1,29 @@
-// app/ThemeBoot.tsx
 'use client';
-import * as React from 'react';
-import { supabaseBrowser } from '@/lib/supabaseBrowser';
-
-function systemDark() { return typeof window !== 'undefined' && matchMedia('(prefers-color-scheme: dark)').matches; }
-function clearStoredTheme() {
-    try {
-        localStorage.removeItem('6ix:themeMode');
-        localStorage.removeItem('6ix:paletteHex');
-        localStorage.removeItem('6ix:paletteDark');
-        localStorage.removeItem('6ix:palette');
-        localStorage.removeItem('6ix:anim');
-    } catch { }
-}
-function applyThemeFromStorage(orSystem = false) {
-    const mode = localStorage.getItem('6ix:themeMode') || (orSystem ? 'system' : 'system');
-    const hex = localStorage.getItem('6ix:paletteHex') || (systemDark() ? '#0b0b0b' : '#ffffff');
-    const darkPref = localStorage.getItem('6ix:paletteDark') === 'true';
-    const isDark = (mode === 'dark') || (mode === 'system' && systemDark()) || darkPref;
-
-    document.documentElement.classList.toggle('theme-dark', isDark);
-    document.documentElement.classList.toggle('theme-light', !isDark);
-    document.documentElement.style.setProperty('--th-bg', hex);
-    document.documentElement.style.setProperty('--th-text', isDark ? '#ffffff' : '#000000');
-    document.documentElement.style.setProperty('--th-btn-bg', isDark ? 'rgba(255,255,255,.08)' : 'rgba(0,0,0,.08)');
-    document.documentElement.style.setProperty('--th-btn-bd', isDark ? 'rgba(255,255,255,.18)' : 'rgba(0,0,0,.18)');
-}
-function applySystemTheme() {
-    const isDark = systemDark();
-    document.documentElement.classList.toggle('theme-dark', isDark);
-    document.documentElement.classList.toggle('theme-light', !isDark);
-    document.documentElement.style.setProperty('--th-bg', isDark ? '#0b0b0b' : '#ffffff');
-    document.documentElement.style.setProperty('--th-text', isDark ? '#ffffff' : '#000000');
-    document.documentElement.style.setProperty('--th-btn-bg', isDark ? 'rgba(255,255,255,.08)' : 'rgba(0,0,0,.08)');
-    document.documentElement.style.setProperty('--th-btn-bd', isDark ? 'rgba(255,255,255,.18)' : 'rgba(0,0,0,.18)');
-}
+import { useEffect } from 'react';
 
 export default function ThemeBoot() {
-    React.useEffect(() => {
-        // 1) First paint after NoFlashTheme: keep things consistent
-        applyThemeFromStorage(true);
+    useEffect(() => {
+        const html = document.documentElement;
 
-        // 2) React to system scheme changes (when mode === 'system')
-        const mq = matchMedia('(prefers-color-scheme: dark)');
-        const onSys = () => {
-            const mode = localStorage.getItem('6ix:themeMode') || 'system';
-            if (mode === 'system') (document.cookie, applySystemTheme());
-        };
-        mq.addEventListener?.('change', onSys);
+        const accent = localStorage.getItem('6ix:accent') || '#3b82f6';
+        const fg = (() => {
+            const n = accent.replace('#', '');
+            const r = parseInt(n.slice(0, 2), 16) / 255, g = parseInt(n.slice(2, 4), 16) / 255, b = parseInt(n.slice(4, 6), 16) / 255;
+            const L = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+            return L > 0.6 ? '#000' : '#fff';
+        })();
+        html.style.setProperty('--accent', accent);
+        html.style.setProperty('--accent-fg', fg);
+        html.style.setProperty('--accent-link', accent);
 
-        // 3) React to auth changes: clear theme when signed OUT, restore when signed IN
-        const sb = supabaseBrowser();
-        const sub = sb.auth.onAuthStateChange((_evt, session) => {
-            if (!session) { clearStoredTheme(); applySystemTheme(); }
-            else { applyThemeFromStorage(true); }
-        });
+        const live = localStorage.getItem('6ix:live:src');
+        if (live) { html.setAttribute('data-live', '1'); }
+        else { html.removeAttribute('data-live'); }
 
-        return () => {
-            mq.removeEventListener?.('change', onSys);
-            sub.data?.subscription?.unsubscribe?.();
-        };
+        // Set browser toolbar color to page bg
+        const meta = document.querySelector<HTMLMetaElement>('#theme-color');
+        const bg = getComputedStyle(html).getPropertyValue('--th-bg').trim() || '#000000';
+        if (meta) meta.content = bg;
     }, []);
-
     return null;
 }

@@ -9,7 +9,6 @@ const useIsoLayoutEffect =
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import '@/styles/6ix.css';
-import '@/styles/live-video-override.css';
 import { build6IXSystem, ProfileHints } from '@/prompts/6ixai-prompts';
 import BackStopper from '@/components/BackStopper';
 import BottomNav from '@/components/BottomNav';
@@ -45,8 +44,6 @@ import { persistChat, restoreChat } from '@/lib/chatPersist';
 import { buildStopReply } from '@/lib/stopReply';
 import { buildFeedback } from '@/components/FeedbackTicker';
 import LandingOrb from '@/components/LandingOrb';
-import { ThemeProvider, useTheme } from '@/theme/ThemeProvider';
-import LiveWallpaper from '@/components/live/LiveWallpaper';
 import { upsertCloudItem } from '@/lib/historyCloud';
 import { saveFromMessages, type ChatMessage as HistMsg } from '@/lib/history';
 import HistoryOverlay from '@/components/HistoryOverlay';
@@ -57,7 +54,6 @@ import { updateProfileAvatar } from '@/lib/profileAvatar';
 import AvatarEditorModal from '@/components/AvatarEditorModal';
 import UserMenuPortal from '@/components/UserMenuPortal';
 import AppHeader from '@/components/AppHeader';
-import ThemePanel from '@/theme/ThemePanel';
 import { imagePlanFor } from '@/lib/imagePlan';
 import { sniffImageRequest } from '@/lib/imageSniffer';
 import UserFileMsg from '@/components/UserFileMsg';
@@ -157,8 +153,7 @@ function SwatchGrid({
 
 export default function Page() {
     return (
-        <Suspense fallback={null}>
-
+        <Suspense fallback={<div style={{ padding: 16 }}></div>}>
             <AIPageInner />
 
         </Suspense>
@@ -572,21 +567,29 @@ function PremiumModal({
     const nice = required === 'pro' ? 'Pro' : 'Max';
     return (
         <div className="fixed inset-0 z-50 grid place-items-center">
-            <div className="absolute inset-0 bg-white/10 backdrop-blur-md opacity-60" onClick={onClose} />
-            <div className="relative z-10 max-w-sm w-[92%] rounded-2xl border border-white/15 bg-white/90 p-4 shadow-2xl">
-                <div className="text-[15px] leading-snug text-black/60">
+            {/* overlay must not be opaque so the live video is visible */}
+            <div
+                className="absolute inset-0 modal-overlay"
+                style={{ background: 'var(--overlay-bg)', backdropFilter: 'blur(6px)' }}
+                onClick={onClose}
+            />
+            <div className="relative z-10 max-w-sm w-[92%] rounded-2xl border th-card p-4 shadow-2xl">
+                <div className="text-[15px] leading-snug" style={{ color: 'var(--th-text)' }}>
                     <b>{displayName || 'Hey'}</b>, that feature needs a <b>{nice}</b> plan.
                 </div>
-                <div className="text-[12px] mt-2 opacity-80">
+                <div className="text-[12px] mt-2" style={{ opacity: .8 }}>
                     Unlock faster models, better reasoning and premium tools. You’ll also get the verified badge.
                 </div>
                 <div className="mt-4 flex gap-2 justify-end">
-                    <button className="btn btn-water" onClick={onClose}>Close</button>
-                    <button className="btn btn-water font-semibold" onClick={onGoPremium}>Get Premium + Verified</button>
+                    <button className="btn th-chip">Close</button>
+                    <button className="btn th-chip font-semibold" onClick={onGoPremium}>
+                        Get Premium + Verified
+                    </button>
                 </div>
             </div>
         </div>
     );
+
 }
 
 /* ---------- Expired Plan Modal ---------- */
@@ -607,54 +610,35 @@ function ExpiredPlanModal({
 }) {
     if (!open) return null;
 
-    const bg = isDark ? 'rgba(0,0,0,0.92)' : 'rgba(255,255,255,0.96)';
-    const fg = isDark ? '#fff' : '#000';
-    const sub = isDark ? 'rgba(255,255,255,0.75)' : 'rgba(0,0,0,0.72)';
-    const border = isDark ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.12)';
-
     return (
         <div className="fixed inset-0 z-[1000] grid place-items-center">
             <div
-                className="absolute inset-0 backdrop-blur-md"
-                style={{ background: isDark ? 'rgba(0,0,0,0.35)' : 'rgba(255,255,255,0.35)' }}
+                className="absolute inset-0 modal-overlay"
+                style={{ background: 'var(--overlay-bg)', backdropFilter: 'blur(6px)' }}
                 onClick={onClose}
             />
             <div
-                className="relative z-10 w-[92%] max-w-sm rounded-2xl shadow-2xl"
-                style={{ background: bg, color: fg, border: `1px solid ${border}` }}
-                role="dialog"
-                aria-modal="true"
-                aria-label="Subscription expired"
+                className="relative z-10 w-[92%] max-w-sm rounded-2xl shadow-2xl border th-card"
+                role="dialog" aria-modal="true" aria-label="Subscription expired"
             >
                 <div className="p-4">
                     <div className="text-[15px] leading-snug">
                         <b>{displayName || 'Hey'}</b>, your premium plan has expired.
                     </div>
-                    <div className="text-[12px] mt-2" style={{ color: sub }}>
+                    <div className="text-[12px] mt-2" style={{ opacity: .75 }}>
                         Renew to keep faster models and premium tools — or fall back to the Free plan now.
                     </div>
 
                     <div className="mt-4 flex flex-wrap gap-2 justify-end">
-                        <button className="btn btn-water" onClick={onClose}>Not now</button>
-                        <button
-                            className="btn btn-water font-semibold"
-                            onClick={onRenew}
-                            title="Go to /premium"
-                        >
-                            Renew now
-                        </button>
-                        <button
-                            className="btn btn-water font-semibold"
-                            onClick={onFallback}
-                            title="Switch to Free immediately"
-                        >
-                            Fall back to Free
-                        </button>
+                        <button className="btn th-chip" onClick={onClose}>Not now</button>
+                        <button className="btn th-chip font-semibold" onClick={onRenew}>Renew now</button>
+                        <button className="btn th-chip font-semibold" onClick={onFallback}>Fall back to Free</button>
                     </div>
                 </div>
             </div>
         </div>
     );
+
 }
 
 
@@ -674,11 +658,29 @@ function usePrefersDark() {
     return prefersDark;
 }
 
+type ThemeMode = 'system' | 'light' | 'dark';
+
+function useMiniTheme(prefersDark: boolean) {
+    const read = (): ThemeMode => {
+        try { return (localStorage.getItem('6ix:theme') as ThemeMode) || 'system'; } catch { return 'system'; }
+    };
+    const [theme, setTheme] = React.useState<ThemeMode>(read);
+
+    const resolvedDark = theme === 'dark' || (theme === 'system' && prefersDark);
+
+    React.useEffect(() => {
+        try { localStorage.setItem('6ix:theme', theme); } catch { }
+        const root = document.documentElement;
+
+
+    }, [theme, prefersDark, resolvedDark]);
+
+    return { theme, setTheme, resolvedDark };
+}
 
 /* ---------- PAGE ---------- */
 function AIPageInner() {
     const router = useRouter();
-    const prefersDark = usePrefersDark();
     const [mounted, setMounted] = React.useState(false);
     const [assistantTurns, setAssistantTurns] = React.useState(0);
     const [authChecked, setAuthChecked] = useState(false);
@@ -691,6 +693,7 @@ function AIPageInner() {
     const didInitialScrollRef = React.useRef(false);
     const afterBootScrollTimersRef = React.useRef<number[]>([]);
     const [speakingFor, setSpeakingFor] = React.useState<string | null>(null);
+    // theme (mini-only)
 
     function clearAfterBootScrollTimers() {
         try { afterBootScrollTimersRef.current.forEach(id => clearTimeout(id)); } catch { }
@@ -709,6 +712,64 @@ function AIPageInner() {
         switchOpen?: boolean;
         mode: 'image' | 'chat';
     }>({ open: false, i: -1, prompt: '', pos: null, switchOpen: false, mode: 'image' });
+
+    function ThemeMiniMenu({
+        anchorRef, open, value, onChange, onClose,
+    }: {
+        anchorRef: MutableRefObject<HTMLElement | null>;
+        open: boolean;
+        value: ThemeMode;
+        onChange: (t: ThemeMode) => void;
+        onClose: () => void;
+    }) {
+        if (!open) return null;
+        const rect = anchorRef.current?.getBoundingClientRect();
+        const top = (rect?.bottom ?? 0) + 8;
+        const width = 220;
+        const leftRaw = (rect ? rect.right - width : 12);
+        const left = Math.min(Math.max(8, leftRaw), window.innerWidth - width - 8);
+
+        const Item = ({ t, label }: { t: ThemeMode; label: string }) => (
+            <button
+                className="w-full text-left px-3 py-2 text-[14px] flex items-center gap-2"
+                style={{ borderRadius: 8, background: 'transparent' }}
+                onClick={() => { onChange(t); onClose(); }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(0,0,0,.06)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                aria-pressed={value === t}
+            >
+                <span
+                    aria-hidden
+                    className="inline-block h-[10px] w-[10px] rounded-full border"
+                    style={{ borderColor: 'var(--th-border)', background: value === t ? 'currentColor' : 'transparent' }}
+                />
+                {label}
+            </button>
+        );
+
+        return (
+            <>
+                <div className="fixed inset-0 z-[199]" onClick={onClose} />
+                <div
+                    className="z-[200] rounded-2xl border shadow-2xl th-card"
+                    style={{
+                        position: 'fixed',
+                        top, left, minWidth: width,
+                        background: 'var(--surface-1)',
+                        color: 'var(--th-text)',
+                        borderColor: 'var(--th-border)'
+                    }}
+                    role="menu" aria-label="Theme"
+                >
+                    <div className="px-3 pt-2 pb-1 text-[11px]" style={{ opacity: 0.7 }}>Appearance</div>
+                    <Item t="system" label="System" />
+                    <Item t="light" label="Light" />
+                    <Item t="dark" label="Dark" />
+                </div>
+            </>
+        );
+    }
+
 
     function openRecreateMenu(
         i: number,
@@ -800,12 +861,6 @@ function AIPageInner() {
     }, [plan, prefs]);
 
     // theme state (from the new useTheme)
-    const theme = useTheme();
-    const mode = theme?.mode ?? 'system';
-
-    const themeBtnRef = useRef<HTMLButtonElement | null>(null) as MutableRefObject<HTMLButtonElement | null>;
-    const [themeOpen, setThemeOpen] = useState(false);
-    const isDarkNow = mode === 'dark' || (mode === 'system' && prefersDark);
     // AIPage() — replace your messages state initializer:
     const [messages, setMessages] = React.useState<ChatMessage[]>([]);
     const [booted, setBooted] = React.useState(false);
@@ -1293,13 +1348,6 @@ function AIPageInner() {
         };
     }, []);
 
-
-    // Single, guarded persist. Do NOT persist while busy (streaming/creating images/uploads).
-    useEffect(() => {
-        if (busy) return; // guard during a turn
-        const t = setTimeout(() => { void persistChat(messages as any); }, 220);
-        return () => clearTimeout(t);
-    }, [messages, busy]);
 
     // Guarded cross-tab sync. Ignore updates while busy so we don't replace an active ghost.
     useEffect(() => {
@@ -2550,7 +2598,7 @@ function AIPageInner() {
                     : undefined
             };
             // ---------- Fast path when user asked to describe the image(s) ----------
-           
+
             // ghost assistant with pre-analysis
             const pre = preAnalysisRef.current;
             const hintMd =
@@ -3184,431 +3232,408 @@ function AIPageInner() {
 
     /* ---------- RENDER 1st return ---------- */
     return (
-        <ThemeProvider plan={effPlan}>
-            <div
-                className="fixed inset-0 flex flex-col overflow-hidden"
-                style={{
-                    background: 'var(--page-bg, var(--th-bg, #000))',
-                    color: 'var(--th-text, #fff)',
-                    visibility: authChecked ? 'visible' : 'hidden', // <— add this
-                }}
-                suppressHydrationWarning
-            >
-                <BackStopper />
-                <LiveWallpaper />
+        <div
+            className="ai-shell fixed inset-0 flex flex-col overflow-hidden themed-page "
+            style={{
+                
+                color: 'var(--th-text)',
+            }}
+            suppressHydrationWarning
+        >
+            <BackStopper />
+            <AppHeader
+                headerRef={headerRef}
+                profile={profile}
+                miniSeed={miniSeed}
+                effPlan={effPlan}
+                model={model}
+                speed={speed}
+                onSpeedChange={(v) => setSpeed(v)}
+                onUpsell={(need) => setPremiumModal({ open: true, required: need })}
+                avatarBtnRef={avatarBtnRef}
+                onAvatarClick={() => setMenuOpen(v => !v)}
+                scrollToBottom={scrollToBottom}
+                avatarFallback={AVATAR_FALLBACK}
+            />
 
-                <AppHeader
-                    headerRef={headerRef}
+            {/* EMPTY STATE — tagline above orb */}
+            {booted && messages.length === 0 && !streaming && (
+                <section className="intro-orb__stage relative mx-auto max-w-[900px] pt-8 pb-8">
+                    {/* Orb */}
+                    <LandingOrb />
+                </section>
+            )}
+            {authChecked && profile && (
+                <UserMenuPortal
+                    open={menuOpen}
+                    anchorRef={avatarBtnRef}
                     profile={profile}
-                    miniSeed={miniSeed}
-                    effPlan={effPlan}
-                    model={model}
-                    speed={speed}
-                    onSpeedChange={(v) => setSpeed(v)}
-                    onUpsell={(need) => setPremiumModal({ open: true, required: need })}
-                    avatarBtnRef={avatarBtnRef}
-                    onAvatarClick={() => setMenuOpen(v => !v)}
-                    themeBtnRef={themeBtnRef}
-                    onThemeClick={() => setThemeOpen(v => !v)}
-                    scrollToBottom={scrollToBottom}
-                    avatarFallback={AVATAR_FALLBACK}
+                    plan={plan}
+                    onClose={() => setMenuOpen(false)}
+                    onChangePhoto={() => setAvatarOpen(true)}
+                    savingAvatar={savingAvatar}
+                    onStartNew={startNewChat}
+                    onPremium={() => window.open('/premium', '_blank', 'noopener,noreferrer')}
+                    onHelp={() => { try { window.dispatchEvent(new CustomEvent('help:open')); } catch { } }}
+                    onSignout={signOutNow}
+                    onHistory={() => router.push('/ai?overlay=history', { scroll: false })}
+
                 />
+            )}
+            {avatarOpen && profile && (
+                <AvatarEditorModal
+                    profile={{ displayName: profile.displayName, avatarUrl: profile.avatarUrl, plan }}
+                    onClose={() => setAvatarOpen(false)}
+                    onSubmit={handleAvatarSubmit}
+                />
+            )}
 
-                {/* EMPTY STATE — tagline above orb */}
-                {booted && messages.length === 0 && !streaming && (
-                    <section className="intro-orb__stage relative mx-auto max-w-[900px] pt-8 pb-8">
-                        {/* Orb */}
-                        <LandingOrb />
-                    </section>
-                )}
-                {authChecked && profile && (
-                    <UserMenuPortal
-                        open={menuOpen}
-                        anchorRef={avatarBtnRef}
-                        profile={profile}
-                        plan={plan}
-                        onClose={() => setMenuOpen(false)}
-                        onChangePhoto={() => setAvatarOpen(true)}
-                        savingAvatar={savingAvatar}
-                        onStartNew={startNewChat}
-                        onPremium={() => window.open('/premium', '_blank', 'noopener,noreferrer')}
-                        onHelp={() => { try { window.dispatchEvent(new CustomEvent('help:open')); } catch { } }}
-                        onSignout={signOutNow}
-                        onHistory={() => router.push('/ai?overlay=history', { scroll: false })}
+            {showHistory && (
+                <HistoryOverlay
+                    onClose={() => router.replace('/ai', { scroll: false })}
+                    onPick={(item) => {
+                        const msgs = (item.messages as any[]) as ChatMessage[];
+                        setMessages(msgs);
+                        void persistChat(msgs as any); // keep localStorage in sync
+                        router.replace('/ai', { scroll: false }); // close overlay
+                    }}
+                />
+            )}
 
-                    />
-                )}
-                {avatarOpen && profile && (
-                    <AvatarEditorModal
-                        profile={{ displayName: profile.displayName, avatarUrl: profile.avatarUrl, plan }}
-                        onClose={() => setAvatarOpen(false)}
-                        onSubmit={handleAvatarSubmit}
-                    />
-                )}
-                {portalRoot && createPortal(
-                    <ThemePanel
-                        open={themeOpen}
-                        anchorRef={themeBtnRef}
-                        onClose={() => setThemeOpen(false)}
-                    />,
-                    portalRoot)}
+            {helpOpen && <HelpOverlay onClose={() => setHelpOpen(false)} />}
 
-                {showHistory && (
-                    <HistoryOverlay
-                        onClose={() => router.replace('/ai', { scroll: false })}
-                        onPick={(item) => {
-                            const msgs = (item.messages as any[]) as ChatMessage[];
-                            setMessages(msgs);
-                            void persistChat(msgs as any); // keep localStorage in sync
-                            router.replace('/ai', { scroll: false }); // close overlay
-                        }}
-                    />
-                )}
+            {reMenu.open && portalRoot && createPortal(
+                <>
+                    <div className="fixed inset-0 z-[200]" onClick={closeRecreateMenu} />
 
-                {helpOpen && <HelpOverlay onClose={() => setHelpOpen(false)} />}
-
-                {reMenu.open && portalRoot && createPortal(
-                    <>
-                        <div className="fixed inset-0 z-[200]" onClick={closeRecreateMenu} />
-
-                        <div
-                            className="z-[201] rounded-2xl border border-white/15 bg-black/90 text-white/90 shadow-2xl"
-                            style={{ position: 'fixed', top: reMenu.pos?.top ?? 0, left: reMenu.pos?.left ?? 0, minWidth: 240 }}
-                            role="menu"
-                            aria-label="Options"
-                        >
-                            {/* caption */}
-                            <div className="px-3 pt-2 pb-1 text-[11px] opacity-70">
-                                {reMenu.mode === 'image' ? `Using: ${currentImageModelCaption(plan)}` : `Edit reply`}
-                            </div>
-
-                            {/* Try again */}
-                            <button
-                                className="w-full text-left px-3 py-2 hover:bg-white/10 text-[14px]"
-                                onClick={() => {
-                                    const targetId = reMenu.id;
-                                    closeRecreateMenu();
-                                    if (!targetId) return;
-                                    if (reMenu.mode === 'image') {
-                                        regenerateImageById(targetId);
-                                    } else {
-                                        recreateAssistantById(targetId);
-                                    }
-                                }}
-                            >
-                                Try again
-                            </button>
-
-                            {/* Add details (prefill input with the originating prompt) */}
-                            <button
-                                className="w-full text-left px-3 py-2 hover:bg-white/10 text-[14px]"
-                                onClick={() => {
-                                    closeRecreateMenu();
-                                    setInput(reMenu.prompt || '');
-                                    setTimeout(() => textRef.current?.focus({ preventScroll: true }), 0);
-                                }}
-                            >
-                                Add details
-                            </button>
-
-                            {/* Pro/Max only actions (visible but gated for Free) */}
-                            <button
-                                className="w-full text-left px-3 py-2 hover:bg-white/10 text-[14px]"
-                                onClick={() =>
-                                    requirePlanOrModal('pro', () => {
-                                        closeRecreateMenu();
-                                        setInput((reMenu.prompt ? reMenu.prompt + ' ' : '') + 'Add more detail, texture and realism.');
-                                        setTimeout(() => textRef.current?.focus({ preventScroll: true }), 0);
-                                    })
-                                }
-                                style={{ opacity: plan === 'free' ? 0.45 : 1 }}
-                            >
-                                Elucidate more
-                            </button>
-
-                            {/* Switch model — only relevant for images */}
-                            {reMenu.mode === 'image' && (
-                                <div>
-                                    <button
-                                        className="w-full text-left px-3 py-2 hover:bg-white/10 text-[14px]"
-                                        onClick={() => requirePlanOrModal('pro', () => setReMenu(s => ({ ...s, switchOpen: !s.switchOpen })))}
-                                        style={{ opacity: plan === 'free' ? 0.45 : 1 }}
-                                    >
-                                        Switch model
-                                    </button>
-
-                                    {reMenu.switchOpen && (
-                                        <div className="pb-2">
-                                            <button
-                                                className="w-full text-left px-5 py-2 hover:bg-white/10 text-[13px]"
-                                                onClick={() => requirePlanOrModal('pro', () => { if (!reMenu.id) return; closeRecreateMenu(); regenerateImageWithModelById(reMenu.id, 'dall-e-3'); })}
-                                            >
-                                                Photoreal (DALL·E 3)
-                                            </button>
-                                            <button
-                                                className="w-full text-left px-5 py-2 hover:bg-white/10 text-[13px]"
-                                                onClick={() => requirePlanOrModal('pro', () => { if (!reMenu.id) return; closeRecreateMenu(); regenerateImageWithModelById(reMenu.id, 'gpt-image-1'); })}
-
-                                            >
-                                                Artistic (GPT-Image-1)
-                                            </button>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
+                    <div
+                        className="z-[201] rounded-2xl border th-card shadow-2xl"
+                        style={{ position: 'fixed', top: reMenu.pos?.top ?? 0, left: reMenu.pos?.left ?? 0, minWidth: 240 }}
+                        role="menu" aria-label="Options"
+                    >
+                        {/* caption */}
+                        <div className="px-3 pt-2 pb-1 text-[11px] opacity-70">
+                            {reMenu.mode === 'image' ? `Using: ${currentImageModelCaption(plan)}` : `Edit reply`}
                         </div>
-                    </>,
-                    portalRoot
-                )}
+
+                        {/* Try again */}
+                        <button
+                            className="w-full text-left px-3 py-2 hover:bg-white/10 text-[14px]"
+                            onClick={() => {
+                                const targetId = reMenu.id;
+                                closeRecreateMenu();
+                                if (!targetId) return;
+                                if (reMenu.mode === 'image') {
+                                    regenerateImageById(targetId);
+                                } else {
+                                    recreateAssistantById(targetId);
+                                }
+                            }}
+                        >
+                            Try again
+                        </button>
+
+                        {/* Add details (prefill input with the originating prompt) */}
+                        <button
+                            className="w-full text-left px-3 py-2 hover:bg-white/10 text-[14px]"
+                            onClick={() => {
+                                closeRecreateMenu();
+                                setInput(reMenu.prompt || '');
+                                setTimeout(() => textRef.current?.focus({ preventScroll: true }), 0);
+                            }}
+                        >
+                            Add details
+                        </button>
+
+                        {/* Pro/Max only actions (visible but gated for Free) */}
+                        <button
+                            className="w-full text-left px-3 py-2 hover:bg-white/10 text-[14px]"
+                            onClick={() =>
+                                requirePlanOrModal('pro', () => {
+                                    closeRecreateMenu();
+                                    setInput((reMenu.prompt ? reMenu.prompt + ' ' : '') + 'Add more detail, texture and realism.');
+                                    setTimeout(() => textRef.current?.focus({ preventScroll: true }), 0);
+                                })
+                            }
+                            style={{ opacity: plan === 'free' ? 0.45 : 1 }}
+                        >
+                            Elucidate more
+                        </button>
+
+                        {/* Switch model — only relevant for images */}
+                        {reMenu.mode === 'image' && (
+                            <div>
+                                <button
+                                    className="w-full text-left px-3 py-2 hover:bg-white/10 text-[14px]"
+                                    onClick={() => requirePlanOrModal('pro', () => setReMenu(s => ({ ...s, switchOpen: !s.switchOpen })))}
+                                    style={{ opacity: plan === 'free' ? 0.45 : 1 }}
+                                >
+                                    Switch model
+                                </button>
+
+                                {reMenu.switchOpen && (
+                                    <div className="pb-2">
+                                        <button
+                                            className="w-full text-left px-5 py-2 hover:bg-white/10 text-[13px]"
+                                            onClick={() => requirePlanOrModal('pro', () => { if (!reMenu.id) return; closeRecreateMenu(); regenerateImageWithModelById(reMenu.id, 'dall-e-3'); })}
+                                        >
+                                            Photoreal (DALL·E 3)
+                                        </button>
+                                        <button
+                                            className="w-full text-left px-5 py-2 hover:bg-white/10 text-[13px]"
+                                            onClick={() => requirePlanOrModal('pro', () => { if (!reMenu.id) return; closeRecreateMenu(); regenerateImageWithModelById(reMenu.id, 'gpt-image-1'); })}
+
+                                        >
+                                            Artistic (GPT-Image-1)
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                </>,
+                portalRoot
+            )}
 
 
-                {/* message LIST */}
-                <div
-                    ref={listRef}
-                    className="
+            {/* message LIST */}
+            <div
+                ref={listRef}
+                className="
 chat-list mx-auto w-full px-3 pt-2 pb-8 space-y-2 will-change-scroll
 flex-1 overflow-y-auto scroll-pb-[160px]
 max-w-[min(1200px,92vw)]
 "
-                    style={{ paddingBottom: 'calc(var(--composer-h,260px) + env(safe-area-inset-bottom,0px) + 120px)' }}
-                    suppressHydrationWarning
-                >
+                style={{ paddingBottom: 'calc(var(--composer-h,260px) + env(safe-area-inset-bottom,0px) + 120px)' }}
+                suppressHydrationWarning
+            >
 
-                    {messages.filter(m => m.role !== 'system').map((m, i) => {
-                        if (m.kind === 'image') {
-                            return (
-                                <div key={i} className="flex justify-start">
-                                    <ImageMsg
-                                        plan={plan}
-                                        url={m.url}
-                                        prompt={m.prompt || ''}
-                                        overlay={m.meta?.overlay} // NEW
-                                        displayName={profile?.displayName}
-                                        busy={descAt === i || recreatingId === m.id}
-                                        onOpen={() => m.url && setLightbox({ open: true, url: m.url, prompt: m.prompt || '' })}
-                                        onShare={() => m.url && smartShare(m.url)}
-                                        onDescribe={async () => {
-                                            if (!m.url) return;
-                                            setDescAt(i);
-                                            try {
-                                                const text = await describeImage(m.prompt, m.url);
-                                                await handleSpeak(text);
-                                            } finally { setDescAt(null); }
-                                        }}
-                                        onRecreate={(e) => openRecreateMenu(i, m.prompt || '', e.currentTarget as HTMLElement)}
-
-                                    />
-                                </div>
-                            );
-                        }
-
-                        const { visible, suggestions } = splitVisibleAndSuggestions(m.content);
-                        const isAssistant = m.role === 'assistant';
-                        const isLast = i === messages.length - 1;
-                        // compute the previous user prompt for this assistant message
-                        const prevUserPrompt = (() => {
-                            for (let j = i - 1; j >= 0; j--) {
-                                if (messages[j]?.role === 'user') return messages[j]?.content || '';
-                            }
-                            return '';
-                        })();
-
+                {messages.filter(m => m.role !== 'system').map((m, i) => {
+                    if (m.kind === 'image') {
+                        const msgKey = m.id ?? `${m.role}-${i}`;
                         return (
-                            <div key={i} className="space-y-1" data-kind="text" suppressHydrationWarning>
-                                <div className={`flex ${isAssistant ? 'justify-start' : 'justify-end'}`}>
-                                    <div className="max-w-[85%] px-0 py-0">
-                                        {/* Attachments row (for user message) */}
-                                        {m.attachments && m.attachments.length > 0 && (
-                                            <div className="mb-2 flex flex-wrap gap-2">
-                                                {m.attachments.map(a => (
-                                                    <UserFileMsg
-                                                        key={a.id}
-                                                        attachments={[a]}
-                                                        disabledUntilReplyDone={streaming || hasPendingUpload}
-                                                        plan={plan}
-                                                        onDescribe={() => handleDescribeAttachment(a)}
-                                                        busyId={descBusyId}
-                                                    />
-                                                ))}
-                                            </div>
-                                        )}
-                                        <div
-                                            className={[
-                                                'inline-block px-3 py-[7px] text-[15px] leading-[1.35] border rounded-2xl',
-                                                'msg-body',
-                                                'bg-white/10 border-white/15',
-                                            ].join(' ')}
-                                            // NEW: tap the bubble to open the same menu (assistant only)
-                                            onClick={isAssistant ? (e) =>
-                                                openRecreateMenu(i, prevUserPrompt, e.currentTarget as HTMLElement, 'chat')
-                                                : undefined}
-                                            role={isAssistant ? 'button' : undefined}
-                                            title={isAssistant ? 'Options' : undefined}
-                                        >
-                                            {(() => {
-                                                // pull any control tags from top of the message
-                                                const paintControls = extractPaintControls(visible || '');
-                                                const bodyAfterControls = paintControls.rest || visible;
+                            <div key={i} className="flex justify-start">
+                                <ImageMsg
+                                    plan={plan}
+                                    url={m.url}
+                                    prompt={m.prompt || ''}
+                                    overlay={m.meta?.overlay} // NEW
+                                    displayName={profile?.displayName}
+                                    busy={descAt === i || recreatingId === m.id}
+                                    onOpen={() => m.url && setLightbox({ open: true, url: m.url, prompt: m.prompt || '' })}
+                                    onShare={() => m.url && smartShare(m.url)}
+                                    onDescribe={async () => {
+                                        if (!m.url) return;
+                                        setDescAt(i);
+                                        try {
+                                            const text = await describeImage(m.prompt, m.url);
+                                            await handleSpeak(text);
+                                        } finally { setDescAt(null); }
+                                    }}
+                                    onRecreate={(e) => openRecreateMenu(i, m.prompt || '', e.currentTarget as HTMLElement)}
 
-                                                return (
-                                                    <>
-                                                        {isAssistant && paintControls.colorPicker && (
-                                                            <ColorPickerRow meta={paintControls.colorPicker} onPick={onPickColor} />
-                                                        )}
-                                                        {isAssistant && paintControls.swatchGrid && (
-                                                            <SwatchGrid meta={paintControls.swatchGrid} onPick={onPickSwatch} />
-                                                        )}
-
-                                                        {bodyAfterControls ? (
-                                                            <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
-                                                                {bodyAfterControls}
-                                                            </ReactMarkdown>
-                                                        ) : (
-                                                            Boolean(streaming && isAssistant) && (
-                                                                <span className="typing-line">
-                                                                    <span>
-                                                                        {status ?? turnLabel ?? (plan === 'free' ? '6IX AI is typing' : 'Drafting an answer…')}
-                                                                    </span>
-                                                                    <i className="inline-flex gap-[2px] ml-1 align-middle">
-                                                                        <b className="dot" /><b className="dot" /><b className="dot" />
-                                                                    </i>
-                                                                </span>
-                                                            )
-                                                        )}
-                                                    </>
-                                                );
-                                            })()}
-
-                                        </div>
-
-                                        {/* Quick follow-up chips */}
-                                        {isAssistant && isLast && allowFollowupPills(plan) && suggestions.length > 0 && (
-                                            <div className="mt-2 flex flex-wrap gap-2">
-                                                {suggestions.map((s, idx) => (
-                                                    <button
-                                                        key={idx}
-                                                        className="btn btn-water text-[12px] px-2 py-1"
-                                                        onClick={() => setInput(s)}
-                                                        title="Use suggestion"
-                                                    >
-                                                        {s}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        )}
-                                        {/* Actions row — show for assistant messages.
-If a message is still streaming and it's the last one, hide until it finishes. */}
-                                        {isAssistant && (!streaming || !isLast) && (
-                                            <MsgActions
-                                                textToCopy={visible}
-                                                onSpeak={() => handleSpeak(visible, m.id)}
-                                                speaking={speakingFor === m.id}
-                                                speakDisabled={speakDisabled}
-
-                                                liked={m.feedback === 1}
-                                                disliked={m.feedback === -1}
-                                                onLike={() => handleLikeAt(i)}
-                                                onDislike={() => handleDislikeAt(i)}
-
-                                                onRecreate={(e) => openRecreateMenu(i, prevUserPrompt, e.currentTarget as HTMLElement, 'chat')}
-                                                onShare={() => handleShareAt(i, visible)}
-                                                sharing={sharingIndex === i}
-                                            />
-                                        )}
-                                    </div>
-                                </div>
+                                />
                             </div>
                         );
-                    })}
+                    }
 
-                    <div ref={endRef} />
-                </div>
+                    const { visible, suggestions } = splitVisibleAndSuggestions(m.content);
+                    const isAssistant = m.role === 'assistant';
+                    const isLast = i === messages.length - 1;
+                    // compute the previous user prompt for this assistant message
+                    const prevUserPrompt = (() => {
+                        for (let j = i - 1; j >= 0; j--) {
+                            if (messages[j]?.role === 'user') return messages[j]?.content || '';
+                        }
+                        return '';
+                    })();
 
-                {lightbox.open && portalRoot && createPortal(
-                    <div className="fixed inset-0 z-50 bg-black/80 grid place-items-center"
-                        onClick={() => setLightbox({ open: false, url: '', prompt: '' })}>
-                        <Image
-                            src={lightbox.url}
-                            alt={lightbox.prompt || 'Image'}
-                            fill
-                            className="object-contain rounded-2xl"
-                            sizes="(max-width: 900px) 92vw, 900px"
-                            unoptimized
-                        />
-                    </div>,
-                    portalRoot
-                )}
+                    return (
+                        <div key={i} className="space-y-1" data-kind="text" suppressHydrationWarning>
+                            <div className={`flex ${isAssistant ? 'justify-start' : 'justify-end'}`}>
+                                <div className="max-w-[85%] px-0 py-0">
+                                    {/* Attachments row (for user message) */}
+                                    {m.attachments && m.attachments.length > 0 && (
+                                        <div className="mb-2 flex flex-wrap gap-2">
+                                            {m.attachments.map(a => (
+                                                <UserFileMsg
+                                                    key={a.id}
+                                                    attachments={[a]}
+                                                    disabledUntilReplyDone={streaming || hasPendingUpload}
+                                                    plan={plan}
+                                                    onDescribe={() => handleDescribeAttachment(a)}
+                                                    busyId={descBusyId}
+                                                />
+                                            ))}
+                                        </div>
+                                    )}
+                                    <div
+                                        className={[
+                                            'inline-block px-3 py-[7px] text-[15px] leading-[1.35] border rounded-2xl',
+                                            'msg-body',
+                                            'bg-white/10 border-white/15',
+                                        ].join(' ')}
+                                        // NEW: tap the bubble to open the same menu (assistant only)
+                                        onClick={isAssistant ? (e) =>
+                                            openRecreateMenu(i, prevUserPrompt, e.currentTarget as HTMLElement, 'chat')
+                                            : undefined}
+                                        role={isAssistant ? 'button' : undefined}
+                                        title={isAssistant ? 'Options' : undefined}
+                                    >
+                                        {(() => {
+                                            // pull any control tags from top of the message
+                                            const paintControls = extractPaintControls(visible || '');
+                                            const bodyAfterControls = paintControls.rest || visible;
 
-                {/* COMPOSER (Floating ChatGPT-style) */}
-                <FloatingComposer
-                    input={input}
-                    setInput={setInput}
-                    send={send}
-                    handleStop={handleStop}
-                    streaming={streaming}
-                    isBusy={isSendingOrBusy}
-                    transcribing={transcribing}
-                    hasPendingUpload={hasPendingUpload}
-                    busyLabel={chooseTypingLabel({ // <- human-friendly status line
-                        plan,
-                        text: input,
-                        hasPendingUpload,
-                        hasReadyFiles: attachments.some(a => a.status === 'ready' && a.remoteUrl),
-                    })}
-                    phase={phase} // 'uploading' | 'analyzing' | 'ready'
-                    tickerMessages={tickerMessages} // <- the rotating feedback you already built
-                    recState={recState}
-                    startRecording={startRecording}
-                    stopRecording={stopRecording}
-                    attachments={attachments}
-                    onOpenFiles={handleOpenFiles}
-                    onFilesChosen={(files) => { if (files?.length) addFiles(files) }}
-                    onRemoveAttachment={removeAttachment}
-                    compRef={compRef}
-                    textRef={textRef}
-                    fileInputRef={fileInputRef}
-                    pickerOpenRef={pickerOpenRef}
-                    focusLockRef={focusLockRef}
-                    plan={plan} // NEW: so input can set accept="image/*" for free
-                    hints={composerHints} // NEW: rotate in-composer hints
-                    hintTick={hintTick} // NEW: which hint to show
-                />
+                                            return (
+                                                <>
+                                                    {isAssistant && paintControls.colorPicker && (
+                                                        <ColorPickerRow meta={paintControls.colorPicker} onPick={onPickColor} />
+                                                    )}
+                                                    {isAssistant && paintControls.swatchGrid && (
+                                                        <SwatchGrid meta={paintControls.swatchGrid} onPick={onPickSwatch} />
+                                                    )}
+
+                                                    {bodyAfterControls ? (
+                                                        <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
+                                                            {bodyAfterControls}
+                                                        </ReactMarkdown>
+                                                    ) : (
+                                                        Boolean(streaming && isAssistant) && (
+                                                            <span className="typing-line">
+                                                                <span>
+                                                                    {status ?? turnLabel ?? (plan === 'free' ? '6IX AI is typing' : 'Drafting an answer…')}
+                                                                </span>
+                                                                <i className="inline-flex gap-[2px] ml-1 align-middle">
+                                                                    <b className="dot" /><b className="dot" /><b className="dot" />
+                                                                </i>
+                                                            </span>
+                                                        )
+                                                    )}
+                                                </>
+                                            );
+                                        })()}
+
+                                    </div>
+
+                                    {/* Quick follow-up chips */}
+                                    {isAssistant && isLast && allowFollowupPills(plan) && suggestions.length > 0 && (
+                                        <div className="mt-2 flex flex-wrap gap-2">
+                                            {suggestions.map((s, idx) => (
+                                                <button
+                                                    key={idx}
+                                                    className="btn btn-water text-[12px] px-2 py-1"
+                                                    onClick={() => setInput(s)}
+                                                    title="Use suggestion"
+                                                >
+                                                    {s}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                    {/* Actions row — show for assistant messages.
+If a message is still streaming and it's the last one, hide until it finishes. */}
+                                    {isAssistant && (!streaming || !isLast) && (
+                                        <MsgActions
+                                            textToCopy={visible}
+                                            onSpeak={() => handleSpeak(visible, m.id)}
+                                            speaking={speakingFor === m.id}
+                                            speakDisabled={speakDisabled}
+
+                                            liked={m.feedback === 1}
+                                            disliked={m.feedback === -1}
+                                            onLike={() => handleLikeAt(i)}
+                                            onDislike={() => handleDislikeAt(i)}
+
+                                            onRecreate={(e) => openRecreateMenu(i, prevUserPrompt, e.currentTarget as HTMLElement, 'chat')}
+                                            onShare={() => handleShareAt(i, visible)}
+                                            sharing={sharingIndex === i}
+                                        />
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    );
+                })}
+
+                <div ref={endRef} />
+            </div>
+
+            {lightbox.open && portalRoot && createPortal(
+                <div className="fixed inset-0 z-50 bg-black/80 grid place-items-center"
+                    onClick={() => setLightbox({ open: false, url: '', prompt: '' })}>
+                    <Image
+                        src={lightbox.url}
+                        alt={lightbox.prompt || 'Image'}
+                        fill
+                        className="object-contain rounded-2xl"
+                        sizes="(max-width: 900px) 92vw, 900px"
+                        unoptimized
+                    />
+                </div>,
+                portalRoot
+            )}
+
+            {/* COMPOSER (Floating ChatGPT-style) */}
+            <FloatingComposer
+                input={input}
+                setInput={setInput}
+                send={send}
+                handleStop={handleStop}
+                streaming={streaming}
+                isBusy={isSendingOrBusy}
+                transcribing={transcribing}
+                hasPendingUpload={hasPendingUpload}
+                busyLabel={chooseTypingLabel({ // <- human-friendly status line
+                    plan,
+                    text: input,
+                    hasPendingUpload,
+                    hasReadyFiles: attachments.some(a => a.status === 'ready' && a.remoteUrl),
+                })}
+                phase={phase} // 'uploading' | 'analyzing' | 'ready'
+                tickerMessages={tickerMessages} // <- the rotating feedback you already built
+                recState={recState}
+                startRecording={startRecording}
+                stopRecording={stopRecording}
+                attachments={attachments}
+                onOpenFiles={handleOpenFiles}
+                onFilesChosen={(files) => { if (files?.length) addFiles(files) }}
+                onRemoveAttachment={removeAttachment}
+                compRef={compRef}
+                textRef={textRef}
+                fileInputRef={fileInputRef}
+                pickerOpenRef={pickerOpenRef}
+                focusLockRef={focusLockRef}
+                plan={plan} // NEW: so input can set accept="image/*" for free
+                hints={composerHints} // NEW: rotate in-composer hints
+                hintTick={hintTick} // NEW: which hint to show
+            />
 
 
-                {/* Mobile bottom nav fixed to device bottom (kept from your layout) */}
-                <div className="md:hidden fixed bottom-0 inset-x-0 z-50">
-                    <BottomNav />
-                </div>
-
-
-                <TTSLimitModal
-                    open={ttsLimitOpen}
-                    displayName={profile?.displayName ?? ''}
-                    onClose={() => setTtsLimitOpen(false)}
-                    onUpgrade={() => { setTtsLimitOpen(false); router.push('/premium'); }}
-                />
-
-                {/* Premium modal */}
-                <PremiumModal
-                    open={premiumModal.open}
-                    required={premiumModal.required}
-                    displayName={profile?.displayName || 'Friend'}
-                    onClose={() => setPremiumModal({ ...premiumModal, open: false })}
-                    onGoPremium={() => { setPremiumModal({ ...premiumModal, open: false }); router.push('/premium'); }}
-                />
-
-                <ExpiredPlanModal
-                    open={expiredOpen}
-                    displayName={profile?.displayName || 'Friend'}
-                    isDark={isDarkNow}
-                    onClose={() => setExpiredOpen(false)}
-                    onRenew={() => { setExpiredOpen(false); router.push('/premium'); }}
-                    onFallback={fallbackToFreeNow}
-                />
+            {/* Mobile bottom nav fixed to device bottom (kept from your layout) */}
+            <div className="md:hidden fixed bottom-0 inset-x-0 z-50">
+                <BottomNav />
             </div>
 
 
-        </ThemeProvider>
+            <TTSLimitModal
+                open={ttsLimitOpen}
+                displayName={profile?.displayName ?? ''}
+                onClose={() => setTtsLimitOpen(false)}
+                onUpgrade={() => { setTtsLimitOpen(false); router.push('/premium'); }}
+            />
+
+            {/* Premium modal */}
+            <PremiumModal
+                open={premiumModal.open}
+                required={premiumModal.required}
+                displayName={profile?.displayName || 'Friend'}
+                onClose={() => setPremiumModal({ ...premiumModal, open: false })}
+                onGoPremium={() => { setPremiumModal({ ...premiumModal, open: false }); router.push('/premium'); }}
+            />
+
+
+        </div>
 
     );
 

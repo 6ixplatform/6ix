@@ -10,6 +10,8 @@ import {
     type SpeedMode,
     coerceUiModelForPlan,
 } from '@/lib/planRules';
+import MusicPill from './music/MusicPill';
+import ThemeMenu from './ThemeMenu';
 
 /* ────────────────────────────────────────────────────────────────────────── */
 /* local fallback + tiny verified badge (mirrors UserMenuPortal) */
@@ -82,8 +84,7 @@ type Props = {
     avatarBtnRef: AnyRef<HTMLButtonElement | null>;
     onAvatarClick: () => void;
 
-    themeBtnRef: AnyRef<HTMLButtonElement | null>;
-    onThemeClick: () => void;
+   
 
     scrollToBottom: (smooth?: boolean) => void;
     avatarFallback?: string;
@@ -228,8 +229,6 @@ export default function AppHeader({
     onUpsell,
     avatarBtnRef,
     onAvatarClick,
-    themeBtnRef,
-    onThemeClick,
     scrollToBottom,
     avatarFallback = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==',
 }: Props) {
@@ -289,12 +288,8 @@ export default function AppHeader({
                         <Image src="/splash.png" alt="6IX" width={54} height={54} className="rounded-sm opacity-80" />
                     </button>
 
-                    {/* LONG music/info pill */}
-                    <div className="h-9 flex-1 min-w-[320px] md:min-w-[520px] rounded-full bg-white/5 border border-white/15 grid grid-cols-[28px_1fr_24px] items-center pl-2 pr-2">
-                        <i className="h-6 w-6 rounded-md bg-white/70" />
-                        <span className="truncate text-[13px] text-zinc-200">Music player pill</span>
-                        <span className="text-zinc-400 text-lg leading-none">⋯</span>
-                    </div>
+                    {/* Music pill (extracted) */}
+                    <MusicPill category="afrobeat" />
 
                     {/* plan/model/speed cluster (matches pill height & spacing) */}
                     <div className="hidden md:flex items-center gap-2">
@@ -320,15 +315,7 @@ export default function AppHeader({
                             <>Wallet ${walletNow.toLocaleString('en-US')} · Coins {creditsNow.toLocaleString('en-US')}</>
                         </div>
 
-                        <button
-                            ref={themeBtnRef}
-                            onClick={onThemeClick}
-                            className="hidden md:grid p-0 ml-[10px] order-last"
-                            aria-label="Theme"
-                            style={{ color: 'var(--icon-fg)', background: 'transparent', border: 'none' }}
-                        >
-                            <CrescentIcon size={18} />
-                        </button>
+                       <ThemeMenu/>
 
                         {/* Name (portal-style; one source of truth) */}
                         <div className="hidden sm:block text-sm opacity-90 truncate max-w-[180px]">
