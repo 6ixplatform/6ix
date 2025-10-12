@@ -3639,10 +3639,18 @@ If a message is still streaming and it's the last one, hide until it finishes. *
             />
 
 
-            {/* Mobile bottom nav fixed to device bottom (kept from your layout) */}
-            <div className="md:hidden fixed bottom-0 inset-x-0 z-50">
+            {/* Mobile bottom nav — measured & behind composer */}
+            <div
+                ref={mbnavRef}
+                id="mobile-nav"
+                className="md:hidden fixed bottom-0 inset-x-0 z-[30]"
+                style={{ paddingBottom: 'env(safe-area-inset-bottom,0px)' }}
+            >
+                {/* If BottomNav lets you pass items, uncomment the next line and remove the one below */}
+                {/* <BottomNav items={['6FEED','6IXAI','6GAME']} /> */}
                 <BottomNav />
             </div>
+
 
 
             <TTSLimitModal

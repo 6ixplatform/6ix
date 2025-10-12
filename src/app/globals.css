@@ -1680,13 +1680,6 @@ html, body {
   color: var(--th-text);
 }
 
-/* icons/text/buttons adopt theme */
-.icon, .msg-actions button, .chat-toolbar button, .btn, .select-trigger {
-  color: var(--th-icon);
-  fill: currentColor;
-  stroke: currentColor;
-}
-
 
 /* inputs & chips */
 .msg-body, .composer-shine, .att-chip, .sheet-item, .menu-link, .hdr-compact .btn {
@@ -2622,20 +2615,8 @@ html.theme-light .profile-scope .btn-primary:disabled {
 /* = Secondary (ghost becomes black) ===================== */
 .home-scope .btn-ghost,
 .home-scope .btn.btn-ghost,
-.home-scope .water-mobile.btn-ghost {
-  background: #111 !important;
-  color: #fff !important;
-  border-color: #0b0c10 !important;
-}
 
-@media (hover:hover) {
 
-  .home-scope .btn-ghost:hover,
-  .home-scope .btn-ghost:focus {
-    background: #151515 !important;
-    color: #fff !important;
-  }
-}
 
 .home-scope .btn-ghost:disabled {
   background: #141414 !important;
@@ -3311,4 +3292,54 @@ html.theme-light :is(.home-scope, .auth-scope, .verify-scope, .profile-scope) in
     color: inherit !important;
     border-color: inherit !important;
   }
+}
+
+/* ===== ONBOARDING/LANDING BUTTON KILL-SWITCH (LAST RULES) ===== */
+:where(.home-scope, .auth-scope, .verify-scope, .profile-scope, .signin-scope):is(.btn, .btn-primary, .btn-white, .btn-outline, .btn-ghost) {
+  /* palette */
+  background: #fff !important;
+  color: #000 !important;
+  border: 1px solid #e5e7eb !important;
+
+  /* kill glow, light-up, transitions */
+  box-shadow: none !important;
+  filter: none !important;
+  text-shadow: none !important;
+  transition: none !important;
+  transform: none !important;
+  --tw-ring-color: transparent !important;
+  --tw-ring-shadow: 0 0 #0000 !important;
+}
+
+/* dark/ghost variants stay dark with white text */
+:where(.home-scope, .auth-scope, .verify-scope, .profile-scope, .signin-scope):is(.btn-outline, .btn-ghost) {
+  background: #111 !important;
+  color: #fff !important;
+  border-color: #0b0c10 !important;
+}
+
+/* force children to not re-color (kills .text-white etc.) */
+:where(.home-scope, .auth-scope, .verify-scope, .profile-scope, .signin-scope) .btn * {
+  color: inherit !important;
+  fill: currentColor !important;
+  stroke: currentColor !important;
+}
+
+/* kill pseudo-element sheen / water effects */
+:where(.home-scope, .auth-scope, .verify-scope, .profile-scope, .signin-scope):is(.btn, .btn-primary, .btn-white, .btn-outline, .btn-ghost)::before,
+:where(.home-scope, .auth-scope, .verify-scope, .profile-scope, .signin-scope):is(.btn, .btn-primary, .btn-white, .btn-outline, .btn-ghost)::after {
+  content: none !important;
+  animation: none !important;
+}
+
+/* keep palette stable on any interaction */
+:where(.home-scope, .auth-scope, .verify-scope, .profile-scope, .signin-scope):is(.btn, .btn-primary, .btn-white, .btn-outline, .btn-ghost):hover,
+:where(.home-scope, .auth-scope, .verify-scope, .profile-scope, .signin-scope):is(.btn, .btn-primary, .btn-white, .btn-outline, .btn-ghost):focus,
+:where(.home-scope, .auth-scope, .verify-scope, .profile-scope, .signin-scope):is(.btn, .btn-primary, .btn-white, .btn-outline, .btn-ghost):active,
+:where(.home-scope, .auth-scope, .verify-scope, .profile-scope, .signin-scope):is(.btn, .btn-primary, .btn-white, .btn-outline, .btn-ghost):focus-visible {
+  background: inherit !important;
+  color: inherit !important;
+  border-color: inherit !important;
+  box-shadow: none !important;
+  outline: none !important;
 }
