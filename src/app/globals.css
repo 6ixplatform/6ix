@@ -562,42 +562,6 @@ body {
   padding-bottom: calc(76px + env(safe-area-inset-bottom));
 }
 
-/* Single-line pendulum glow (no visible start/end, just sweeps left<->right) */
-.pendulum-liner {
-  height: 2px;
-  position: relative;
-  overflow: hidden;
-}
-
-.pendulum-liner .liner-bar {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: -40%;
-  /* start well off-screen */
-  width: 80%;
-  /* long single glow line */
-  display: block;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .7), transparent);
-  animation: pendulum 3.6s ease-in-out infinite alternate;
-  will-change: transform, opacity;
-}
-
-@keyframes pendulum {
-  0% {
-    transform: translateX(-10%);
-    opacity: .85;
-  }
-
-  50% {
-    opacity: 1;
-  }
-
-  100% {
-    transform: translateX(110%);
-    opacity: .85;
-  }
-}
 
 /* Helper: if you want only inner content to scroll on pages,
 give the scrolling wrapper this class to keep the dock/top bar from rubber-banding */
@@ -663,152 +627,6 @@ label.btn select {
   --header-h: 120px;
 }
 
-/* ─── Theme palettes via root classes ───────────────────────── */
-:root {
-  color-scheme: light dark;
-}
-
-/* advertise both */
-html.theme-dark {
-  background: #000;
-  color: #fff;
-}
-
-html.theme-light {
-  background: #fff;
-  color: #000;
-}
-
-/* Utility flips so your existing classes still look right on light */
-html.theme-light .bg-black {
-  background: #fff !important;
-}
-
-html.theme-light .bg-black\/75 {
-  background: rgba(255, 255, 255, .75) !important;
-}
-
-html.theme-light .bg-black\/85 {
-  background: rgba(255, 255, 255, .85) !important;
-}
-
-html.theme-light .text-white {
-  color: #000 !important;
-}
-
-html.theme-light .text-zinc-200 {
-  color: #2b2b2b !important;
-}
-
-html.theme-light .text-zinc-300 {
-  color: #3a3a3a !important;
-}
-
-html.theme-light .text-zinc-400 {
-  color: #595959 !important;
-}
-
-html.theme-light .border-white\/10 {
-  border-color: rgba(0, 0, 0, .10) !important;
-}
-
-html.theme-light .border-white\/12 {
-  border-color: rgba(0, 0, 0, .12) !important;
-}
-
-html.theme-light .border-white\/15 {
-  border-color: rgba(0, 0, 0, .15) !important;
-}
-
-html.theme-light .bg-white\/4 {
-  background: rgba(0, 0, 0, .04) !important;
-}
-
-html.theme-light .bg-white\/5 {
-  background: rgba(0, 0, 0, .05) !important;
-}
-
-html.theme-light .bg-white\/6 {
-  background: rgba(0, 0, 0, .06) !important;
-}
-
-/* Assistant bubble on light */
-html.theme-light .px-3.py-2.bg-white\/6.border.border-white\/12 {
-  background: rgba(0, 0, 0, .04) !important;
-  border-color: rgba(0, 0, 0, .10) !important;
-}
-
-/* Composer border shimmer tuned for light */
-html.theme-light .composer-shine {
-  background: rgba(0, 0, 0, .04) !important;
-}
-
-html.theme-light .composer-shine::before {
-  background: conic-gradient(from var(--angle),
-      rgba(0, 0, 0, 0.00) 0deg,
-      rgba(0, 0, 0, 0.55) 30deg,
-      rgba(120, 120, 120, 0.45) 60deg,
-      rgba(180, 180, 180, 0.25) 90deg,
-      rgba(0, 0, 0, 0.00) 120deg);
-}
-
-/* ── Header controls (model / speed / mode) flip for LIGHT ─────────── */
-html.theme-light .btn.btn-water,
-html.theme-light .btn-water {
-  background: rgba(0, 0, 0, .06) !important;
-  /* soft light bg */
-  border: 1px solid rgba(0, 0, 0, .18) !important;
-  /* darker border */
-  color: #000 !important;
-  /* text goes black */
-}
-
-/* make the native select text + caret character black in light mode */
-html.theme-light .btn-water select {
-  color: #000 !important;
-  -webkit-text-fill-color: #000 !important;
-  /* iOS Safari */
-}
-
-/* the little "⌄" arrow span you render next to the select */
-html.theme-light .btn-water>span {
-  color: #000 !important;
-  opacity: .7;
-  /* keep it subtle, still readable */
-}
-
-/* (optional) ensure dark mode stays white with no surprises */
-html.theme-dark .btn-water,
-html.theme-dark .btn-water select,
-html.theme-dark .btn-water>span {
-  color: #fff !important;
-}
-
-/* ── Action row icons + timestamp flip for LIGHT ───────────── */
-html.theme-light .action-row {
-  color: #000 !important;
-}
-
-/* your SvgBase sets stroke="white"; this overrides it in LIGHT */
-html.theme-light .action-row svg,
-html.theme-light .action-btn svg {
-  stroke: #000 !important;
-}
-
-/* hover keeps subtle contrast on light */
-html.theme-light .action-btn:hover {
-  filter: brightness(0.92);
-}
-
-/* time text under bubbles (you used text-zinc-500) */
-html.theme-light .text-zinc-500 {
-  color: #5a5a5a !important;
-}
-
-/* (optional) the tiny “×” and similar inline icon buttons */
-html.theme-light .action-btn {
-  color: #000 !important;
-}
 
 /* ===== User menu (scoped) ===== */
 .user-menu {
@@ -822,23 +640,6 @@ html.theme-light .action-btn {
   background: var(--sheet-bg, rgba(0, 0, 0, .88));
   box-shadow: 0 12px 40px rgba(0, 0, 0, .45);
 }
-
-/* light theme tokens */
-html.theme-light .user-menu {
-  --sheet-bg: rgba(255, 255, 255, .96);
-  --sheet-border: rgba(0, 0, 0, .12);
-  --sheet-div: rgba(0, 0, 0, .12);
-  color: #111;
-}
-
-/* dark theme tokens */
-html.theme-dark .user-menu {
-  --sheet-bg: rgba(0, 0, 0, .88);
-  --sheet-border: rgba(255, 255, 255, .14);
-  --sheet-div: rgba(255, 255, 255, .12);
-  color: #fff;
-}
-
 /* header row */
 .user-menu .sheet-head {
   display: flex;
@@ -912,10 +713,6 @@ html.theme-dark .user-menu {
   background: rgba(255, 255, 255, .06);
 }
 
-html.theme-light .user-menu .sheet-item:hover {
-  background: rgba(0, 0, 0, .04);
-}
-
 /* the Theme row control */
 .user-menu .sheet-item--control select {
   background: transparent;
@@ -960,40 +757,6 @@ html[class*="theme-anim-"] body {
   color: var(--th-text);
 }
 
-/* high-use elements in your app */
-html[class*="theme-premium-"] .app-header,
-html[class*="theme-premium-"] .composer-root,
-html[class*="theme-anim-"] .app-header,
-html[class*="theme-anim-"] .composer-root {
-  background: color-mix(in oklab, var(--th-bg), transparent 18%) !important;
-  border-color: var(--th-border) !important;
-}
-
-/* cards, borders, menus */
-html[class*="theme-premium-"] .user-menu,
-html[class*="theme-anim-"] .user-menu {
-  background: color-mix(in oklab, var(--th-bg), black 0%);
-  border-color: var(--th-border);
-}
-
-html[class*="theme-premium-"] .history-card,
-html[class*="theme-premium-"] .history-item {
-  background: var(--th-card) !important;
-  border-color: var(--th-border) !important;
-}
-
-/* accented controls */
-html[class*="theme-premium-"] .upload-btn,
-html[class*="theme-anim-"] .upload-btn {
-  border-color: color-mix(in oklab, var(--th-accent), currentColor 40%);
-}
-
-html[class*="theme-premium-"] .btn,
-html[class*="theme-anim-"] .btn {
-  background: var(--th-btn-bg);
-  color: var(--th-btn-text);
-}
-
 /* override the composer ring to follow accent */
 html[class*="theme-premium-"] .composer-shine::before,
 html[class*="theme-anim-"] .composer-shine::before {
@@ -1004,174 +767,6 @@ html[class*="theme-anim-"] .composer-shine::before {
       transparent 180deg);
 }
 
-/* Wallpapers (image layer) */
-html.has-wallpaper body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  background: center/cover no-repeat var(--wallpaper-url);
-  opacity: .28;
-  filter: saturate(1.05) brightness(.95);
-}
-
-html.theme-light.has-wallpaper body::before {
-  opacity: .22;
-  filter: saturate(1.0) brightness(1);
-}
-
-/* Animated themes */
-html.theme-anim-aurora-mint body::after,
-html.theme-anim-butter-glow body::after {
-  content: "";
-  position: fixed;
-  inset: -20%;
-  z-index: -2;
-  pointer-events: none;
-  background:
-    radial-gradient(40% 30% at 20% 30%, color-mix(in oklab, var(--th-accent), #00ffd0 40%), transparent 60%),
-    radial-gradient(35% 30% at 70% 60%, color-mix(in oklab, var(--th-accent), #aaf0d1 25%), transparent 60%),
-    radial-gradient(30% 25% at 40% 80%, color-mix(in oklab, var(--th-accent), #bfffe8 35%), transparent 60%);
-  filter: blur(40px);
-  animation: auroraFloat 18s ease-in-out infinite alternate;
-}
-
-@keyframes auroraFloat {
-  0% {
-    transform: translate3d(-2%, 0, 0) scale(1);
-  }
-
-  100% {
-    transform: translate3d(2%, -2%, 0) scale(1.05);
-  }
-}
-
-.drafts {
-  display: flex;
-  flex-wrap: wrap;
-  gap: .5rem;
-  margin: .5rem 0;
-}
-
-.chip {
-  display: flex;
-  align-items: center;
-  gap: .5rem;
-  border: 1px solid var(--border);
-  padding: .25rem .5rem;
-  border-radius: 999px;
-}
-
-.chip img {
-  width: 20px;
-  height: 20px;
-  object-fit: cover;
-  border-radius: 4px;
-}
-
-.chip .status {
-  font-size: .75rem;
-  opacity: .7
-}
-
-.chip .status.uploading {
-  animation: pulse 1s infinite;
-}
-
-@keyframes pulse {
-  0% {
-    opacity: .3
-  }
-
-  50% {
-    opacity: 1
-  }
-
-  100% {
-    opacity: .3
-  }
-}
-
-canvas {
-  image-rendering: pixelated;
-}
-
-.msg-actions .icon:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
-}
-
-.spin {
-  animation: spin .9s linear infinite;
-}
-
-.spin--slow {
-  animation-duration: 1.6s;
-}
-
-/* slower look */
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@keyframes spin-slow {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.animate-spin-slow {
-  animation: spin-slow 0.9s linear infinite;
-}
-
-:root {
-  font-family: system-ui, -apple-system, "Noto Sans", "Segoe UI",
-    Roboto, "Helvetica Neue", Arial, "Noto Color Emoji",
-    "Apple Color Emoji", "Segoe UI Emoji";
-}
-
-/* Make the Premium link render like a button inside assistant bubbles */
-.msg-body a[href="/premium"],
-.msg-body a[href^="/premium"] {
-  display: inline-block;
-  padding: 4px 10px;
-  border-radius: 9999px;
-  background: #fff;
-  color: #000;
-  font-weight: 700;
-  text-decoration: none;
-  border: 1px solid rgba(0, 0, 0, .15);
-}
-
-.msg-body a[href^="/premium"]:hover {
-  filter: brightness(.95);
-}
-
-@keyframes slideInLR {
-  from {
-    transform: translateX(-14px);
-    opacity: 0;
-  }
-
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
-}
-
-.feedback-slide {
-  animation: slideInLR .35s ease forwards;
-  will-change: transform, opacity;
-}
-
-.composer-root textarea {
-  font-size: 16px;
-  /* prevents iOS auto-zoom */
-  line-height: 20px;
-  -webkit-text-size-adjust: 100%;
-}
 
 /* Remove any shine/glow coming from utility or component classes */
 .composer-root {
@@ -1919,18 +1514,7 @@ a, .link {
   background: transparent;
 }
 
-/* ---------- Global theme tokens ---------- */
-:root {
-  --th-bg: #0b0b0b;
-  /* will be overridden by the init script */
-  --th-text: #f6f7fb;
-  --th-muted: rgba(255, 255, 255, .62);
-  --th-border: rgba(255, 255, 255, .18);
-  --th-surface: rgba(255, 255, 255, .06);
-  --btn-bg: #ffffff;
-  --btn-fg: #000000;
-  --icon-fg: var(--th-text);
-}
+
 
 /* Base */
 html, body {
