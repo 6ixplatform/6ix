@@ -3199,3 +3199,110 @@ html.theme-light .signin-scope .chk:checked {
 .signin-scope a:hover {
   text-decoration-color: color-mix(in oklab, currentColor 60%, transparent);
 }
+
+/* ==== ONBOARDING BUTTON COLOR LOCK (home/auth/verify/profile only) ==== */
+:is(.home-scope, .auth-scope, .verify-scope, .profile-scope) .btn,
+:is(.home-scope, .auth-scope, .verify-scope, .profile-scope) a.btn {
+  /* keep icons following the text color */
+  color: inherit;
+}
+
+:is(.home-scope, .auth-scope, .verify-scope, .profile-scope) .btn svg,
+:is(.home-scope, .auth-scope, .verify-scope, .profile-scope) .btn [data-icon] {
+  fill: currentColor;
+  stroke: currentColor;
+}
+
+/* White buttons must have BLACK text, always */
+:is(.home-scope, .auth-scope, .verify-scope, .profile-scope) .btn-white,
+:is(.home-scope, .auth-scope, .verify-scope, .profile-scope) .btn-primary {
+  background: #fff !important;
+  color: #000 !important;
+  border-color: color-mix(in oklab, #000 12%, transparent) !important;
+}
+
+:is(.home-scope, .auth-scope, .verify-scope, .profile-scope) .btn-white:disabled,
+:is(.home-scope, .auth-scope, .verify-scope, .profile-scope) .btn-primary:disabled {
+  color: rgba(0, 0, 0, .62) !important;
+  background: #f5f5f5 !important;
+}
+
+/* Dark/black buttons must have WHITE text, always */
+:is(.home-scope, .auth-scope, .verify-scope, .profile-scope) .btn-outline,
+:is(.home-scope, .auth-scope, .verify-scope, .profile-scope) .btn-black,
+:is(.home-scope, .auth-scope, .verify-scope, .profile-scope) .btn-dark {
+  background: #000 !important;
+  color: #fff !important;
+  border-color: #000 !important;
+}
+
+:is(.home-scope, .auth-scope, .verify-scope, .profile-scope) .btn-outline:disabled,
+:is(.home-scope, .auth-scope, .verify-scope, .profile-scope) .btn-black:disabled,
+:is(.home-scope, .auth-scope, .verify-scope, .profile-scope) .btn-dark:disabled {
+  background: #1a1a1a !important;
+  color: #b3b3b3 !important;
+}
+
+/* Keep colors stable on hover/focus/active so nothing flips back to blue */
+@media (hover:hover) {
+
+  :is(.home-scope, .auth-scope, .verify-scope, .profile-scope) .btn:hover,
+  :is(.home-scope, .auth-scope, .verify-scope, .profile-scope) .btn:focus-visible {
+    background: inherit !important;
+    color: inherit !important;
+    border-color: inherit !important;
+  }
+}
+
+:is(.home-scope, .auth-scope, .verify-scope, .profile-scope) .btn:active {
+  /* tiny press effect only; no color changes */
+  transform: translateY(1px);
+}
+
+/* Checkmarks/“ok” icons strictly black/white (no green/blue) */
+:is(.home-scope, .auth-scope, .verify-scope, .profile-scope) .ok-icon {
+  color: #fff !important;
+}
+
+html.theme-light :is(.home-scope, .auth-scope, .verify-scope, .profile-scope) .ok-icon {
+  color: #000 !important;
+}
+
+/* Checkbox ticks only black/white */
+:is(.home-scope, .auth-scope, .verify-scope, .profile-scope) input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  border: 1.5px solid rgba(255, 255, 255, .35);
+  background: transparent;
+  position: relative;
+}
+
+:is(.home-scope, .auth-scope, .verify-scope, .profile-scope) input[type="checkbox"]:checked {
+  background: #000;
+  border-color: #000;
+}
+
+html.theme-light :is(.home-scope, .auth-scope, .verify-scope, .profile-scope) input[type="checkbox"] {
+  border-color: rgba(0, 0, 0, .45);
+}
+
+html.theme-light :is(.home-scope, .auth-scope, .verify-scope, .profile-scope) input[type="checkbox"]:checked {
+  background: #000;
+  border-color: #000;
+}
+
+:is(.home-scope, .auth-scope, .verify-scope, .profile-scope) input[type="checkbox"]:checked::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 1px;
+  width: 5px;
+  height: 9px;
+  border: 2px solid #fff;
+  border-top: none;
+  border-left: none;
+  transform: rotate(45deg);
+}
