@@ -116,6 +116,11 @@ body {
     0 2px 0 rgba(255, 255, 255, 0.15);
 }
 
+.btn-white:hover {
+  background: #000;
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.35);
+}
 
 /* Layout helper */
 .container {
@@ -434,6 +439,13 @@ body {
   cursor: not-allowed;
 }
 
+/* Base variants (non-hover state) */
+.btn-primary {
+  background: #000000;
+  color: #000;
+  border-color: transparent;
+}
+
 .btn-outline {
   background: rgba(255, 255, 255, .05);
   color: rgba(255, 255, 255, .85);
@@ -562,6 +574,42 @@ body {
   padding-bottom: calc(76px + env(safe-area-inset-bottom));
 }
 
+/* Single-line pendulum glow (no visible start/end, just sweeps left<->right) */
+.pendulum-liner {
+  height: 2px;
+  position: relative;
+  overflow: hidden;
+}
+
+.pendulum-liner .liner-bar {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -40%;
+  /* start well off-screen */
+  width: 80%;
+  /* long single glow line */
+  display: block;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .7), transparent);
+  animation: pendulum 3.6s ease-in-out infinite alternate;
+  will-change: transform, opacity;
+}
+
+@keyframes pendulum {
+  0% {
+    transform: translateX(-10%);
+    opacity: .85;
+  }
+
+  50% {
+    opacity: 1;
+  }
+
+  100% {
+    transform: translateX(110%);
+    opacity: .85;
+  }
+}
 
 /* Helper: if you want only inner content to scroll on pages,
 give the scrolling wrapper this class to keep the dock/top bar from rubber-banding */
@@ -627,6 +675,152 @@ label.btn select {
   --header-h: 120px;
 }
 
+/* ─── Theme palettes via root classes ───────────────────────── */
+:root {
+  color-scheme: light dark;
+}
+
+/* advertise both */
+html.theme-dark {
+  background: #000;
+  color: #fff;
+}
+
+html.theme-light {
+  background: #fff;
+  color: #000;
+}
+
+/* Utility flips so your existing classes still look right on light */
+html.theme-light .bg-black {
+  background: #fff !important;
+}
+
+html.theme-light .bg-black\/75 {
+  background: rgba(255, 255, 255, .75) !important;
+}
+
+html.theme-light .bg-black\/85 {
+  background: rgba(255, 255, 255, .85) !important;
+}
+
+html.theme-light .text-white {
+  color: #000 !important;
+}
+
+html.theme-light .text-zinc-200 {
+  color: #2b2b2b !important;
+}
+
+html.theme-light .text-zinc-300 {
+  color: #3a3a3a !important;
+}
+
+html.theme-light .text-zinc-400 {
+  color: #595959 !important;
+}
+
+html.theme-light .border-white\/10 {
+  border-color: rgba(0, 0, 0, .10) !important;
+}
+
+html.theme-light .border-white\/12 {
+  border-color: rgba(0, 0, 0, .12) !important;
+}
+
+html.theme-light .border-white\/15 {
+  border-color: rgba(0, 0, 0, .15) !important;
+}
+
+html.theme-light .bg-white\/4 {
+  background: rgba(0, 0, 0, .04) !important;
+}
+
+html.theme-light .bg-white\/5 {
+  background: rgba(0, 0, 0, .05) !important;
+}
+
+html.theme-light .bg-white\/6 {
+  background: rgba(0, 0, 0, .06) !important;
+}
+
+/* Assistant bubble on light */
+html.theme-light .px-3.py-2.bg-white\/6.border.border-white\/12 {
+  background: rgba(0, 0, 0, .04) !important;
+  border-color: rgba(0, 0, 0, .10) !important;
+}
+
+/* Composer border shimmer tuned for light */
+html.theme-light .composer-shine {
+  background: rgba(0, 0, 0, .04) !important;
+}
+
+html.theme-light .composer-shine::before {
+  background: conic-gradient(from var(--angle),
+      rgba(0, 0, 0, 0.00) 0deg,
+      rgba(0, 0, 0, 0.55) 30deg,
+      rgba(120, 120, 120, 0.45) 60deg,
+      rgba(180, 180, 180, 0.25) 90deg,
+      rgba(0, 0, 0, 0.00) 120deg);
+}
+
+/* ── Header controls (model / speed / mode) flip for LIGHT ─────────── */
+html.theme-light .btn.btn-water,
+html.theme-light .btn-water {
+  background: rgba(0, 0, 0, .06) !important;
+  /* soft light bg */
+  border: 1px solid rgba(0, 0, 0, .18) !important;
+  /* darker border */
+  color: #000 !important;
+  /* text goes black */
+}
+
+/* make the native select text + caret character black in light mode */
+html.theme-light .btn-water select {
+  color: #000 !important;
+  -webkit-text-fill-color: #000 !important;
+  /* iOS Safari */
+}
+
+/* the little "⌄" arrow span you render next to the select */
+html.theme-light .btn-water>span {
+  color: #000 !important;
+  opacity: .7;
+  /* keep it subtle, still readable */
+}
+
+/* (optional) ensure dark mode stays white with no surprises */
+html.theme-dark .btn-water,
+html.theme-dark .btn-water select,
+html.theme-dark .btn-water>span {
+  color: #fff !important;
+}
+
+/* ── Action row icons + timestamp flip for LIGHT ───────────── */
+html.theme-light .action-row {
+  color: #000 !important;
+}
+
+/* your SvgBase sets stroke="white"; this overrides it in LIGHT */
+html.theme-light .action-row svg,
+html.theme-light .action-btn svg {
+  stroke: #000 !important;
+}
+
+/* hover keeps subtle contrast on light */
+html.theme-light .action-btn:hover {
+  filter: brightness(0.92);
+}
+
+/* time text under bubbles (you used text-zinc-500) */
+html.theme-light .text-zinc-500 {
+  color: #5a5a5a !important;
+}
+
+/* (optional) the tiny “×” and similar inline icon buttons */
+html.theme-light .action-btn {
+  color: #000 !important;
+}
 
 /* ===== User menu (scoped) ===== */
 .user-menu {
@@ -639,6 +833,22 @@ label.btn select {
   border: 1px solid var(--sheet-border, rgba(255, 255, 255, .14));
   background: var(--sheet-bg, rgba(0, 0, 0, .88));
   box-shadow: 0 12px 40px rgba(0, 0, 0, .45);
+}
+
+/* light theme tokens */
+html.theme-light .user-menu {
+  --sheet-bg: rgba(255, 255, 255, .96);
+  --sheet-border: rgba(0, 0, 0, .12);
+  --sheet-div: rgba(0, 0, 0, .12);
+  color: #111;
+}
+
+/* dark theme tokens */
+html.theme-dark .user-menu {
+  --sheet-bg: rgba(0, 0, 0, .88);
+  --sheet-border: rgba(255, 255, 255, .14);
+  --sheet-div: rgba(255, 255, 255, .12);
+  color: #fff;
 }
 
 /* header row */
@@ -714,6 +924,10 @@ label.btn select {
   background: rgba(255, 255, 255, .06);
 }
 
+html.theme-light .user-menu .sheet-item:hover {
+  background: rgba(0, 0, 0, .04);
+}
+
 /* the Theme row control */
 .user-menu .sheet-item--control select {
   background: transparent;
@@ -758,6 +972,40 @@ html[class*="theme-anim-"] body {
   color: var(--th-text);
 }
 
+/* high-use elements in your app */
+html[class*="theme-premium-"] .app-header,
+html[class*="theme-premium-"] .composer-root,
+html[class*="theme-anim-"] .app-header,
+html[class*="theme-anim-"] .composer-root {
+  background: color-mix(in oklab, var(--th-bg), transparent 18%) !important;
+  border-color: var(--th-border) !important;
+}
+
+/* cards, borders, menus */
+html[class*="theme-premium-"] .user-menu,
+html[class*="theme-anim-"] .user-menu {
+  background: color-mix(in oklab, var(--th-bg), black 0%);
+  border-color: var(--th-border);
+}
+
+html[class*="theme-premium-"] .history-card,
+html[class*="theme-premium-"] .history-item {
+  background: var(--th-card) !important;
+  border-color: var(--th-border) !important;
+}
+
+/* accented controls */
+html[class*="theme-premium-"] .upload-btn,
+html[class*="theme-anim-"] .upload-btn {
+  border-color: color-mix(in oklab, var(--th-accent), currentColor 40%);
+}
+
+html[class*="theme-premium-"] .btn,
+html[class*="theme-anim-"] .btn {
+  background: var(--th-btn-bg);
+  color: var(--th-btn-text);
+}
+
 /* override the composer ring to follow accent */
 html[class*="theme-premium-"] .composer-shine::before,
 html[class*="theme-anim-"] .composer-shine::before {
@@ -768,6 +1016,174 @@ html[class*="theme-anim-"] .composer-shine::before {
       transparent 180deg);
 }
 
+/* Wallpapers (image layer) */
+html.has-wallpaper body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: center/cover no-repeat var(--wallpaper-url);
+  opacity: .28;
+  filter: saturate(1.05) brightness(.95);
+}
+
+html.theme-light.has-wallpaper body::before {
+  opacity: .22;
+  filter: saturate(1.0) brightness(1);
+}
+
+/* Animated themes */
+html.theme-anim-aurora-mint body::after,
+html.theme-anim-butter-glow body::after {
+  content: "";
+  position: fixed;
+  inset: -20%;
+  z-index: -2;
+  pointer-events: none;
+  background:
+    radial-gradient(40% 30% at 20% 30%, color-mix(in oklab, var(--th-accent), #00ffd0 40%), transparent 60%),
+    radial-gradient(35% 30% at 70% 60%, color-mix(in oklab, var(--th-accent), #aaf0d1 25%), transparent 60%),
+    radial-gradient(30% 25% at 40% 80%, color-mix(in oklab, var(--th-accent), #bfffe8 35%), transparent 60%);
+  filter: blur(40px);
+  animation: auroraFloat 18s ease-in-out infinite alternate;
+}
+
+@keyframes auroraFloat {
+  0% {
+    transform: translate3d(-2%, 0, 0) scale(1);
+  }
+
+  100% {
+    transform: translate3d(2%, -2%, 0) scale(1.05);
+  }
+}
+
+.drafts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+  margin: .5rem 0;
+}
+
+.chip {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  border: 1px solid var(--border);
+  padding: .25rem .5rem;
+  border-radius: 999px;
+}
+
+.chip img {
+  width: 20px;
+  height: 20px;
+  object-fit: cover;
+  border-radius: 4px;
+}
+
+.chip .status {
+  font-size: .75rem;
+  opacity: .7
+}
+
+.chip .status.uploading {
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: .3
+  }
+
+  50% {
+    opacity: 1
+  }
+
+  100% {
+    opacity: .3
+  }
+}
+
+canvas {
+  image-rendering: pixelated;
+}
+
+.msg-actions .icon:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.spin {
+  animation: spin .9s linear infinite;
+}
+
+.spin--slow {
+  animation-duration: 1.6s;
+}
+
+/* slower look */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes spin-slow {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 0.9s linear infinite;
+}
+
+:root {
+  font-family: system-ui, -apple-system, "Noto Sans", "Segoe UI",
+    Roboto, "Helvetica Neue", Arial, "Noto Color Emoji",
+    "Apple Color Emoji", "Segoe UI Emoji";
+}
+
+/* Make the Premium link render like a button inside assistant bubbles */
+.msg-body a[href="/premium"],
+.msg-body a[href^="/premium"] {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  background: #fff;
+  color: #000;
+  font-weight: 700;
+  text-decoration: none;
+  border: 1px solid rgba(0, 0, 0, .15);
+}
+
+.msg-body a[href^="/premium"]:hover {
+  filter: brightness(.95);
+}
+
+@keyframes slideInLR {
+  from {
+    transform: translateX(-14px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.feedback-slide {
+  animation: slideInLR .35s ease forwards;
+  will-change: transform, opacity;
+}
+
+.composer-root textarea {
+  font-size: 16px;
+  /* prevents iOS auto-zoom */
+  line-height: 20px;
+  -webkit-text-size-adjust: 100%;
+}
 
 /* Remove any shine/glow coming from utility or component classes */
 .composer-root {
@@ -1276,6 +1692,18 @@ html, body {
   color: var(--th-text);
 }
 
+/* icons/text/buttons adopt theme */
+.icon, .msg-actions button, .chat-toolbar button, .btn, .select-trigger {
+  color: var(--th-icon);
+  fill: currentColor;
+  stroke: currentColor;
+}
+
+.btn, .btn.btn-water {
+  background: var(--th-btn-bg);
+  border: 1px solid var(--th-btn-bd);
+  color: var(--th-btn-text);
+}
 
 /* inputs & chips */
 .msg-body, .composer-shine, .att-chip, .sheet-item, .menu-link, .hdr-compact .btn {
@@ -1342,8 +1770,21 @@ body, .min-h-svh {
   border-color: var(--th-border);
 }
 
+a, .link {
+  color: var(--th-text);
+}
 
+/* buttons readable on any palette */
+.btn {
+  background: var(--th-surface);
+  color: var(--th-text);
+  border: 1px solid var(--th-border);
+}
 
+.btn.btn-water, .btn-primary {
+  background: var(--btn-bg);
+  color: var(--btn-fg);
+}
 
 .btn-xs {
   padding: 2px 8px;
@@ -1513,7 +1954,18 @@ body, .min-h-svh {
   background: transparent;
 }
 
-
+/* ---------- Global theme tokens ---------- */
+:root {
+  --th-bg: #0b0b0b;
+  /* will be overridden by the init script */
+  --th-text: #f6f7fb;
+  --th-muted: rgba(255, 255, 255, .62);
+  --th-border: rgba(255, 255, 255, .18);
+  --th-surface: rgba(255, 255, 255, .06);
+  --btn-bg: #ffffff;
+  --btn-fg: #000000;
+  --icon-fg: var(--th-text);
+}
 
 /* Base */
 html, body {
@@ -2119,147 +2571,738 @@ html.dark {
   color: inherit;
 }
 
-/* FINAL OVERRIDE — must be last */
-:where(.home-scope, .auth-scope, .signin-scope, .verify-scope, .profile-scope):is(.btn-primary, .btn-white, button[type="submit"].btn, a.btn-primary) {
+/* === Force primary buttons to white (never blue) === */
+.profile-scope .btn-primary {
+  background: #ffffff !important;
+  color: #000000 !important;
+  border: 1px solid rgba(255, 255, 255, .18) !important;
+}
+
+html.theme-light .profile-scope .btn-primary {
+  background: #ffffff !important;
+  color: #000000 !important;
+  border-color: #e5e7eb !important;
+}
+
+/* Disabled state = dim gray */
+.profile-scope .btn-primary:disabled {
+  background: #2a2a2a !important;
+  color: #9ca3af !important;
+  border-color: rgba(255, 255, 255, .12) !important;
+}
+
+html.theme-light .profile-scope .btn-primary:disabled {
+  background: #e5e7eb !important;
+  color: #9ca3af !important;
+  border-color: #e5e7eb !important;
+}
+
+/* Hover (enabled) */
+.profile-scope .btn-primary:not(:disabled):hover {
+  background: #f5f5f5 !important;
+}
+
+/* ======= HOME PAGE ONLY (scoped to .home-scope) ======= */
+/* No blues, clear white/black buttons, works in light & dark */
+
+/* Kill any inherited brand/ring colors on this page */
+.home-scope .btn,
+.home-scope .btn-ghost,
+.home-scope .btn-white {
+  --tw-ring-color: transparent !important;
+  text-shadow: none !important;
+}
+
+/* Ensure icons/checkmarks follow text color inside buttons */
+.home-scope .btn svg,
+.home-scope .btn-ghost svg,
+.home-scope .btn-white svg {
+  fill: currentColor !important;
+  stroke: currentColor !important;
+}
+
+/* = Primary (white) ==================================== */
+.home-scope .btn-white,
+.home-scope .btn.btn-white {
+  background: #fff !important;
+  color: #000 !important;
+  border-color: var(--hairline) !important;
+}
+
+.home-scope .btn-white:hover,
+.home-scope .btn-white:focus,
+.home-scope .btn-white:active {
+  background: #fff !important;
+  color: #000 !important;
+  border-color: #d1d5db !important;
+  /* subtle press */
+  box-shadow: none !important;
+}
+
+.home-scope .btn-white:disabled,
+.home-scope .btn-white[aria-busy="true"] {
+  background: rgba(255, 255, 255, .26) !important;
+  color: rgba(0, 0, 0, .75) !important;
+  border-color: rgba(0, 0, 0, .15) !important;
+  cursor: not-allowed !important;
+}
+
+/* = Secondary (ghost becomes black) ===================== */
+.home-scope .btn-ghost,
+.home-scope .btn.btn-ghost,
+.home-scope .water-mobile.btn-ghost {
+  background: #111 !important;
+  color: #fff !important;
+  border-color: #0b0c10 !important;
+}
+
+@media (hover:hover) {
+
+  .home-scope .btn-ghost:hover,
+  .home-scope .btn-ghost:focus {
+    background: #151515 !important;
+    color: #fff !important;
+  }
+}
+
+.home-scope .btn-ghost:disabled {
+  background: #141414 !important;
+  color: rgba(255, 255, 255, .80) !important;
+  opacity: 1 !important;
+  /* readable */
+}
+
+/* Make focus visible but neutral (no blue rings) */
+.home-scope .btn:focus-visible,
+.home-scope .btn-ghost:focus-visible,
+.home-scope .btn-white:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--fg) 45%, transparent) !important;
+  outline-offset: 2px;
+  box-shadow: none !important;
+}
+
+/* Mobile “light up white” behavior for your curiosity rows:
+keep them black by default, but when pressed (active) show a white flash */
+@media (pointer:coarse) {
+  .home-scope .water-mobile.btn-ghost:active {
+    background: #fff !important;
+    color: #000 !important;
+    border-color: #d1d5db !important;
+  }
+}
+
+/* Legal links (keep theme adaptive, no blue) */
+.home-scope .link-muted {
+  color: var(--muted);
+  text-decoration: underline;
+}
+
+.home-scope .link-muted:hover {
+  color: var(--fg);
+}
+
+/* Cards follow tokens (no blue) */
+.home-scope .card {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  box-shadow: var(--card-shadow);
+}
+
+/* ==============================
+SIGNUP PAGE (auth-scope) ONLY
+- Primary = white bg + black text
+- Outline = black bg + white text
+- Checkmarks = black/white only
+- Kill any blue focus/rings
+============================== */
+
+/* reset any framework rings/glows */
+.auth-scope .btn,
+.auth-scope .btn * {
+  --tw-ring-color: transparent !important;
+  --tw-ring-shadow: 0 0 #0000 !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+  color: inherit;
+}
+
+/* icons inside buttons follow text color (no brand blue) */
+.auth-scope .btn svg {
+  fill: currentColor !important;
+  stroke: currentColor !important;
+}
+
+/* ===== PRIMARY (white) ===== */
+.auth-scope .btn-primary {
+  background: #fff !important;
+  color: #000 !important;
+  border: 1px solid var(--hairline, #e5e7eb) !important;
+}
+
+.auth-scope .btn-primary:hover,
+.auth-scope .btn-primary:focus,
+.auth-scope .btn-primary:active {
+  background: #fff !important;
+  color: #000 !important;
+  border-color: #d1d5db !important;
+}
+
+.auth-scope .btn-primary:disabled {
+  background: rgba(255, 255, 255, .26) !important;
+  color: rgba(0, 0, 0, .75) !important;
+  border-color: rgba(0, 0, 0, .15) !important;
+  cursor: not-allowed !important;
+}
+
+/* ===== OUTLINE / GHOST (black) ===== */
+.auth-scope .btn-outline,
+.auth-scope .btn-ghost {
+  background: #111 !important;
+  color: #fff !important;
+  border: 1px solid #0b0c10 !important;
+}
+
+.auth-scope .btn-outline:hover,
+.auth-scope .btn-outline:focus,
+.auth-scope .btn-outline:active,
+.auth-scope .btn-ghost:hover,
+.auth-scope .btn-ghost:focus,
+.auth-scope .btn-ghost:active {
+  background: #151515 !important;
+  color: #fff !important;
+  border-color: #111 !important;
+}
+
+.auth-scope .btn-outline:disabled,
+.auth-scope .btn-ghost:disabled {
+  background: #1a1a1a !important;
+  color: rgba(255, 255, 255, .6) !important;
+  border-color: #111 !important;
+}
+
+/* accessible focus ring without blue */
+.auth-scope .btn:focus-visible {
+  outline: 2px solid currentColor !important;
+  outline-offset: 2px;
+}
+
+/* suffix “check” chip beside email input – keep black/white */
+.auth-scope .field-suffix {
+  background: #000 !important;
+  color: #fff !important;
+  border: 1px solid #000 !important;
+}
+
+/* ===== CHECKBOX: strictly black/white ===== */
+.auth-scope input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  border: 1.5px solid #000;
+  background: #fff;
+  position: relative;
+}
+
+.auth-scope input[type="checkbox"]:checked {
+  background: #000;
+  border-color: #000;
+}
+
+.auth-scope input[type="checkbox"]:checked::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 1px;
+  width: 5px;
+  height: 9px;
+  border: 2px solid #fff;
+  border-top: none;
+  border-left: none;
+  transform: rotate(45deg);
+}
+
+/* Dark mode: still black/white, flip contrast for readability */
+@media (prefers-color-scheme: dark) {
+  .auth-scope input[type="checkbox"] {
+    border-color: #fff;
+    background: transparent;
+  }
+
+  .auth-scope input[type="checkbox"]:checked {
+    background: #fff;
+    border-color: #fff;
+  }
+
+  .auth-scope input[type="checkbox"]:checked::after {
+    border-color: #000;
+  }
+
+  /* black tick on white box */
+}
+
+/* Email “available” checkmark icon → black/white only (no green) */
+.auth-scope .ok-icon {
+  color: #fff !important;
+}
+
+html.theme-light .auth-scope .ok-icon {
+  color: #000 !important;
+}
+
+/* ==============================
+VERIFY PAGE (verify-scope) ONLY
+Monochrome UI — no blue anywhere
+- Primary: white bg + black text
+- Outline: black bg + white text
+- Spinner follows text color
+- No framework blue rings
+============================== */
+
+/* Nuke any framework ring/blue glow */
+.verify-scope .btn,
+.verify-scope .btn * {
+  --tw-ring-color: transparent !important;
+  --tw-ring-shadow: 0 0 #0000 !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+  color: inherit;
+}
+
+/* Icons inside buttons follow text color */
+.verify-scope .btn svg {
+  fill: currentColor !important;
+  stroke: currentColor !important;
+}
+
+/* ===== PRIMARY (white) ===== */
+.verify-scope .btn-primary {
+  background: #fff !important;
+  color: #000 !important;
+  border: 1px solid var(--vs-hairline, #e5e7eb) !important;
+}
+
+.verify-scope .btn-primary:hover,
+.verify-scope .btn-primary:focus,
+.verify-scope .btn-primary:active {
+  background: #fff !important;
+  color: #000 !important;
+  border-color: #d1d5db !important;
+}
+
+.verify-scope .btn-primary:disabled {
+  background: rgba(255, 255, 255, .26) !important;
+  color: rgba(0, 0, 0, .75) !important;
+  border-color: rgba(0, 0, 0, .15) !important;
+  cursor: not-allowed !important;
+}
+
+/* ===== OUTLINE (black) ===== */
+.verify-scope .btn-outline {
+  background: #111 !important;
+  color: #fff !important;
+  border: 1px solid #0b0c10 !important;
+}
+
+.verify-scope .btn-outline:hover,
+.verify-scope .btn-outline:focus,
+.verify-scope .btn-outline:active {
+  background: #151515 !important;
+  color: #fff !important;
+  border-color: #111 !important;
+}
+
+.verify-scope .btn-outline:disabled {
+  background: #1a1a1a !important;
+  color: rgba(255, 255, 255, .6) !important;
+  border-color: #111 !important;
+}
+
+/* Accessible focus ring without blue */
+.verify-scope .btn:focus-visible {
+  outline: 2px solid currentColor !important;
+  outline-offset: 2px !important;
+}
+
+/* Spinner inherits text color (black on white, white on black) */
+.verify-scope .six-spin {
+  border-color: currentColor !important;
+  border-top-color: transparent !important;
+  opacity: .9;
+}
+
+/* OTP cells: ensure no blue focus ring (keep your current border logic) */
+.verify-scope .verify-cell:focus {
+  box-shadow: none !important;
+}
+
+/* Links stay monochrome; underline uses current color */
+.verify-scope a {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in oklab, currentColor 30%, transparent);
+}
+
+.verify-scope a:hover {
+  text-decoration-color: color-mix(in oklab, currentColor 60%, transparent);
+}
+
+/* === Onboarding-only button palette (scoped to .profile-scope) === */
+/* paste this after the onboarding page component or in a css module imported by it */
+
+/* Primary buttons: always WHITE with BLACK text */
+.profile-scope .btn-primary,
+.profile-scope button.btn-primary,
+.profile-scope a.btn-primary {
   background: #fff !important;
   color: #000 !important;
   border-color: #e5e7eb !important;
   text-shadow: none !important;
 }
 
-/* dark/ghost buttons stay dark with white text */
-:where(.home-scope, .auth-scope, .signin-scope, .verify-scope, .profile-scope):is(.btn-outline, .btn-ghost, .btn-black, .btn-dark) {
+/* Keep same colors on hover/focus/active */
+.profile-scope .btn-primary:hover,
+.profile-scope .btn-primary:focus,
+.profile-scope .btn-primary:active {
+  background: #fff !important;
+  color: #000 !important;
+  border-color: #d1d5db !important;
+  box-shadow: none !important;
+}
+
+/* Disabled primary: still black text on a dim white */
+.profile-scope .btn-primary:disabled,
+.profile-scope .btn-primary[aria-busy="true"] {
+  background: rgba(255, 255, 255, .26) !important;
+  color: rgba(0, 0, 0, .72) !important;
+  border-color: rgba(0, 0, 0, .12) !important;
+  cursor: not-allowed !important;
+}
+
+/* Outline / ghost / minor: always DARK with WHITE text (no blues) */
+.profile-scope .btn-outline,
+.profile-scope .six-btn-ghost,
+.profile-scope .six-btn-minor {
   background: #111 !important;
   color: #fff !important;
   border-color: #0b0c10 !important;
 }
 
-/* never let later passes recolor text */
-:where(.home-scope, .auth-scope, .signin-scope, .verify-scope, .profile-scope) .btn,
-:where(.home-scope, .auth-scope, .signin-scope, .verify-scope, .profile-scope) .btn * {
-  --tw-ring-color: transparent !important;
-  --tw-ring-shadow: 0 0 #0000 !important;
-  text-shadow: none !important;
+.profile-scope .btn-outline:hover,
+.profile-scope .six-btn-ghost:hover,
+.profile-scope .six-btn-minor:hover,
+.profile-scope .btn-outline:focus,
+.profile-scope .six-btn-ghost:focus,
+.profile-scope .six-btn-minor:focus {
+  background: #151515 !important;
+  color: #fff !important;
+  border-color: #0b0c10 !important;
 }
 
-/* keep hover/focus from flipping palette */
+.profile-scope .btn-outline:disabled,
+.profile-scope .six-btn-ghost:disabled,
+.profile-scope .six-btn-minor:disabled {
+  background: #141414 !important;
+  color: rgba(255, 255, 255, .75) !important;
+  opacity: 1 !important;
+  /* keep readable */
+}
+
+/* Submit inputs behave like primary buttons */
+.profile-scope input[type="submit"],
+.profile-scope button[type="submit"] {
+  background: #fff !important;
+  color: #000 !important;
+  border-color: #e5e7eb !important;
+}
+
+.profile-scope input[type="submit"]:hover,
+.profile-scope button[type="submit"]:hover,
+.profile-scope input[type="submit"]:focus,
+.profile-scope button[type="submit"]:focus {
+  background: #fff !important;
+  color: #000 !important;
+  border-color: #d1d5db !important;
+}
+
+/* Make any icons/checkmarks follow the text color */
+.profile-scope .btn svg,
+.profile-scope .six-btn-ghost svg,
+.profile-scope .six-btn-minor svg,
+.profile-scope .btn-outline svg,
+.profile-scope .btn-primary svg {
+  fill: currentColor !important;
+  stroke: currentColor !important;
+}
+
+/* Nuke any theme variables that try to inject blue */
+.profile-scope .btn,
+.profile-scope .btn-primary,
+.profile-scope .btn-outline,
+.profile-scope .six-btn-ghost,
+.profile-scope .six-btn-minor {
+  --tw-ring-color: transparent !important;
+  --btn-bg: transparent !important;
+  --btn-fg: inherit !important;
+}
+
+/* ==============================
+SIGN IN PAGE (signin-scope) ONLY
+Monochrome buttons & controls — no blue
+- Primary: white bg / black text
+- Outline: black bg / white text
+- Spinner & icons inherit text color
+- Accessible focus ring without blue
+============================== */
+
+/* Remove framework blue rings / shadows */
+.signin-scope .btn,
+.signin-scope .btn * {
+  --tw-ring-color: transparent !important;
+  --tw-ring-shadow: 0 0 #0000 !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+  color: inherit;
+}
+
+/* Icons follow text color */
+.signin-scope .btn svg {
+  fill: currentColor !important;
+  stroke: currentColor !important;
+}
+
+/* PRIMARY (white) */
+.signin-scope .btn-primary {
+  background: #fff !important;
+  color: #000 !important;
+  border: 1px solid #e5e7eb !important;
+}
+
+.signin-scope .btn-primary:hover,
+.signin-scope .btn-primary:focus,
+.signin-scope .btn-primary:active {
+  background: #fff !important;
+  color: #000 !important;
+  border-color: #d1d5db !important;
+}
+
+.signin-scope .btn-primary:disabled {
+  background: rgba(255, 255, 255, .26) !important;
+  color: rgba(0, 0, 0, .75) !important;
+  border-color: rgba(0, 0, 0, .15) !important;
+  cursor: not-allowed !important;
+}
+
+/* OUTLINE (black) */
+.signin-scope .btn-outline {
+  background: #111 !important;
+  color: #fff !important;
+  border: 1px solid #0b0c10 !important;
+}
+
+.signin-scope .btn-outline:hover,
+.signin-scope .btn-outline:focus,
+.signin-scope .btn-outline:active {
+  background: #151515 !important;
+  color: #fff !important;
+  border-color: #111 !important;
+}
+
+.signin-scope .btn-outline:disabled {
+  background: #1a1a1a !important;
+  color: rgba(255, 255, 255, .6) !important;
+  border-color: #111 !important;
+}
+
+/* Accessible focus ring (monochrome) */
+.signin-scope .btn:focus-visible {
+  outline: 2px solid currentColor !important;
+  outline-offset: 2px !important;
+}
+
+/* Spinner follows text color (black on white, white on black) */
+.signin-scope .spin-neutral {
+  border-color: currentColor !important;
+  border-top-color: transparent !important;
+  opacity: .9;
+}
+
+/* Inputs: neutral focus, no blue ring */
+.signin-scope .inp:focus {
+  outline: none !important;
+  box-shadow: none !important;
+  border-color: color-mix(in oklab, currentColor 30%, transparent) !important;
+}
+
+/* Checkbox strictly black/white */
+.signin-scope .chk {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  border: 1.5px solid rgba(255, 255, 255, .45);
+  background: transparent;
+  position: relative;
+}
+
+.signin-scope .chk:checked {
+  background: #000;
+  border-color: #000;
+}
+
+.signin-scope .chk:checked::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 1px;
+  width: 5px;
+  height: 9px;
+  border: 2px solid #fff;
+  border-top: none;
+  border-left: none;
+  transform: rotate(45deg);
+}
+
+/* Light-theme flips (still monochrome) */
+html.theme-light .signin-scope {
+  background: #fff;
+  color: #0b0c10;
+}
+
+html.theme-light .signin-scope .btn-outline {
+  background: #111 !important;
+  color: #fff !important;
+  border-color: #0b0c10 !important;
+}
+
+html.theme-light .signin-scope .chk {
+  border-color: rgba(0, 0, 0, .45);
+  background: #fff;
+}
+
+html.theme-light .signin-scope .chk:checked {
+  background: #000;
+  border-color: #000;
+}
+
+/* Links keep current color; underline adapts */
+.signin-scope .lnk,
+.signin-scope a {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in oklab, currentColor 30%, transparent);
+}
+
+.signin-scope .lnk:hover,
+.signin-scope a:hover {
+  text-decoration-color: color-mix(in oklab, currentColor 60%, transparent);
+}
+
+/* ==== ONBOARDING BUTTON COLOR LOCK (home/auth/verify/profile only) ==== */
+:is(.home-scope, .auth-scope, .verify-scope, .profile-scope) .btn,
+:is(.home-scope, .auth-scope, .verify-scope, .profile-scope) a.btn {
+  /* keep icons following the text color */
+  color: inherit;
+}
+
+:is(.home-scope, .auth-scope, .verify-scope, .profile-scope) .btn svg,
+:is(.home-scope, .auth-scope, .verify-scope, .profile-scope) .btn [data-icon] {
+  fill: currentColor;
+  stroke: currentColor;
+}
+
+/* White buttons must have BLACK text, always */
+:is(.home-scope, .auth-scope, .verify-scope, .profile-scope) .btn-white,
+:is(.home-scope, .auth-scope, .verify-scope, .profile-scope) .btn-primary {
+  background: #fff !important;
+  color: #000 !important;
+  border-color: color-mix(in oklab, #000 12%, transparent) !important;
+}
+
+:is(.home-scope, .auth-scope, .verify-scope, .profile-scope) .btn-white:disabled,
+:is(.home-scope, .auth-scope, .verify-scope, .profile-scope) .btn-primary:disabled {
+  color: rgba(0, 0, 0, .62) !important;
+  background: #f5f5f5 !important;
+}
+
+/* Dark/black buttons must have WHITE text, always */
+:is(.home-scope, .auth-scope, .verify-scope, .profile-scope) .btn-outline,
+:is(.home-scope, .auth-scope, .verify-scope, .profile-scope) .btn-black,
+:is(.home-scope, .auth-scope, .verify-scope, .profile-scope) .btn-dark {
+  background: #000 !important;
+  color: #fff !important;
+  border-color: #000 !important;
+}
+
+:is(.home-scope, .auth-scope, .verify-scope, .profile-scope) .btn-outline:disabled,
+:is(.home-scope, .auth-scope, .verify-scope, .profile-scope) .btn-black:disabled,
+:is(.home-scope, .auth-scope, .verify-scope, .profile-scope) .btn-dark:disabled {
+  background: #1a1a1a !important;
+  color: #b3b3b3 !important;
+}
+
+/* Keep colors stable on hover/focus/active so nothing flips back to blue */
 @media (hover:hover) {
 
-  :where(.home-scope, .auth-scope, .signin-scope, .verify-scope, .profile-scope) .btn:hover,
-  :where(.home-scope, .auth-scope, .signin-scope, .verify-scope, .profile-scope) .btn:focus-visible {
+  :is(.home-scope, .auth-scope, .verify-scope, .profile-scope) .btn:hover,
+  :is(.home-scope, .auth-scope, .verify-scope, .profile-scope) .btn:focus-visible {
     background: inherit !important;
     color: inherit !important;
     border-color: inherit !important;
   }
 }
 
-/* ===== ONBOARDING/LANDING BUTTON KILL-SWITCH (LAST RULES) ===== */
-:where(.home-scope, .auth-scope, .verify-scope, .profile-scope, .signin-scope):is(.btn, .btn-primary, .btn-white, .btn-outline, .btn-ghost) {
-  /* palette */
-  background: #fff !important;
-  color: #000 !important;
-  border: 1px solid #e5e7eb !important;
-
-  /* kill glow, light-up, transitions */
-  box-shadow: none !important;
-  filter: none !important;
-  text-shadow: none !important;
-  transition: none !important;
-  transform: none !important;
-  --tw-ring-color: transparent !important;
-  --tw-ring-shadow: 0 0 #0000 !important;
+:is(.home-scope, .auth-scope, .verify-scope, .profile-scope) .btn:active {
+  /* tiny press effect only; no color changes */
+  transform: translateY(1px);
 }
 
-/* dark/ghost variants stay dark with white text */
-:where(.home-scope, .auth-scope, .verify-scope, .profile-scope, .signin-scope):is(.btn-outline, .btn-ghost) {
-  background: #111 !important;
+/* Checkmarks/“ok” icons strictly black/white (no green/blue) */
+:is(.home-scope, .auth-scope, .verify-scope, .profile-scope) .ok-icon {
   color: #fff !important;
-  border-color: #0b0c10 !important;
 }
 
-/* force children to not re-color (kills .text-white etc.) */
-:where(.home-scope, .auth-scope, .verify-scope, .profile-scope, .signin-scope) .btn * {
-  color: inherit !important;
-  fill: currentColor !important;
-  stroke: currentColor !important;
+html.theme-light :is(.home-scope, .auth-scope, .verify-scope, .profile-scope) .ok-icon {
+  color: #000 !important;
 }
 
-/* kill pseudo-element sheen / water effects */
-:where(.home-scope, .auth-scope, .verify-scope, .profile-scope, .signin-scope):is(.btn, .btn-primary, .btn-white, .btn-outline, .btn-ghost)::before,
-:where(.home-scope, .auth-scope, .verify-scope, .profile-scope, .signin-scope):is(.btn, .btn-primary, .btn-white, .btn-outline, .btn-ghost)::after {
-  content: none !important;
-  animation: none !important;
-}
-
-/* keep palette stable on any interaction */
-:where(.home-scope, .auth-scope, .verify-scope, .profile-scope, .signin-scope):is(.btn, .btn-primary, .btn-white, .btn-outline, .btn-ghost):hover,
-:where(.home-scope, .auth-scope, .verify-scope, .profile-scope, .signin-scope):is(.btn, .btn-primary, .btn-white, .btn-outline, .btn-ghost):focus,
-:where(.home-scope, .auth-scope, .verify-scope, .profile-scope, .signin-scope):is(.btn, .btn-primary, .btn-white, .btn-outline, .btn-ghost):active,
-:where(.home-scope, .auth-scope, .verify-scope, .profile-scope, .signin-scope):is(.btn, .btn-primary, .btn-white, .btn-outline, .btn-ghost):focus-visible {
-  background: inherit !important;
-  color: inherit !important;
-  border-color: inherit !important;
-  box-shadow: none !important;
-  outline: none !important;
-}
-
-/* ---------- GLOBAL BUTTON LOCK (put LAST) ---------- */
-
-/* 1) Don’t let your global link color repaint button-links */
-a.btn, a[class*="btn-"] {
-  color: inherit !important;
-}
-
-/* 2) Flat palette for everything that behaves like a button */
-:root {
-  --six-btn-bg: #fff;
-  --six-btn-fg: #000;
-}
-
-:where(button,
-  input[type="button"],
-  input[type="submit"],
-  input[type="reset"],
-  .btn,
-  a.btn,
-  [role="button"]) {
-  -webkit-appearance: none;
+/* Checkbox ticks only black/white */
+:is(.home-scope, .auth-scope, .verify-scope, .profile-scope) input[type="checkbox"] {
   appearance: none;
-  background: var(--six-btn-bg) !important;
-  color: var(--six-btn-fg) !important;
-  border: 1px solid #e5e7eb !important;
-  text-shadow: none !important;
-  box-shadow: none !important;
-  filter: none !important;
-  transition: none !important;
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  border: 1.5px solid rgba(255, 255, 255, .35);
+  background: transparent;
+  position: relative;
 }
 
-/* 3) Keep the same colors on hover/focus/active & kill blue rings */
-:where(button,
-  input[type="button"],
-  input[type="submit"],
-  input[type="reset"],
-  .btn,
-  a.btn,
-  [role="button"]):is(:hover, :active, :focus, :focus-visible) {
-  background: var(--six-btn-bg) !important;
-  color: var(--six-btn-fg) !important;
-  outline: none !important;
-  box-shadow: none !important;
-  --tw-ring-color: transparent !important;
-  --tw-ring-shadow: 0 0 #0000 !important;
+:is(.home-scope, .auth-scope, .verify-scope, .profile-scope) input[type="checkbox"]:checked {
+  background: #000;
+  border-color: #000;
 }
 
-/* 4) Child text/icons follow the button color (beats .text-white, etc.) */
-:where(.btn, button, a.btn) * {
-  color: inherit !important;
-  fill: currentColor !important;
-  stroke: currentColor !important;
+html.theme-light :is(.home-scope, .auth-scope, .verify-scope, .profile-scope) input[type="checkbox"] {
+  border-color: rgba(0, 0, 0, .45);
 }
 
-/* 5) Nix glossy pseudo-effects (sheen/water/3d) if those classes are present */
-:where(.btn-white, .btn-water, .btn-3d)::before,
-:where(.btn-white, .btn-water, .btn-3d)::after {
-  content: none !important;
-  animation: none !important;
+html.theme-light :is(.home-scope, .auth-scope, .verify-scope, .profile-scope) input[type="checkbox"]:checked {
+  background: #000;
+  border-color: #000;
+}
+
+:is(.home-scope, .auth-scope, .verify-scope, .profile-scope) input[type="checkbox"]:checked::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 1px;
+  width: 5px;
+  height: 9px;
+  border: 2px solid #fff;
+  border-top: none;
+  border-left: none;
+  transform: rotate(45deg);
 }
