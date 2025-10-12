@@ -210,8 +210,13 @@ export default function Home() {
 
                     {/* CTA */}
                     <div className="container flex justify-center mt-8 sm:mt-9">
-                        <Link href="/auth/signup" aria-label="Get started with 6ix" className="btn btn-white btn-lg btn-lit jelly sheen group"
-                            style={{ background: 'var(--bg)', color: 'var(--fg)', borderColor: 'var(--hairline)' }}>
+                        <Link
+                            href="/auth/signup"
+                            id="cta-start" // ← add this
+                            aria-label="Get started with 6ix"
+                            className="btn btn-white btn-lg btn-lit jelly sheen group"
+                            style={{ background: 'var(--bg)', color: 'var(--fg)', borderColor: 'var(--hairline)' }}
+                        >
                             <Image src="/6ix_logo.png" alt="" width={18} height={18} className="block group-hover:hidden" />
                             <Image src="/6ix_logo_white.png" alt="" width={18} height={18} className="hidden group-hover:block" />
                             <span>Get Started</span>
@@ -272,7 +277,7 @@ export default function Home() {
 
                 {/* Footer */}
                 <footer className="row-start-3 container py-6 text-center" style={{ color: 'var(--muted)' }}>
-                     6CLEMENT JOSHUA NIG LTD · © {new Date().getFullYear()} 6ix
+                    6CLEMENT JOSHUA NIG LTD · © {new Date().getFullYear()} 6ix
                 </footer>
 
                 {/* Page-scoped theme tokens & UI polish */}
@@ -361,6 +366,34 @@ border-color: var(--hairline);
 .jelly:hover { animation: jelly 240ms cubic-bezier(.22,1,.36,1); }
 .jelly--pulse { animation: jelly 240ms cubic-bezier(.22,1,.36,1); }
 .jelly, .jelly:hover, .jelly--pulse { will-change: transform; }
+/* === Get Started CTA only === */
+.home-scope #cta-start{
+/* follow your page tokens: white in light, black/dark in dark */
+background: var(--bg) !important;
+color: var(--fg) !important;
+border-color: var(--hairline) !important;
+
+/* beat any text paints on iOS & kill odd shines */
+-webkit-text-fill-color: currentColor !important;
+text-shadow: none !important;
+box-shadow: var(--cta-shadow, 0 10px 26px rgba(0,0,0,.08)) !important;
+}
+
+/* keep color stable on all interactions */
+.home-scope #cta-start:is(:hover,:focus,:active,:focus-visible){
+background: var(--bg) !important;
+color: var(--fg) !important;
+border-color: var(--hairline) !important;
+outline: none !important;
+}
+
+/* children (icons/text) inherit the forced color */
+.home-scope #cta-start *{
+color: inherit !important;
+fill: currentColor !important;
+stroke: currentColor !important;
+}
+
 `}</style>
             </main>
         </>

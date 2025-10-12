@@ -365,6 +365,36 @@ color: #000 !important;
 -webkit-text-fill-color: #000;
 opacity: 1;
 }
+/* ==== HelpKit: final palette lock (scoped) ==== */
+
+/* Submit button — dark/default = white bg + black text */
+.hk-btn.hk-primary{
+background:#fff !important;
+color:#000 !important;
+border:1px solid #e5e7eb !important;
+-webkit-text-fill-color: currentColor !important; /* iOS/Safari */
+}
+
+/* Children inside the button inherit the text color (beats .text-white, etc.) */
+.hk-btn.hk-primary *{
+color: inherit !important;
+fill: currentColor !important;
+stroke: currentColor !important;
+}
+
+/* Light mode — invert: black bg + white text */
+:global(html.theme-light) .hk-btn.hk-primary{
+background:#000 !important;
+color:#fff !important;
+border-color:#000 !important;
+-webkit-text-fill-color: currentColor !important;
+}
+
+/* Your ask: “Need help?” chip text should be black */
+.hk-chip__text{
+color:#000 !important;
+-webkit-text-fill-color:#000 !important;
+}
 
 `}</style>
         </div>

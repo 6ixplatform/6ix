@@ -617,6 +617,50 @@ border-radius:9999px; padding:.65rem 1rem; transition:transform .12s ease, box-s
 .btn-water:active { transform: scale(.99); }
 @media (max-width: 767px) { .btn { padding: .5rem .9rem; } }
 @media (min-width: 768px){ html, body { overflow: hidden; } }
+/* ==== Sign-in page button & spinner lock (scoped) ==== */
+
+/* Primary: white bg with BLACK text in all themes */
+.signin-scope .btn.btn-primary{
+background:#fff !important;
+color:#000 !important;
+border:1px solid #e5e7eb !important;
+-webkit-text-fill-color: currentColor !important; /* iOS/Safari */
+text-shadow:none !important;
+}
+.signin-scope .btn.btn-primary:disabled{
+background:#e5e7eb !important;
+color:#000 !important;
+opacity:.65;
+cursor:not-allowed;
+}
+
+/* Secondary: solid black with WHITE text */
+.signin-scope .btn.btn-outline{
+background:#000 !important;
+color:#fff !important;
+border:1px solid #000 !important;
+-webkit-text-fill-color: currentColor !important;
+}
+.signin-scope .btn.btn-outline:disabled{
+background:#111 !important;
+color:rgba(255,255,255,.9) !important;
+border-color:#111 !important;
+opacity:.8;
+}
+
+/* Make children (icons/spinners) follow the text color */
+.signin-scope .btn *{
+color:inherit !important;
+fill:currentColor !important;
+stroke:currentColor !important;
+}
+
+/* Spinner next to "Create an account" flips automatically */
+.signin-scope .spin-neutral{
+border-color:currentColor !important;
+border-top-color:transparent !important;
+}
+
 `}</style>
             </main>
         </>

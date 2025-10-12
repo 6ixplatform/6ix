@@ -463,6 +463,58 @@ border-radius:9999px; padding:.65rem 1rem; transition:transform .12s ease, box-s
 .btn-outline { background:rgba(255,255,255,.05); color:#fff; border:1px solid rgba(255,255,255,.15); }
 .btn-outline:hover { background:rgba(255,255,255,.10); }
 @media (min-width:768px){ html, body { overflow:hidden; } }
+/* ==== Verify page: final button + spinner lock (scoped) ==== */
+
+/* Primary: always white bg with black text */
+.verify-scope .btn.btn-primary{
+background:#fff !important;
+color:#000 !important;
+border:1px solid #e5e7eb !important;
+-webkit-text-fill-color: currentColor !important; /* iOS/Safari */
+text-shadow:none !important;
+}
+
+/* Keep text BLACK even when disabled */
+.verify-scope .btn.btn-primary:disabled{
+background:#e5e7eb !important;
+color:#000 !important;
+opacity:.6;
+cursor:not-allowed;
+}
+
+/* Outline/Resend: solid black with white text in all themes */
+.verify-scope .btn.btn-outline{
+background:#000 !important;
+color:#fff !important;
+border:1px solid #000 !important;
+-webkit-text-fill-color: currentColor !important;
+}
+
+/* Disabled outline still white text (just dim) */
+.verify-scope .btn.btn-outline:disabled{
+background:#111 !important;
+color:rgba(255,255,255,.85) !important;
+border-color:#111 !important;
+opacity:.7;
+cursor:not-allowed;
+}
+
+/* Children (labels/icons/spinner wrapper) follow the button color */
+.verify-scope .btn *{
+color:inherit !important;
+fill:currentColor !important;
+stroke:currentColor !important;
+}
+
+/* Spinner: match the current text color (black on white, white on black) */
+.verify-scope .six-spin{
+display:inline-block; width:1rem; height:1rem; border-radius:9999px;
+border:2px solid currentColor !important;
+border-top-color: transparent !important;
+animation: six-spin .8s linear infinite;
+vertical-align: -2px; /* sits nicely beside text */
+}
+
 `}</style>
         </main>
     );
