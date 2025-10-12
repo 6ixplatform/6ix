@@ -1,5 +1,15 @@
 /* ======================== 6IX — GLOBALS ======================== */
 
+/* Light/Dark tokens */
+html.theme-light {
+    --th-bg: #fff;
+    --th-text: #000;
+}
+
+html.theme-dark {
+    --th-bg: #000;
+    --th-text: #fff;
+}
 
 /* Base font & polish */
 html,
@@ -4123,22 +4133,4 @@ html.theme-light .orb-name-ink {
     backdrop-filter: blur(8px);
     border-radius: 10px;
     margin-bottom: 6px;
-}
-
-/* mobile layout helpers */
-:root {
-    --mbnav-h: 0px;
-    --composer-h: 260px;
-    --header-h: 64px;
-    --app-h: 100dvh;
-    /* updated by JS for iOS/Android */
-}
-
-/* Ensure overlays/modals always win z-order */
-.modal-overlay {
-    z-index: 900;
-}
-
-.th-card {
-    z-index: 910;
 }
