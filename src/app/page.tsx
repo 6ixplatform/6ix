@@ -316,13 +316,6 @@ transition: transform .18s ease, box-shadow .25s ease, background .4s ease, bord
 @media (prefers-color-scheme: light){ .card:hover{ box-shadow: 0 24px 80px rgba(0,0,0,.12); } }
 @media (prefers-color-scheme: dark){ .card:hover{ box-shadow: 0 24px 90px rgba(0,0,0,.55); } }
 
-/* Buttons */
-.btn { border: 1px solid var(--hairline); }
-.btn-ghost { background: transparent; }
-.btn-white { background: var(--bg); color: var(--fg); }
-.btn-lg { padding: .9rem 1.15rem; border-radius: 14px; }
-.btn-lit { box-shadow: 0 10px 26px color-mix(in oklab, #000 10%, transparent), inset 0 1px 0 color-mix(in oklab, #fff 85%, transparent); }
-.btn-lit:hover { box-shadow: 0 18px 34px color-mix(in oklab, #000 14%, transparent); }
 
 /* Jelly + sheen */
 .jelly:hover { animation: jelly 240ms cubic-bezier(.22,1,.36,1); }
