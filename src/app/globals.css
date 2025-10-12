@@ -640,6 +640,7 @@ label.btn select {
   background: var(--sheet-bg, rgba(0, 0, 0, .88));
   box-shadow: 0 12px 40px rgba(0, 0, 0, .45);
 }
+
 /* header row */
 .user-menu .sheet-head {
   display: flex;
@@ -1341,9 +1342,7 @@ body, .min-h-svh {
   border-color: var(--th-border);
 }
 
-a, .link {
-  color: var(--th-text);
-}
+
 
 
 .btn-xs {
@@ -2202,4 +2201,65 @@ html.dark {
   border-color: inherit !important;
   box-shadow: none !important;
   outline: none !important;
+}
+
+/* ---------- GLOBAL BUTTON LOCK (put LAST) ---------- */
+
+/* 1) Don’t let your global link color repaint button-links */
+a.btn, a[class*="btn-"] {
+  color: inherit !important;
+}
+
+/* 2) Flat palette for everything that behaves like a button */
+:root {
+  --six-btn-bg: #fff;
+  --six-btn-fg: #000;
+}
+
+:where(button,
+  input[type="button"],
+  input[type="submit"],
+  input[type="reset"],
+  .btn,
+  a.btn,
+  [role="button"]) {
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--six-btn-bg) !important;
+  color: var(--six-btn-fg) !important;
+  border: 1px solid #e5e7eb !important;
+  text-shadow: none !important;
+  box-shadow: none !important;
+  filter: none !important;
+  transition: none !important;
+}
+
+/* 3) Keep the same colors on hover/focus/active & kill blue rings */
+:where(button,
+  input[type="button"],
+  input[type="submit"],
+  input[type="reset"],
+  .btn,
+  a.btn,
+  [role="button"]):is(:hover, :active, :focus, :focus-visible) {
+  background: var(--six-btn-bg) !important;
+  color: var(--six-btn-fg) !important;
+  outline: none !important;
+  box-shadow: none !important;
+  --tw-ring-color: transparent !important;
+  --tw-ring-shadow: 0 0 #0000 !important;
+}
+
+/* 4) Child text/icons follow the button color (beats .text-white, etc.) */
+:where(.btn, button, a.btn) * {
+  color: inherit !important;
+  fill: currentColor !important;
+  stroke: currentColor !important;
+}
+
+/* 5) Nix glossy pseudo-effects (sheen/water/3d) if those classes are present */
+:where(.btn-white, .btn-water, .btn-3d)::before,
+:where(.btn-white, .btn-water, .btn-3d)::after {
+  content: none !important;
+  animation: none !important;
 }

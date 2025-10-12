@@ -240,7 +240,7 @@ cursor:pointer;
 /* --- Force readable text on the Help chip --- */
 .hk-chip{
 /* dark/default */
-color: #fff !important;
+color: #ffffff !important;
 -webkit-text-fill-color: currentColor !important;
 }
 
