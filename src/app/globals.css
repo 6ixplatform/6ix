@@ -116,11 +116,6 @@ body {
     0 2px 0 rgba(255, 255, 255, 0.15);
 }
 
-.btn-white:hover {
-  background: #000;
-  color: #fff;
-  border-color: rgba(255, 255, 255, 0.35);
-}
 
 /* Layout helper */
 .container {
@@ -437,13 +432,6 @@ body {
 .btn:disabled {
   opacity: .6;
   cursor: not-allowed;
-}
-
-/* Base variants (non-hover state) */
-.btn-primary {
-  background: #000000;
-  color: #000;
-  border-color: transparent;
 }
 
 .btn-outline {
@@ -1699,11 +1687,6 @@ html, body {
   stroke: currentColor;
 }
 
-.btn, .btn.btn-water {
-  background: var(--th-btn-bg);
-  border: 1px solid var(--th-btn-bd);
-  color: var(--th-btn-text);
-}
 
 /* inputs & chips */
 .msg-body, .composer-shine, .att-chip, .sheet-item, .menu-link, .hdr-compact .btn {
@@ -1774,17 +1757,6 @@ a, .link {
   color: var(--th-text);
 }
 
-/* buttons readable on any palette */
-.btn {
-  background: var(--th-surface);
-  color: var(--th-text);
-  border: 1px solid var(--th-border);
-}
-
-.btn.btn-water, .btn-primary {
-  background: var(--btn-bg);
-  color: var(--btn-fg);
-}
 
 .btn-xs {
   padding: 2px 8px;
@@ -3305,4 +3277,38 @@ html.theme-light :is(.home-scope, .auth-scope, .verify-scope, .profile-scope) in
   border-top: none;
   border-left: none;
   transform: rotate(45deg);
+}
+
+/* FINAL OVERRIDE — must be last */
+:where(.home-scope, .auth-scope, .signin-scope, .verify-scope, .profile-scope):is(.btn-primary, .btn-white, button[type="submit"].btn, a.btn-primary) {
+  background: #fff !important;
+  color: #000 !important;
+  border-color: #e5e7eb !important;
+  text-shadow: none !important;
+}
+
+/* dark/ghost buttons stay dark with white text */
+:where(.home-scope, .auth-scope, .signin-scope, .verify-scope, .profile-scope):is(.btn-outline, .btn-ghost, .btn-black, .btn-dark) {
+  background: #111 !important;
+  color: #fff !important;
+  border-color: #0b0c10 !important;
+}
+
+/* never let later passes recolor text */
+:where(.home-scope, .auth-scope, .signin-scope, .verify-scope, .profile-scope) .btn,
+:where(.home-scope, .auth-scope, .signin-scope, .verify-scope, .profile-scope) .btn * {
+  --tw-ring-color: transparent !important;
+  --tw-ring-shadow: 0 0 #0000 !important;
+  text-shadow: none !important;
+}
+
+/* keep hover/focus from flipping palette */
+@media (hover:hover) {
+
+  :where(.home-scope, .auth-scope, .signin-scope, .verify-scope, .profile-scope) .btn:hover,
+  :where(.home-scope, .auth-scope, .signin-scope, .verify-scope, .profile-scope) .btn:focus-visible {
+    background: inherit !important;
+    color: inherit !important;
+    border-color: inherit !important;
+  }
 }
