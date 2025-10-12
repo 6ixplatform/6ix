@@ -2163,3 +2163,441 @@ html.dark {
 .modal-overlay {
   background: var(--overlay-bg);
 }
+
+/* --- 6ix Intro Modal: mobile-safe, iOS/Android friendly --- */
+:root {
+  --sa-top: env(safe-area-inset-top, 0px);
+  --sa-right: env(safe-area-inset-right, 0px);
+  --sa-bottom: env(safe-area-inset-bottom, 0px);
+  --sa-left: env(safe-area-inset-left, 0px);
+}
+
+.six-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: grid;
+  place-items: center;
+  padding: max(12px, var(--sa-top)) max(12px, var(--sa-right)) max(12px, var(--sa-bottom)) max(12px, var(--sa-left));
+  background: rgba(0, 0, 0, .35);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  overscroll-behavior: contain;
+  /* stop iOS rubber-band */
+}
+
+/* Fallback when blur isn’t available (older Android/WebView) */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .six-overlay {
+    background: rgba(0, 0, 0, .6);
+  }
+}
+
+.six-card {
+  width: min(600px, 92vw);
+  max-height: 88vh;
+  /* fallback */
+  max-height: 88dvh;
+  /* modern mobile */
+  border-radius: 20px;
+  border: 1px solid var(--th-border, #2a2a2a);
+  overflow: auto;
+  box-shadow: 0 30px 120px rgba(0, 0, 0, .45);
+  -webkit-overflow-scrolling: touch;
+  /* smooth scroll on iOS */
+  background: var(--surface-1, rgba(255, 255, 255, .92));
+  color: var(--th-text, #111);
+}
+
+/* Auto theme */
+@media (prefers-color-scheme: dark) {
+  .six-card {
+    background: rgba(17, 17, 19, .9);
+    color: #fff;
+    border-color: #2b2b2b;
+  }
+
+  .six-tagline {
+    color: #b7bdc6;
+  }
+}
+
+/* Typography/layout bits (keep it lean) */
+.six-header {
+  padding: 18px 18px 6px;
+  text-align: center;
+}
+
+.six-tagline {
+  margin: 6px 0 0;
+  font-size: 13px;
+  opacity: .8;
+}
+
+.six-grid {
+  display: grid;
+  gap: 12px;
+  padding: 6px 18px 4px;
+}
+
+@media (min-width: 640px) {
+  .six-grid {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+}
+
+.six-block {
+  border: 1px solid var(--th-border, #e5e7eb);
+  border-radius: 14px;
+  padding: 12px;
+  background: rgba(255, 255, 255, .55);
+}
+
+@media (prefers-color-scheme: dark) {
+  .six-block {
+    background: rgba(0, 0, 0, .25);
+    border-color: #242424;
+  }
+}
+
+.six-block-title {
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.six-block-text {
+  font-size: 13px;
+  opacity: .9;
+}
+
+.six-cta-cards {
+  display: grid;
+  gap: 12px;
+  padding: 6px 18px;
+}
+
+@media (min-width: 640px) {
+  .six-cta-cards {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.six-cta {
+  border: 1px solid var(--th-border, #e5e7eb);
+  border-radius: 14px;
+  padding: 12px;
+  background: rgba(255, 255, 255, .55);
+}
+
+@media (prefers-color-scheme: dark) {
+  .six-cta {
+    background: rgba(0, 0, 0, .25);
+    border-color: #242424;
+  }
+}
+
+.six-cta-head {
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.six-list {
+  margin: 0;
+  padding-left: 18px;
+  line-height: 1.5;
+  font-size: 13px;
+}
+
+.six-note {
+  padding: 6px 18px 0;
+  font-size: 13px;
+  opacity: .95;
+}
+
+.six-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 14px 18px 16px;
+  justify-content: center;
+}
+
+/* Buttons inherit your global overrides; these are minimal guards */
+.six-btn {
+  border-radius: 9999px;
+  padding: 10px 14px;
+  font-weight: 600;
+  border: 1px solid currentColor;
+}
+
+.six-btn-primary {
+  background: #111;
+  color: #fff;
+  border-color: #111;
+}
+
+.six-btn-primary:hover {
+  filter: brightness(1.06);
+}
+
+.six-btn-ghost {
+  background: transparent;
+  color: inherit;
+}
+
+.six-btn-minor {
+  background: transparent;
+  opacity: .85;
+}
+
+.six-once {
+  text-align: center;
+  font-size: 11px;
+  opacity: .7;
+  padding: 0 0 12px;
+}
+
+/* --- 6ix Intro Modal v2: mobile-safe, iOS/Android friendly, read-only --- */
+:root {
+  --sa-top: env(safe-area-inset-top, 0px);
+  --sa-right: env(safe-area-inset-right, 0px);
+  --sa-bottom: env(safe-area-inset-bottom, 0px);
+  --sa-left: env(safe-area-inset-left, 0px);
+  --th-border: #2a2a2a;
+  --th-text: #111;
+  --surface-1: rgba(255, 255, 255, .92);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --th-border: #2b2b2b;
+    --th-text: #fff;
+    --surface-1: rgba(17, 17, 19, .9);
+  }
+}
+
+.six-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: grid;
+  place-items: center;
+  padding: max(12px, var(--sa-top)) max(12px, var(--sa-right)) max(12px, var(--sa-bottom)) max(12px, var(--sa-left));
+  background: rgba(0, 0, 0, .35);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  overscroll-behavior: contain;
+  /* stop iOS rubber-band */
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .six-overlay {
+    background: rgba(0, 0, 0, .6);
+  }
+}
+
+.six-card {
+  width: min(600px, 92vw);
+  max-height: 88vh;
+  max-height: 88dvh;
+  border-radius: 20px;
+  border: 1px solid var(--th-border);
+  overflow: auto;
+  box-shadow: 0 30px 120px rgba(0, 0, 0, .45);
+  -webkit-overflow-scrolling: touch;
+  background: var(--surface-1);
+  color: var(--th-text);
+}
+
+.six-header {
+  padding: 18px 18px 6px;
+  text-align: center;
+  display: grid;
+  grid-auto-flow: row;
+  gap: 10px;
+  justify-items: center;
+}
+
+.six-tagline {
+  margin: 2px 0 0;
+  font-size: 13px;
+  opacity: .8;
+}
+
+/* Play Button */
+.six-play {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  background: transparent;
+  cursor: pointer;
+  user-select: none;
+}
+
+.six-play:disabled {
+  opacity: .6;
+  cursor: not-allowed;
+}
+
+.six-play-ico {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.six-play-label {
+  font-weight: 700;
+  letter-spacing: .2px;
+}
+
+.six-grid {
+  display: grid;
+  gap: 12px;
+  padding: 6px 18px 4px;
+}
+
+@media (min-width: 640px) {
+  .six-grid {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+}
+
+.six-block {
+  border: 1px solid var(--th-border);
+  border-radius: 14px;
+  padding: 12px;
+  background: rgba(255, 255, 255, .55);
+}
+
+@media (prefers-color-scheme: dark) {
+  .six-block {
+    background: rgba(0, 0, 0, .25);
+  }
+}
+
+.six-block-title {
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.six-block-text {
+  font-size: 13px;
+  opacity: .9;
+}
+
+.six-cta-cards {
+  display: grid;
+  gap: 12px;
+  padding: 6px 18px;
+}
+
+@media (min-width: 640px) {
+  .six-cta-cards {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.six-cta {
+  border: 1px solid var(--th-border);
+  border-radius: 14px;
+  padding: 12px;
+  background: rgba(255, 255, 255, .55);
+}
+
+@media (prefers-color-scheme: dark) {
+  .six-cta {
+    background: rgba(0, 0, 0, .25);
+  }
+}
+
+.six-cta-head {
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.six-list {
+  margin: 0;
+  padding-left: 18px;
+  line-height: 1.5;
+  font-size: 13px;
+}
+
+.six-note {
+  padding: 6px 18px 0;
+  font-size: 13px;
+  opacity: .95;
+}
+
+.six-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 14px 18px 16px;
+  justify-content: center;
+}
+
+/* Buttons (read-only modal: only "Got it") */
+.six-btn {
+  border-radius: 9999px;
+  padding: 10px 14px;
+  font-weight: 700;
+  border: 1px solid currentColor;
+}
+
+.six-btn-primary {
+  background: #111;
+  color: #fff;
+  border-color: #111;
+}
+
+.six-btn-primary:hover {
+  filter: brightness(1.06);
+}
+
+.six-once {
+  text-align: center;
+  font-size: 11px;
+  opacity: .7;
+  padding: 0 0 12px;
+}
+
+/* No-anchor guard: the modal contains no <a>; if any slip in, neutralize them */
+.six-card a {
+  pointer-events: none;
+  text-decoration: none;
+  color: inherit;
+}
+
+/* === Force primary buttons to white (never blue) === */
+.profile-scope .btn-primary {
+  background: #ffffff !important;
+  color: #000000 !important;
+  border: 1px solid rgba(255, 255, 255, .18) !important;
+}
+
+html.theme-light .profile-scope .btn-primary {
+  background: #ffffff !important;
+  color: #000000 !important;
+  border-color: #e5e7eb !important;
+}
+
+/* Disabled state = dim gray */
+.profile-scope .btn-primary:disabled {
+  background: #2a2a2a !important;
+  color: #9ca3af !important;
+  border-color: rgba(255, 255, 255, .12) !important;
+}
+
+html.theme-light .profile-scope .btn-primary:disabled {
+  background: #e5e7eb !important;
+  color: #9ca3af !important;
+  border-color: #e5e7eb !important;
+}
+
+/* Hover (enabled) */
+.profile-scope .btn-primary:not(:disabled):hover {
+  background: #f5f5f5 !important;
+}
