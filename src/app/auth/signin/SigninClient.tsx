@@ -278,7 +278,7 @@ export default function SignInClient() {
             <BackStopper />
             <NoBack />
 
-            <main className="auth-screen auth-scope min-h-dvh bg-black text-white" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
+            <main className="auth-screen auth-scope signin-scope min-h-dvh bg-black text-white" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
 
 
                 {/* DESKTOP / LAPTOP */}
@@ -341,7 +341,7 @@ export default function SignInClient() {
                     </section>
 
                     <footer className="hidden md:block fixed bottom-6 left-1/2 -translate-x-1/2 text-sm text-zinc-500 select-none">
-                       6CLEMENT JOSHUA NIG LTD · © {new Date().getFullYear()} 6ix
+                        6CLEMENT JOSHUA NIG LTD · © {new Date().getFullYear()} 6ix
                     </footer>
                 </div>
 
@@ -389,7 +389,7 @@ export default function SignInClient() {
                     </div>
 
                     <footer className="md:hidden fixed left-0 right-0 bottom-0 pb-[calc(env(safe-area-inset-bottom)+10px)] pt-2 text-center text-zinc-500 text-sm bg-gradient-to-t from-black/40 to-transparent">
-                       6CLEMENT JOSHUA NIG LTD · © {new Date().getFullYear()} 6ix
+                        6CLEMENT JOSHUA NIG LTD · © {new Date().getFullYear()} 6ix
                     </footer>
                 </div>
 

@@ -64,7 +64,7 @@ export default function Home() {
         <>
             <BackStopper />
             <NoBack />
-            <main className="min-h-dvh grid grid-rows-[auto,1fr,auto] antialiased sm:pt-0">
+            <main className="home-scope min-h-dvh grid grid-rows-[auto,1fr,auto] antialiased sm:pt-0">
                 {/* Splash overlay */}
                 {showSplash && <Splash delay={1600} onDone={() => setShowSplash(false)} />}
 
