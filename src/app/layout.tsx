@@ -1,9 +1,10 @@
 // src/app/layout.tsx
-import './globals.css';
+
 import '@/styles/6ix.css';
 import '@/styles/theme.css';
 import '@/styles/theme-tokens.css';
 import '@/styles/theme-override.css';
+import './globals.css';
 import type { Metadata, Viewport } from 'next';
 import ThemeProvider from '@/components/ThemeProvider';
 import ThemeBridge from '@/components/ThemeBridge';

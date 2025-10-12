@@ -694,6 +694,7 @@ function AIPageInner() {
     const didInitialScrollRef = React.useRef(false);
     const afterBootScrollTimersRef = React.useRef<number[]>([]);
     const [speakingFor, setSpeakingFor] = React.useState<string | null>(null);
+    const mbnavRef = React.useRef<HTMLDivElement | null>(null);
     // theme (mini-only)
 
     function clearAfterBootScrollTimers() {
@@ -860,6 +861,21 @@ function AIPageInner() {
             version: 'v2'
         });
     }, [plan, prefs]);
+
+    // ---- Mobile viewport height fix (iOS/Android) ----
+    React.useEffect(() => {
+        const setAppH = () => {
+            const h = Math.round(window.visualViewport?.height || window.innerHeight);
+            document.documentElement.style.setProperty('--app-h', `${h}px`);
+        };
+        setAppH();
+        window.visualViewport?.addEventListener?.('resize', setAppH);
+        window.addEventListener('orientationchange', setAppH);
+        return () => {
+            window.visualViewport?.removeEventListener?.('resize', setAppH);
+            window.removeEventListener('orientationchange', setAppH);
+        };
+    }, []);
 
     // theme state (from the new useTheme)
     // AIPage() — replace your messages state initializer:
@@ -1488,21 +1504,24 @@ function AIPageInner() {
     }, [attachments, input, plan, model]);
 
 
-    // ——— header & composer sizing
+    /* ——— header, composer & bottom-nav sizing (mobile-safe) ——— */
     useIsoLayoutEffect(() => {
         if (typeof window === 'undefined') return;
 
-        const EXTRA = 100;
+        const EXTRA = 100; // your existing extra bottom “breathing room”
         const update = () => {
-            const ch = compRef.current?.offsetHeight ?? 160;
-            const hh = headerRef.current?.offsetHeight ?? 120;
+            const ch = compRef.current?.offsetHeight ?? 160; // composer height
+            const hh = headerRef.current?.offsetHeight ?? 120; // header height
+            const nh = mbnavRef.current?.offsetHeight ?? 0; // mobile bottom nav
 
             document.documentElement.style.setProperty('--composer-h', `${ch}px`);
             document.documentElement.style.setProperty('--header-h', `${hh}px`);
+            document.documentElement.style.setProperty('--mbnav-h', `${nh}px`);
 
             const el = listRef.current;
             if (el) {
-                const v = `calc(${ch}px + env(safe-area-inset-bottom,0px) + ${EXTRA}px)`;
+                // Reserve space for: composer + mobile nav + safe area + extra
+                const v = `calc(${ch}px + var(--mbnav-h,0px) + env(safe-area-inset-bottom,0px) + ${EXTRA}px)`;
                 el.style.paddingBottom = v;
                 el.style.scrollPaddingBottom = v;
             }
@@ -1513,13 +1532,22 @@ function AIPageInner() {
             } catch { }
         };
 
-        update(); // run once before paint
+        update(); // before paint
+
         const ro = new ResizeObserver(update);
-        const c = compRef.current;
-        const h = headerRef.current;
+        const c = compRef.current, h = headerRef.current, n = mbnavRef.current;
         if (c) ro.observe(c);
         if (h) ro.observe(h);
-        return () => ro.disconnect();
+        if (n) ro.observe(n);
+
+        // also react to viewport-height changes (iOS URL bar / keyboard)
+        const onVV = () => update();
+        window.visualViewport?.addEventListener?.('resize', onVV);
+
+        return () => {
+            ro.disconnect();
+            window.visualViewport?.removeEventListener?.('resize', onVV);
+        };
     }, []);
 
 
@@ -3236,7 +3264,7 @@ function AIPageInner() {
         <div
             className="ai-shell fixed inset-0 flex flex-col overflow-hidden themed-page "
             style={{
-                
+                height: 'var(--app-h, 100dvh',
                 color: 'var(--th-text)',
             }}
             suppressHydrationWarning

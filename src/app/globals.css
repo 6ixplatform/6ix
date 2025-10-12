@@ -2163,3 +2163,272 @@ html.dark {
 .modal-overlay {
   background: var(--overlay-bg);
 }
+
+/* ============================
+6IX — GLOBAL BUTTON & CHECKBOX OVERRIDE
+Drop this file last so it wins specificity.
+============================ */
+
+:root {
+  /* Greys you can tweak if you ever want */
+  --six-gray-950: #0e0e0f;
+  --six-gray-900: #171819;
+  --six-gray-800: #1f2022;
+  --six-gray-700: #2a2c2f;
+  --six-gray-600: #33363a;
+  --six-gray-500: #3d4146;
+
+  /* Button palette */
+  --btn-bg: var(--six-gray-700);
+  /* default surface (dim dark gray) */
+  --btn-fg: #ffffff;
+  /* text/icon on dark button */
+  --btn-border: var(--six-gray-600);
+
+  --btn-bg-hover: #ffffff;
+  /* hover/focus surface */
+  --btn-fg-hover: #000000;
+  /* text/icon on white hover */
+  --btn-border-hover: #ffffff;
+
+  --btn-disabled-bg: #2a2b2d;
+  --btn-disabled-fg: #8b8d92;
+
+  --btn-radius: 12px;
+  --btn-pad-y: 10px;
+  --btn-pad-x: 14px;
+
+  /* Focus ring (accessible) */
+  --focus-ring: 0 0 0 2px rgba(255, 255, 255, .35);
+
+  /* Checkbox palette */
+  --chk-size: 18px;
+  --chk-border: var(--six-gray-500);
+  --chk-mark: #ffffff;
+  /* tick color on dark contexts */
+}
+
+/* When a parent explicitly marks light UI (optional) flip tick to black */
+[data-theme="light"] input[type="checkbox"],
+.light input[type="checkbox"],
+.on-light input[type="checkbox"] {
+  --chk-border: #222;
+  --chk-mark: #111;
+}
+
+/* ---------- Global button reset & theme ---------- */
+/* Catch the common button-like things and force our palette */
+button,
+input[type="button"],
+input[type="submit"],
+input[type="reset"],
+a.button,
+a.btn,
+.btn,
+.th-chip,
+.chip,
+[role="button"],
+[class*="btn-primary"],
+[class*="primary-btn"],
+[class*="is-primary"] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--btn-bg) !important;
+  color: var(--btn-fg) !important;
+  border: 1.5px solid var(--btn-border) !important;
+  border-radius: var(--btn-radius) !important;
+  padding: var(--btn-pad-y) var(--btn-pad-x) !important;
+  line-height: 1.2 !important;
+  font-weight: 600;
+  text-decoration: none !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06), 0 1.5px 4px rgba(0, 0, 0, .25) !important;
+  transition: background-color .18s ease, color .18s ease, border-color .18s ease, transform .05s ease, box-shadow .18s ease !important;
+}
+
+/* Hover / focus → white button with black text */
+button:hover,
+input[type="button"]:hover,
+input[type="submit"]:hover,
+input[type="reset"]:hover,
+a.button:hover,
+a.btn:hover,
+.btn:hover,
+.th-chip:hover,
+.chip:hover,
+[role="button"]:hover,
+button:focus-visible,
+input[type="button"]:focus-visible,
+input[type="submit"]:focus-visible,
+input[type="reset"]:focus-visible,
+a.button:focus-visible,
+a.btn:focus-visible,
+.btn:focus-visible,
+.th-chip:focus-visible,
+.chip:focus-visible,
+[role="button"]:focus-visible {
+  background: var(--btn-bg-hover) !important;
+  color: var(--btn-fg-hover) !important;
+  border-color: var(--btn-border-hover) !important;
+  outline: none !important;
+  box-shadow: var(--focus-ring) !important;
+}
+
+/* Active tap feedback (mobile-friendly) */
+button:active,
+input[type="button"]:active,
+input[type="submit"]:active,
+input[type="reset"]:active,
+a.button:active,
+a.btn:active,
+.btn:active,
+.th-chip:active,
+.chip:active,
+[role="button"]:active {
+  transform: translateY(1px);
+  box-shadow: inset 0 1px 0 rgba(0, 0, 0, .2);
+}
+
+/* Disabled */
+button[disabled],
+input[type="button"][disabled],
+input[type="submit"][disabled],
+input[type="reset"][disabled],
+a.button[aria-disabled="true"],
+a.btn[aria-disabled="true"],
+.btn[aria-disabled="true"],
+.th-chip[aria-disabled="true"],
+.chip[aria-disabled="true"],
+[role="button"][aria-disabled="true"] {
+  background: var(--btn-disabled-bg) !important;
+  color: var(--btn-disabled-fg) !important;
+  border-color: var(--btn-disabled-bg) !important;
+  cursor: not-allowed !important;
+  box-shadow: none !important;
+}
+
+/* Kill blue tap highlight on iOS/Android */
+button, .btn, a.btn, .th-chip, .chip, [role="button"] {
+  -webkit-tap-highlight-color: rgba(255, 255, 255, 0);
+}
+
+/* If you have any "ghost"/"link" buttons and want them to ALSO follow the rule,
+you can uncomment these:
+a.btn-ghost, .btn-ghost, .btn-link {
+background: var(--btn-bg) !important;
+color: var(--btn-fg) !important;
+border: 1.5px solid var(--btn-border) !important;
+}
+*/
+
+/* ---------- Checkboxes: show tick, no solid fills ---------- */
+input[type="checkbox"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: var(--chk-size);
+  height: var(--chk-size);
+  border: 2px solid var(--chk-border);
+  border-radius: 6px;
+  background: transparent !important;
+  display: inline-grid;
+  place-content: center;
+  vertical-align: middle;
+  cursor: pointer;
+  position: relative;
+  transition: border-color .18s ease, box-shadow .18s ease;
+  color: var(--chk-mark);
+  /* used by the pseudo tick */
+}
+
+/* Draw the ✓ using borders (no background fill) */
+input[type="checkbox"]::after {
+  content: "";
+  width: calc(var(--chk-size) * .35);
+  height: calc(var(--chk-size) * .6);
+  border-right: 2.5px solid currentColor;
+  border-bottom: 2.5px solid currentColor;
+  transform: rotate(45deg) translate(-1px, -1px);
+  transform-origin: center;
+  opacity: 0;
+  transition: opacity .15s ease;
+}
+
+/* Checked: just reveal the tick */
+input[type="checkbox"]:checked::after {
+  opacity: 1;
+}
+
+/* Hover / focus ring for checkbox */
+input[type="checkbox"]:hover,
+input[type="checkbox"]:focus-visible {
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, .25);
+}
+
+/* Disabled checkbox */
+input[type="checkbox"][disabled] {
+  opacity: .55;
+  cursor: not-allowed;
+}
+
+/* ---------- Radios (optional): outline with inner dot, no fills ----------
+Comment out if you don’t use radios in auth.
+*/
+input[type="radio"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: var(--chk-size);
+  height: var(--chk-size);
+  border: 2px solid var(--chk-border);
+  border-radius: 999px;
+  background: transparent !important;
+  display: inline-grid;
+  place-content: center;
+  position: relative;
+  cursor: pointer;
+  transition: border-color .18s ease, box-shadow .18s ease;
+}
+
+input[type="radio"]::after {
+  content: "";
+  width: calc(var(--chk-size) * .45);
+  height: calc(var(--chk-size) * .45);
+  border-radius: 999px;
+  background: currentColor;
+  opacity: 0;
+  transition: opacity .15s ease;
+  color: var(--chk-mark);
+}
+
+input[type="radio"]:checked::after {
+  opacity: 1;
+}
+
+input[type="radio"]:hover,
+input[type="radio"]:focus-visible {
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, .25);
+}
+
+input[type="radio"][disabled] {
+  opacity: .55;
+  cursor: not-allowed;
+}
+
+/* ---------- Ensure modal buttons also follow this (some themes shadow-scope) ---------- */
+.th-card .btn,
+.th-card button,
+.th-card .th-chip {
+  background: var(--btn-bg) !important;
+  color: var(--btn-fg) !important;
+  border: 1.5px solid var(--btn-border) !important;
+}
+
+.th-card .btn:hover,
+.th-card button:hover,
+.th-card .th-chip:hover,
+.th-card .btn:focus-visible,
+.th-card button:focus-visible,
+.th-card .th-chip:focus-visible {
+  background: var(--btn-bg-hover) !important;
+  color: var(--btn-fg-hover) !important;
+  border-color: var(--btn-border-hover) !important;
+  box-shadow: var(--focus-ring) !important;
+}

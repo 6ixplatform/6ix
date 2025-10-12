@@ -1,3 +1,4 @@
+// src/components/music/MusicPill.tsx
 'use client';
 
 import '@/styles/music.css';
@@ -35,7 +36,7 @@ const IcnPause = (p: any) => (
 );
 const IcnMore = (p: any) => (
     <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" {...p}>
-        <circle cx="5" cy="12" r="1.6" fill="currentColor" /><circle cx="12" cy="12" r="1.6" fill="currentColor" /><circle cx="19" cy="12" r="1.6" fill="currentColor" />
+        <circle cx="5" cy="12" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="19" cy="12" r="1.6" />
     </svg>
 );
 const IcnShuffle = (p: any) => (
@@ -46,7 +47,8 @@ const IcnShuffle = (p: any) => (
 /* outline recycle arrows (no fill) */
 const IcnRepeat = (p: any) => (
     <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" {...p}>
-        <path d="M17 3v4H8a5 5 0 0 0 0 10h9v4l4-4-4-4M8 7h9" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M17 3v4H8a5 5 0 0 0 0 10h9v4l4-4-4-4M8 7h9"
+            fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
 );
 const IcnClose = (p: any) => (
@@ -56,7 +58,7 @@ const IcnClose = (p: any) => (
 );
 
 /* ---------- component ---------- */
-export default function MusicPill({ category = 'afrobeat' }: Props) {
+export default function MusicPill({ category }: Props) {
     const [songs, setSongs] = React.useState<Song[]>([]);
     const [idx, setIdx] = React.useState(0);
     const [open, setOpen] = React.useState(false);
@@ -65,13 +67,14 @@ export default function MusicPill({ category = 'afrobeat' }: Props) {
     const [playing, setPlaying] = React.useState(false);
     const [repeat, setRepeat] = React.useState<Repeat>('all');
     const [shuffle, setShuffle] = React.useState(false);
-    const autoPlayOnChange = React.useRef(false);
 
     const [lyrics, setLyrics] = React.useState<{ t: number; text: string }[]>([]);
     const [curLyIdx, setCurLyIdx] = React.useState(0);
 
     const canvasRef = React.useRef<HTMLCanvasElement | null>(null);
     const [waveColor, setWaveColor] = React.useState<string>('');
+
+    const autoPlayOnChange = React.useRef(false); // 👈 new: request autoplay after idx changes
 
     const player = getPlayer();
     const current = songs[idx];
@@ -83,7 +86,7 @@ export default function MusicPill({ category = 'afrobeat' }: Props) {
         let off = () => { };
         (async () => {
             setLoading(true);
-            const rows = await fetchSongs(category);
+            const rows = await fetchSongs(category); // if category is undefined, fetch all
             setSongs(rows);
             setIdx(0);
             setLoading(false);
@@ -120,12 +123,11 @@ export default function MusicPill({ category = 'afrobeat' }: Props) {
             window.matchMedia('(prefers-color-scheme: dark)').matches;
         setWaveColor(prefersDark ? 'rgba(255,255,255,.95)' : 'rgba(20,20,20,.9)');
 
+        // Media Session
         if ('mediaSession' in navigator && s) {
             try {
                 navigator.mediaSession.metadata = new window.MediaMetadata({
-                    title: s.title,
-                    artist: s.artist,
-                    album: s.album ?? undefined,
+                    title: s.title, artist: s.artist, album: s.album ?? undefined,
                     artwork: s.artwork_url ? [{ src: s.artwork_url, sizes: '512x512', type: 'image/jpeg' }] : undefined,
                 });
                 navigator.mediaSession.setActionHandler('play', () => play());
@@ -134,6 +136,15 @@ export default function MusicPill({ category = 'afrobeat' }: Props) {
                 navigator.mediaSession.setActionHandler('nexttrack', () => next());
             } catch { }
         }
+
+        // 👇 auto-play the new track when coming from Next/Prev/card click or if it was already playing
+        if (autoPlayOnChange.current) {
+            autoPlayOnChange.current = false;
+            (async () => {
+                try { try { await getAudioGraph().ctx.resume(); } catch { } await player.play(); } catch { }
+            })();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [idx, songs, player]);
 
     /* ---------- reflect player events ---------- */
@@ -146,8 +157,8 @@ export default function MusicPill({ category = 'afrobeat' }: Props) {
                 return;
             }
             const nextIndex = shuffle ? Math.floor(Math.random() * songs.length) : idx + 1;
-            if (nextIndex < songs.length) setIdx(nextIndex);
-            else if (repeat === 'all' && songs.length) setIdx(0);
+            if (nextIndex < songs.length) { autoPlayOnChange.current = true; setIdx(nextIndex); }
+            else if (repeat === 'all' && songs.length) { autoPlayOnChange.current = true; setIdx(0); }
         };
         player.addEventListener('play', onPlay);
         player.addEventListener('pause', onPause);
@@ -206,8 +217,8 @@ export default function MusicPill({ category = 'afrobeat' }: Props) {
     /* ---------- controls ---------- */
     const play = async () => { try { try { await getAudioGraph().ctx.resume(); } catch { } await player.play(); } catch { } };
     const pause = () => player.pause();
-    const next = () => setIdx(i => (songs.length ? (i + 1) % songs.length : 0));
-    const prev = () => setIdx(i => (songs.length ? (i - 1 + songs.length) % songs.length : 0));
+    const next = () => { autoPlayOnChange.current = true; setIdx(i => (songs.length ? (i + 1) % songs.length : 0)); };
+    const prev = () => { autoPlayOnChange.current = true; setIdx(i => (songs.length ? (i - 1 + songs.length) % songs.length : 0)); };
 
     /* ---------- render helpers ---------- */
     const lead = loading
@@ -224,11 +235,10 @@ export default function MusicPill({ category = 'afrobeat' }: Props) {
             {/* compact pill */}
             <div className="six-music-pill pill--compact">
                 <div className="pill-art">
-                    {current?.artwork_url ? (
-                        <NextImage src={current.artwork_url} alt="" width={28} height={28} className="art-img" />
-                    ) : (
-                        <i className="art-fallback" />
-                    )}
+                    {current?.artwork_url
+                        ? <NextImage src={current.artwork_url} alt="" width={28} height={28} className="art-img" />
+                        : <i className="art-fallback" />
+                    }
                 </div>
 
                 <button
@@ -306,7 +316,7 @@ export default function MusicPill({ category = 'afrobeat' }: Props) {
                                 <button
                                     key={s.id}
                                     className={`tray-card ${i === idx ? 'is-active' : ''}`}
-                                    onClick={() => setIdx(i)}
+                                    onClick={() => { autoPlayOnChange.current = true; setIdx(i); }} // 👈 autoplay when picking
                                     title={`${s.title} — ${s.artist}`}
                                 >
                                     {s.artwork_url
