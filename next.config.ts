@@ -1,31 +1,26 @@
 // next.config.ts
 import type { NextConfig } from 'next';
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
-const SUPABASE_HOST = (() => {
-  try {
-    return SUPABASE_URL ? new URL(SUPABASE_URL).host : '';
-  } catch {
-    return '';
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+let remotePatterns: NonNullable<NextConfig['images']>['remotePatterns'] = [];
+
+try {
+  if (supabaseUrl) {
+    const { host } = new URL(supabaseUrl);
+    remotePatterns = [
+      { protocol: 'https', hostname: host, pathname: '/storage/v1/object/public/**' },
+      { protocol: 'https', hostname: host, pathname: '/storage/v1/object/sign/**' },
+    ];
   }
-})();
+} catch { /* ignore */ }
 
 const nextConfig: NextConfig = {
-  reactStrictMode: true,
-
-  // ⬇️ allow deploys even if ESLint/TS shows errors
-  eslint: { ignoreDuringBuilds: true },
-  typescript: { ignoreBuildErrors: true }, // remove later when you want strict builds
-
   images: {
-    // keep Next.js image optimizer; allow Supabase storage URLs
-    remotePatterns: SUPABASE_HOST
-      ? [
-        { protocol: 'https', hostname: SUPABASE_HOST, pathname: '/storage/v1/object/public/**' },
-        { protocol: 'https', hostname: SUPABASE_HOST, pathname: '/storage/v1/object/sign/**' },
-      ]
-      : [],
+    remotePatterns,
+    // (optional during dev) unoptimized: true,
   },
+  eslint: { ignoreDuringBuilds: true },
+  typescript: { ignoreBuildErrors: true },
 };
 
 export default nextConfig;

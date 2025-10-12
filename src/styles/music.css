@@ -1,90 +1,364 @@
-/* Theme-aware glass */
-.music-modal__backdrop {
-    position: fixed;
-    inset: 0;
-    z-index: 10060;
-    background: color-mix(in oklab, var(--th-bg) 70%, transparent);
-    backdrop-filter: blur(10px) saturate(120%);
-}
+/* ===== MusicPill v2 (compact, overlay sheet) ===== */
 
-.music-modal {
-    position: fixed;
-    z-index: 10061;
-    inset: 8% 10% auto 10%;
-    background: var(--surface, color-mix(in oklab, var(--th-bg) 92%, var(--th-text)));
+.six-music-pill {
+    --pill-h: 36px;
+    display: grid;
+    grid-template-columns: 32px minmax(160px, 1fr) auto 260px 28px;
+    align-items: center;
+    gap: 10px;
+    height: var(--pill-h);
+    padding: 4px 8px;
+    border-radius: 999px;
+    border: 1px solid var(--th-border);
+    background: color-mix(in oklab, var(--th-text) 6%, transparent);
     color: var(--th-text);
-    border: 1px solid var(--th-border);
-    border-radius: 16px;
-    overflow: hidden;
-    box-shadow: 0 20px 80px rgba(0, 0, 0, .35);
-    max-height: 84vh;
-    display: grid;
-    grid-template-rows: auto 1fr auto;
 }
 
-@media (max-width: 900px) {
-    .music-modal {
-        inset: 4% 3% auto 3%;
-    }
+.pill--compact {
+    /* alias in case you want to toggle */
+    height: 36px;
 }
 
-/* tiny spinner square for the pill cover */
-.music-spinner {
-    position: relative;
-    width: 24px;
-    height: 24px;
-    border-radius: 6px;
-    overflow: hidden;
-    background: color-mix(in oklab, var(--th-text) 12%, transparent);
-}
-
-.music-spinner::after {
-    content: "";
-    position: absolute;
-    inset: 2px;
-    border-radius: 4px;
-    border: 2px solid color-mix(in oklab, var(--th-text) 55%, transparent);
-    border-right-color: transparent;
-    animation: spin .8s linear infinite;
-}
-
-@keyframes spin {
-    to {
-        transform: rotate(360deg);
-    }
-}
-
-/* real audio visualizer canvas */
-.music-wave {
-    display: block;
-    width: 120px;
-    height: 16px;
-    opacity: .9;
-}
-
-/* grid of songs */
-.music-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-    gap: 12px;
-}
-
-.music-card {
-    background: color-mix(in oklab, var(--th-bg) 88%, var(--th-text));
-    border: 1px solid var(--th-border);
-    border-radius: 12px;
-    overflow: hidden;
-}
-
-/* controls */
-.icon-btn {
-    height: 28px;
+/* artwork */
+.pill-art {
     width: 28px;
-    border-radius: 10px;
+    height: 28px;
     display: grid;
     place-items: center;
 }
 
+.art-img {
+    width: 28px;
+    height: 28px;
+    object-fit: cover;
+    border-radius: 8px;
+}
+
+.art-fallback {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    background: color-mix(in oklab, var(--th-text) 12%, transparent);
+    display: block;
+}
+
+/* text (smaller, centered vertically) */
+.pill-text {
+    min-width: 0;
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+    line-height: 1.1;
+}
+
+.pill-title {
+    font-size: 14px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transform: translateY(1px);
+    /* centers optically next to art */
+}
+
+.pill-lyric {
+    --sp: 25s;
+    font-size: 12px;
+    opacity: .75;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.pill-lyric.is-on span {
+    display: inline-block;
+    padding-left: 100%;
+    animation: pill-marquee var(--sp) linear infinite;
+}
+
+@keyframes pill-marquee {
+    from {
+        transform: translateX(0);
+    }
+
+    to {
+        transform: translateX(-100%);
+    }
+}
+
+/* pill controls + icons */
+.pill-controls {
+    display: flex;
+    gap: 6px;
+}
+
+.icon-btn {
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    color: inherit;
+    transition: transform .12s ease, background-color .12s ease, color .12s ease;
+}
+
 .icon-btn:hover {
+    transform: translateY(-1px);
     background: color-mix(in oklab, var(--th-text) 10%, transparent);
+    color: var(--accent, #7dd3fc);
+}
+
+.icon-btn:active {
+    transform: translateY(0);
+}
+
+/* wave (longer) */
+.music-wave {
+    height: 18px;
+    width: 180px;
+    background: transparent;
+}
+
+.music-wave.long {
+    width: 100%;
+    max-width: 360px;
+}
+
+@media (max-width: 900px) {
+    .six-music-pill {
+        grid-template-columns: 32px 1fr auto 200px 28px;
+    }
+
+    .music-wave.long {
+        max-width: 220px;
+    }
+}
+
+@media (max-width: 640px) {
+    .six-music-pill {
+        grid-template-columns: 32px 1fr auto 140px 28px;
+    }
+
+    .music-wave.long {
+        max-width: 160px;
+    }
+}
+
+/* ===== Top sheet overlay (no backdrop, transparent container) ===== */
+
+.music-sheet {
+    position: fixed;
+    top: var(--app-header-height, 56px);
+    left: 12px;
+    right: 12px;
+    z-index: 2147483647;
+    /* always on top of chat */
+    pointer-events: none;
+    /* container is transparent */
+}
+
+.music-sheet>* {
+    pointer-events: auto;
+}
+
+/* clickable inside only */
+
+/* header row in the sheet (semi-transparent card) */
+.sheet-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 12px;
+    border: 1px solid var(--th-border);
+    border-radius: 14px;
+    background: color-mix(in oklab, var(--th-bg) 86%, transparent);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, .28);
+    backdrop-filter: blur(6px);
+    animation: sheet-drop .18s ease-out;
+}
+
+@keyframes sheet-drop {
+    from {
+        transform: translateY(-10px);
+        opacity: 0;
+    }
+
+    to {
+        transform: none;
+        opacity: 1;
+    }
+}
+
+.sheet-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+}
+
+.sheet-art {
+    width: 56px;
+    height: 56px;
+    object-fit: cover;
+    border-radius: 12px;
+}
+
+.sheet-meta {
+    min-width: 0;
+}
+
+.sheet-title {
+    font-size: 15px;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.sheet-artist {
+    font-size: 13px;
+    opacity: .9;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.sheet-sub {
+    font-size: 12px;
+    opacity: .7;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.sheet-ctrls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.sheet-ctrls .icon-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+}
+
+.sheet-close {
+    margin-left: 4px;
+}
+
+/* horizontal playlist tray only (no big modal panel) */
+.sheet-tray {
+    margin-top: 10px;
+}
+
+.tray-scroll {
+    display: flex;
+    gap: 12px;
+    overflow-x: auto;
+    padding: 4px 2px 8px;
+    scroll-snap-type: x mandatory;
+}
+
+.tray-scroll::-webkit-scrollbar {
+    height: 8px;
+}
+
+.tray-scroll::-webkit-scrollbar-thumb {
+    background: color-mix(in oklab, var(--th-text) 16%, transparent);
+    border-radius: 999px;
+}
+
+.tray-card {
+    flex: 0 0 180px;
+    text-align: left;
+    padding: 8px;
+    border: 1px solid var(--th-border);
+    border-radius: 14px;
+    background: color-mix(in oklab, var(--th-bg) 92%, transparent);
+    transition: transform .12s ease, border-color .12s ease, box-shadow .12s ease;
+}
+
+.tray-card:hover {
+    transform: translateY(-2px);
+    border-color: color-mix(in oklab, var(--accent, #7dd3fc) 60%, var(--th-border));
+    box-shadow: 0 6px 18px rgba(0, 0, 0, .18);
+}
+
+.tray-card.is-active {
+    border-color: var(--accent, #7dd3fc);
+    box-shadow: 0 0 0 1px var(--accent, #7dd3fc) inset;
+}
+
+.tray-img {
+    width: 100%;
+    aspect-ratio: 1/1;
+    object-fit: cover;
+    border-radius: 10px;
+    display: block;
+}
+
+.tray-meta {
+    margin-top: 6px;
+}
+
+.tray-title {
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tray-artist {
+    font-size: 12px;
+    opacity: .75;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* put the sheet above everything and anchor under header */
+:root {
+    --z-top-sheet: 2147483647;
+}
+
+.music-sheet {
+    position: fixed;
+    top: calc(var(--header-h, 56px) + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: var(--z-top-sheet) !important;
+    pointer-events: auto;
+}
+
+/* repeat “1” badge (only visible for repeat=one) */
+.repeat-btn {
+    position: relative;
+}
+
+.repeat-btn.is-off {
+    opacity: .55;
+}
+
+.repeat-btn .repeat-badge {
+    position: absolute;
+    right: -2px;
+    top: -2px;
+    font: 600 10px/1 var(--th-font, ui-sans-serif);
+    padding: 0 3px;
+    border-radius: 999px;
+    background: color-mix(in oklab, var(--th-text) 15%, transparent);
+    color: currentColor;
+}
+
+/* optional: show album/year/label line on tray cards nicely */
+.tray-sub {
+    opacity: .65;
+    font-size: 11px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }

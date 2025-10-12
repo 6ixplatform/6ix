@@ -1,54 +1,133 @@
+// src/lib/music.ts
 import { createClient } from '@supabase/supabase-js';
-import type { Song } from './musicTypes';
+import type { Song } from '@/lib/musicTypes';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const sb = createClient(supabaseUrl, supabaseKey, { auth: { persistSession: false } });
+// ---------- Supabase client ----------
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const SUPABASE_ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
-/* ---------- SONGS ---------- */
-export async function fetchSongs(category = 'afrobeat'): Promise<Song[]> {
-    const { data, error } = await sb
-        .from('songs')
-        .select('*')
-        .eq('category', category)
-        .order('created_at', { ascending: false });
+export const supabase =
+    SUPABASE_URL && SUPABASE_ANON
+        ? createClient(SUPABASE_URL, SUPABASE_ANON, { auth: { persistSession: false } })
+        : (null as any);
 
-    if (error) { console.error(error); return []; }
-    return (data ?? []) as Song[];
-}
-
-/* live updates on the songs table (category-scoped) */
-export function subscribeSongs(category: string, onChange: () => void) {
-    const ch = sb
-        .channel(`songs-${category}`)
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'songs', filter: `category=eq.${category}` }, onChange)
-        .subscribe();
-    return () => { try { sb.removeChannel(ch); } catch { } };
-}
-
-/* ---------- AUDIO SINGLETON ---------- */
+// ---------- Shared <audio> ----------
 let _audio: HTMLAudioElement | null = null;
-export function getPlayer() {
+
+/** Shared <audio> element for the whole app. */
+export function getPlayer(): HTMLAudioElement {
     if (!_audio) {
         _audio = new Audio();
         _audio.preload = 'metadata';
         _audio.crossOrigin = 'anonymous';
     }
-    return _audio!;
+    return _audio;
 }
 
-/* parse simple .lrc (timestamped lyrics); returns [{t,text}] in seconds */
-export async function fetchLRC(url?: string) {
-    if (!url) return [] as { t: number; text: string }[];
-    const txt = await fetch(url).then(r => (r.ok ? r.text() : ''));
-    const out: { t: number; text: string }[] = [];
-    const re = /\[(\d{1,2}):(\d{2})(?:\.(\d{1,2}))?\]\s*(.*)/g;
-    for (const line of txt.split(/\r?\n/)) {
-        const m = re.exec(line);
-        re.lastIndex = 0;
-        if (!m) continue;
-        const t = (+m[1]) * 60 + (+m[2]) + (+('0.' + (m[3] || '0')));
-        out.push({ t, text: m[4] });
+// ---------- WebAudio graph (singleton) ----------
+type Graph = {
+    ctx: AudioContext;
+    source: MediaElementAudioSourceNode;
+    gain: GainNode;
+    analyser: AnalyserNode;
+};
+
+let _graph: Graph | null = null;
+
+/** Create once and reuse. Avoids “already connected to a different MediaElementSourceNode”. */
+export function getAudioGraph(): Graph {
+    if (_graph) return _graph;
+
+    const player = getPlayer();
+    const Ctx =
+        (globalThis as any).AudioContext ||
+        (globalThis as any).webkitAudioContext;
+    if (!Ctx) throw new Error('WebAudio not supported');
+
+    const ctx = new Ctx();
+    const source = ctx.createMediaElementSource(player);
+    const gain = ctx.createGain();
+    const analyser = ctx.createAnalyser();
+    analyser.fftSize = 128; // smooth bars
+
+    // source -> gain -> analyser + destination
+    source.connect(gain);
+    gain.connect(analyser);
+    gain.connect(ctx.destination);
+
+    _graph = { ctx, source, gain, analyser };
+    return _graph;
+}
+
+/** Call right before play(); resumes suspended contexts on iOS/Chrome. */
+export async function resumeAudioContext(): Promise<void> {
+    try {
+        const g = getAudioGraph();
+        if (g.ctx.state === 'suspended') {
+            await g.ctx.resume();
+        }
+    } catch {
+        // ignore if WebAudio not available
     }
-    return out.sort((a, b) => a.t - b.t);
+}
+
+// ---------- Data: songs + lyrics ----------
+export async function fetchSongs(category?: string): Promise<Song[]> {
+    if (!supabase) return [];
+    let q = supabase.from('songs').select('*');
+    if (category) q = q.eq('category', category);
+    q = q.order('sort_order', { ascending: true }).order('title', { ascending: true });
+    const { data, error } = await q;
+    if (error) {
+        console.error('fetchSongs error', error);
+        return [];
+    }
+    return (data as Song[]) || [];
+}
+
+export async function fetchLRC(url?: string | null): Promise<{ t: number; text: string }[]> {
+    if (!url) return [];
+    try {
+        const res = await fetch(url, { cache: 'no-store' });
+        if (!res.ok) return [];
+        const text = await res.text();
+        return parseLRC(text);
+    } catch {
+        return [];
+    }
+}
+
+/** Live table subscription; returns unsubscribe fn. */
+export function subscribeSongs(category: string | undefined, onChange: () => void): () => void {
+    if (!supabase) return () => { };
+    const filter = category ? `category=eq.${category}` : undefined;
+
+    const ch = supabase
+        .channel('songs-live')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'songs', filter }, () => onChange())
+        .subscribe();
+
+    return () => {
+        try { supabase.removeChannel(ch); } catch { }
+    };
+}
+
+// ---------- helpers ----------
+function parseLRC(raw: string): { t: number; text: string }[] {
+    const lines = raw.split(/\r?\n/);
+    const out: { t: number; text: string }[] = [];
+    const tag = /^\[(\d{1,2}):(\d{1,2})(?:[.:](\d{1,2}))?\](.*)$/;
+
+    for (const line of lines) {
+        const m = line.match(tag);
+        if (!m) continue;
+        const mm = Number(m[1]);
+        const ss = Number(m[2]);
+        const cc = m[3] ? Number(m[3]) : 0; // centiseconds
+        const t = mm * 60 + ss + cc / 100;
+        const text = m[4].trim();
+        out.push({ t, text });
+    }
+    out.sort((a, b) => a.t - b.t);
+    return out;
 }
