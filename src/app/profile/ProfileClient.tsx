@@ -209,16 +209,27 @@ export default function ProfileSetupProfileClient() {
         onChange('avatar_url', URL.createObjectURL(file));
     };
 
-    // required fields (avatar is mandatory)
+    // required helpers
+    const req = (s?: string | null) => !!(s && String(s).trim());
+
+    // Step 1 must-haves
     const canNextStep1 =
-        !!form.display_name &&
-        !!form.username &&
+        req(form.display_name) &&
+        req(form.username) &&
         uname === 'ok' &&
-        !!form.email &&
+        req(form.email) &&
+        req(form.first_name) &&
+        req(form.last_name) &&
         (!!form.avatar_file || !!form.avatar_url);
 
-    const canNextStep2 = true;
-    const canFinish = canNextStep1 && !saving;
+    // Step 2 must-haves (LOCATION REQUIRED)
+    const canNextStep2 =
+        req(form.city) &&
+        req(form.state) &&
+        req(form.country_code);
+
+    // Step 3 must-have
+    const canFinish = canNextStep1 && canNextStep2 && req(form.bio) && !saving;
 
     // derived age (from dob)
     const age = useMemo2(() => {
@@ -236,7 +247,25 @@ export default function ProfileSetupProfileClient() {
     const finish = async () => {
         if (!me || !canFinish) return;
         setSaving(true); setErr(undefined);
-
+        // hard-stop if anything required is missing
+        if (!canNextStep1) {
+            setSaving(false);
+            setErr('Please complete all required items on Step 1.');
+            setStep(1);
+            return;
+        }
+        if (!canNextStep2) {
+            setSaving(false);
+            setErr('Please add your City, State/Region, and Country (code).');
+            setStep(2);
+            return;
+        }
+        if (!req(form.bio)) {
+            setSaving(false);
+            setErr('Please add a short bio.');
+            setStep(3);
+            return;
+        }
         try {
             let avatar_storage_path = form.avatar_storage_path || '';
             if (!avatar_storage_path && form.avatar_file) {
@@ -499,7 +528,7 @@ export default function ProfileSetupProfileClient() {
                         </div>
 
                         <footer className="mt-10 mb-2 text-center text-zinc-500 text-sm">
-                           6CLEMENT JOSHUA NIG LTD · © {new Date().getFullYear()} 6ix
+                            6CLEMENT JOSHUA NIG LTD · © {new Date().getFullYear()} 6ix
                         </footer>
                     </div>
                 </div>
@@ -820,6 +849,42 @@ html.theme-light .profile-scope input[type="date"]::-webkit-calendar-picker-indi
 /* Stepper tint on light for deeper contrast */
 html.theme-light .profile-scope .stepper-on{ background:#111 !important; }
 html.theme-light .profile-scope .stepper-off{ background:rgba(0,0,0,.16) !important; }
+/* === Force primary buttons to white (never blue) === */
+.profile-scope .btn-primary {
+background: #ffffff !important;
+color: #000000 !important;
+border: 1px solid rgba(255,255,255,.18) !important;
+}
+html.theme-light .profile-scope .btn-primary {
+background: #ffffff !important;
+color: #000000 !important;
+border-color: #e5e7eb !important;
+}
+/* Disabled state = dim gray */
+.profile-scope .btn-primary:disabled {
+background: #2a2a2a !important;
+color: #9ca3af !important;
+border-color: rgba(255,255,255,.12) !important;
+}
+html.theme-light .profile-scope .btn-primary:disabled {
+background: #e5e7eb !important;
+color: #9ca3af !important;
+border-color: #e5e7eb !important;
+}
+/* Hover (enabled) */
+.profile-scope .btn-primary:not(:disabled):hover {
+background: #f5f5f5 !important;
+}
+.profile-scope label .field-label::after {
+content: '';
+}
+.profile-scope label .field-label:has(+ .inp[aria-required="true"])::after {
+content: ' *';
+color: #ffb4b4;
+}
+html.theme-light .profile-scope label .field-label:has(+ .inp[aria-required="true"])::after {
+color: #b91c1c;
+}
 `}</style>
 
         </>
@@ -885,20 +950,26 @@ function Step1Identity({
             </div>
 
             <Row cols={2}>
-                <Field label="First name">
-                    <input className="inp" value={form.first_name} onChange={e => onChange('first_name', e.target.value)} />
+                <Field label="First name *">
+                    <input required aria-required="true" className="inp"
+                        value={form.first_name}
+                        onChange={e => onChange('first_name', e.target.value)} />
                 </Field>
-                <Field label="Last name">
-                    <input className="inp" value={form.last_name} onChange={e => onChange('last_name', e.target.value)} />
+                <Field label="Last name *">
+                    <input required aria-required="true" className="inp"
+                        value={form.last_name}
+                        onChange={e => onChange('last_name', e.target.value)} />
                 </Field>
-                <Field label="Middle name">
-                    <input className="inp" value={form.middle_name} onChange={e => onChange('middle_name', e.target.value)} />
+
+                <Field label="Display name *">
+                    <input required aria-required="true" className="inp"
+                        value={form.display_name}
+                        onChange={e => onChange('display_name', e.target.value)} />
                 </Field>
-                <Field label="Display name">
-                    <input className="inp" value={form.display_name} onChange={e => onChange('display_name', e.target.value)} />
-                </Field>
-                <Field label="Username (handle)">
+
+                <Field label="Username (handle) *">
                     <input
+                        required aria-required="true"
                         className="inp"
                         value={form.username}
                         onChange={(e) => onChange('username', e.target.value)}
@@ -938,12 +1009,25 @@ function Step2Details({
     onWhyDob?: () => void; // optional prop
 }) {
     return (
-        <>
-            <Row cols={2}>
-                <Field label="City"><input className="inp" value={form.city} onChange={e => onChange('city', e.target.value)} /></Field>
-                <Field label="State / Region"><input className="inp" value={form.state} onChange={e => onChange('state', e.target.value)} /></Field>
-                <Field label="Country (code)"><input className="inp" value={form.country_code} onChange={e => onChange('country_code', e.target.value.toUpperCase())} /></Field>
-            </Row>
+        <><Row cols={2}>
+            <Field label="City *">
+                <input required aria-required="true" className="inp"
+                    value={form.city}
+                    onChange={e => onChange('city', e.target.value)} />
+            </Field>
+
+            <Field label="State / Region *">
+                <input required aria-required="true" className="inp"
+                    value={form.state}
+                    onChange={e => onChange('state', e.target.value)} />
+            </Field>
+
+            <Field label="Country (code) *">
+                <input required aria-required="true" className="inp"
+                    value={form.country_code}
+                    onChange={e => onChange('country_code', e.target.value.toUpperCase())} />
+            </Field>
+        </Row>
 
             <div className="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <label className="block">

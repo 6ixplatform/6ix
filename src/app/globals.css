@@ -2432,3 +2432,747 @@ input[type="radio"][disabled] {
   border-color: var(--btn-border-hover) !important;
   box-shadow: var(--focus-ring) !important;
 }
+
+/* ===== 6ix Intro Modal (glassy, light/dark adaptive) ===== */
+
+:root {
+  --six-modal-overlay: rgba(0, 0, 0, 0.45);
+  --six-surface: rgba(255, 255, 255, 0.65);
+  --six-stroke: rgba(0, 0, 0, 0.08);
+  --six-text: #0b0b0b;
+  --six-muted: #374151;
+  --six-btn-pri-bg: #000;
+  --six-btn-pri-fg: #fff;
+  --six-btn-ghost-bg: transparent;
+  --six-btn-ghost-fg: #0b0b0b;
+  --six-btn-minor-bg: transparent;
+  --six-btn-minor-fg: #4b5563;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --six-modal-overlay: rgba(0, 0, 0, 0.6);
+    --six-surface: rgba(20, 22, 26, 0.72);
+    --six-stroke: rgba(255, 255, 255, 0.08);
+    --six-text: #f3f4f6;
+    --six-muted: #9ca3af;
+    --six-btn-pri-bg: #ffffff;
+    --six-btn-pri-fg: #000000;
+    --six-btn-ghost-bg: transparent;
+    --six-btn-ghost-fg: #ffffff;
+    --six-btn-minor-bg: transparent;
+    --six-btn-minor-fg: #9ca3af;
+  }
+}
+
+.six-overlay {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: var(--six-modal-overlay);
+  z-index: 1000;
+  padding: 24px;
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+}
+
+.six-card {
+  width: min(860px, 100%);
+  color: var(--six-text);
+  background: var(--six-surface);
+  border: 1px solid var(--six-stroke);
+  border-radius: 20px;
+  padding: 22px;
+  box-shadow:
+    0 10px 40px rgba(0, 0, 0, .25),
+    inset 0 1px 0 rgba(255, 255, 255, .35);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  backdrop-filter: blur(16px) saturate(140%);
+}
+
+.six-header h2 {
+  margin: 0 0 4px;
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.six-tagline {
+  margin: 0;
+  color: var(--six-muted);
+}
+
+.six-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin: 16px 0 8px;
+}
+
+@media (min-width: 720px) {
+  .six-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.six-block {
+  padding: 14px 14px;
+  border: 1px solid var(--six-stroke);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, .42);
+  -webkit-backdrop-filter: blur(8px) saturate(140%);
+  backdrop-filter: blur(8px) saturate(140%);
+}
+
+@media (prefers-color-scheme: dark) {
+  .six-block {
+    background: rgba(14, 16, 20, .55);
+  }
+}
+
+.six-block-title {
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.six-block-text {
+  margin: 0;
+  color: var(--six-text);
+}
+
+.six-cta-cards {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 1fr;
+  margin-top: 12px;
+}
+
+@media (min-width: 720px) {
+  .six-cta-cards {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.six-cta {
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px dashed var(--six-stroke);
+  background: rgba(255, 255, 255, .35);
+  -webkit-backdrop-filter: blur(6px) saturate(140%);
+  backdrop-filter: blur(6px) saturate(140%);
+}
+
+@media (prefers-color-scheme: dark) {
+  .six-cta {
+    background: rgba(14, 16, 20, .5);
+  }
+}
+
+.six-cta-head {
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.six-list {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.six-list a {
+  text-decoration: underline;
+}
+
+.six-note {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--six-stroke);
+  color: var(--six-text);
+  background: rgba(255, 255, 255, .3);
+}
+
+@media (prefers-color-scheme: dark) {
+  .six-note {
+    background: rgba(14, 16, 20, .45);
+  }
+}
+
+.six-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.six-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 16px;
+  border-radius: 9999px;
+  font-weight: 700;
+  text-decoration: none;
+  border: 1px solid var(--six-stroke);
+  transition: transform .06s ease, opacity .12s ease;
+  cursor: pointer;
+}
+
+.six-btn:active {
+  transform: translateY(1px);
+}
+
+.six-btn-primary {
+  background: var(--six-btn-pri-bg);
+  color: var(--six-btn-pri-fg);
+}
+
+.six-btn-ghost {
+  background: var(--six-btn-ghost-bg);
+  color: var(--six-btn-ghost-fg);
+}
+
+.six-btn-minor {
+  background: var(--six-btn-minor-bg);
+  color: var(--six-btn-minor-fg);
+}
+
+.six-once {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--six-muted);
+}
+
+/* small accessibility niceties */
+.six-btn:focus-visible,
+.six-card :where(a, button):focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+/* --- 6ix Intro Modal: mobile-safe, iOS/Android friendly --- */
+:root {
+  --sa-top: env(safe-area-inset-top, 0px);
+  --sa-right: env(safe-area-inset-right, 0px);
+  --sa-bottom: env(safe-area-inset-bottom, 0px);
+  --sa-left: env(safe-area-inset-left, 0px);
+}
+
+.six-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: grid;
+  place-items: center;
+  padding: max(12px, var(--sa-top)) max(12px, var(--sa-right)) max(12px, var(--sa-bottom)) max(12px, var(--sa-left));
+  background: rgba(0, 0, 0, .35);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  overscroll-behavior: contain;
+  /* stop iOS rubber-band */
+}
+
+/* Fallback when blur isn’t available (older Android/WebView) */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .six-overlay {
+    background: rgba(0, 0, 0, .6);
+  }
+}
+
+.six-card {
+  width: min(600px, 92vw);
+  max-height: 88vh;
+  /* fallback */
+  max-height: 88dvh;
+  /* modern mobile */
+  border-radius: 20px;
+  border: 1px solid var(--th-border, #2a2a2a);
+  overflow: auto;
+  box-shadow: 0 30px 120px rgba(0, 0, 0, .45);
+  -webkit-overflow-scrolling: touch;
+  /* smooth scroll on iOS */
+  background: var(--surface-1, rgba(255, 255, 255, .92));
+  color: var(--th-text, #111);
+}
+
+/* Auto theme */
+@media (prefers-color-scheme: dark) {
+  .six-card {
+    background: rgba(17, 17, 19, .9);
+    color: #fff;
+    border-color: #2b2b2b;
+  }
+
+  .six-tagline {
+    color: #b7bdc6;
+  }
+}
+
+/* Typography/layout bits (keep it lean) */
+.six-header {
+  padding: 18px 18px 6px;
+  text-align: center;
+}
+
+.six-tagline {
+  margin: 6px 0 0;
+  font-size: 13px;
+  opacity: .8;
+}
+
+.six-grid {
+  display: grid;
+  gap: 12px;
+  padding: 6px 18px 4px;
+}
+
+@media (min-width: 640px) {
+  .six-grid {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+}
+
+.six-block {
+  border: 1px solid var(--th-border, #e5e7eb);
+  border-radius: 14px;
+  padding: 12px;
+  background: rgba(255, 255, 255, .55);
+}
+
+@media (prefers-color-scheme: dark) {
+  .six-block {
+    background: rgba(0, 0, 0, .25);
+    border-color: #242424;
+  }
+}
+
+.six-block-title {
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.six-block-text {
+  font-size: 13px;
+  opacity: .9;
+}
+
+.six-cta-cards {
+  display: grid;
+  gap: 12px;
+  padding: 6px 18px;
+}
+
+@media (min-width: 640px) {
+  .six-cta-cards {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.six-cta {
+  border: 1px solid var(--th-border, #e5e7eb);
+  border-radius: 14px;
+  padding: 12px;
+  background: rgba(255, 255, 255, .55);
+}
+
+@media (prefers-color-scheme: dark) {
+  .six-cta {
+    background: rgba(0, 0, 0, .25);
+    border-color: #242424;
+  }
+}
+
+.six-cta-head {
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.six-list {
+  margin: 0;
+  padding-left: 18px;
+  line-height: 1.5;
+  font-size: 13px;
+}
+
+.six-note {
+  padding: 6px 18px 0;
+  font-size: 13px;
+  opacity: .95;
+}
+
+.six-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 14px 18px 16px;
+  justify-content: center;
+}
+
+/* Buttons inherit your global overrides; these are minimal guards */
+.six-btn {
+  border-radius: 9999px;
+  padding: 10px 14px;
+  font-weight: 600;
+  border: 1px solid currentColor;
+}
+
+.six-btn-primary {
+  background: #111;
+  color: #fff;
+  border-color: #111;
+}
+
+.six-btn-primary:hover {
+  filter: brightness(1.06);
+}
+
+.six-btn-ghost {
+  background: transparent;
+  color: inherit;
+}
+
+.six-btn-minor {
+  background: transparent;
+  opacity: .85;
+}
+
+.six-once {
+  text-align: center;
+  font-size: 11px;
+  opacity: .7;
+  padding: 0 0 12px;
+}
+
+/* --- 6ix Intro Modal v2: mobile-safe, iOS/Android friendly, read-only --- */
+:root {
+  --sa-top: env(safe-area-inset-top, 0px);
+  --sa-right: env(safe-area-inset-right, 0px);
+  --sa-bottom: env(safe-area-inset-bottom, 0px);
+  --sa-left: env(safe-area-inset-left, 0px);
+  --th-border: #2a2a2a;
+  --th-text: #111;
+  --surface-1: rgba(255, 255, 255, .92);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --th-border: #2b2b2b;
+    --th-text: #fff;
+    --surface-1: rgba(17, 17, 19, .9);
+  }
+}
+
+.six-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: grid;
+  place-items: center;
+  padding: max(12px, var(--sa-top)) max(12px, var(--sa-right)) max(12px, var(--sa-bottom)) max(12px, var(--sa-left));
+  background: rgba(0, 0, 0, .35);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  overscroll-behavior: contain;
+  /* stop iOS rubber-band */
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .six-overlay {
+    background: rgba(0, 0, 0, .6);
+  }
+}
+
+.six-card {
+  width: min(600px, 92vw);
+  max-height: 88vh;
+  max-height: 88dvh;
+  border-radius: 20px;
+  border: 1px solid var(--th-border);
+  overflow: auto;
+  box-shadow: 0 30px 120px rgba(0, 0, 0, .45);
+  -webkit-overflow-scrolling: touch;
+  background: var(--surface-1);
+  color: var(--th-text);
+}
+
+.six-header {
+  padding: 18px 18px 6px;
+  text-align: center;
+  display: grid;
+  grid-auto-flow: row;
+  gap: 10px;
+  justify-items: center;
+}
+
+.six-tagline {
+  margin: 2px 0 0;
+  font-size: 13px;
+  opacity: .8;
+}
+
+/* Play Button */
+.six-play {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  background: transparent;
+  cursor: pointer;
+  user-select: none;
+}
+
+.six-play:disabled {
+  opacity: .6;
+  cursor: not-allowed;
+}
+
+.six-play-ico {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.six-play-label {
+  font-weight: 700;
+  letter-spacing: .2px;
+}
+
+.six-grid {
+  display: grid;
+  gap: 12px;
+  padding: 6px 18px 4px;
+}
+
+@media (min-width: 640px) {
+  .six-grid {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+}
+
+.six-block {
+  border: 1px solid var(--th-border);
+  border-radius: 14px;
+  padding: 12px;
+  background: rgba(255, 255, 255, .55);
+}
+
+@media (prefers-color-scheme: dark) {
+  .six-block {
+    background: rgba(0, 0, 0, .25);
+  }
+}
+
+.six-block-title {
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.six-block-text {
+  font-size: 13px;
+  opacity: .9;
+}
+
+.six-cta-cards {
+  display: grid;
+  gap: 12px;
+  padding: 6px 18px;
+}
+
+@media (min-width: 640px) {
+  .six-cta-cards {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.six-cta {
+  border: 1px solid var(--th-border);
+  border-radius: 14px;
+  padding: 12px;
+  background: rgba(255, 255, 255, .55);
+}
+
+@media (prefers-color-scheme: dark) {
+  .six-cta {
+    background: rgba(0, 0, 0, .25);
+  }
+}
+
+.six-cta-head {
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.six-list {
+  margin: 0;
+  padding-left: 18px;
+  line-height: 1.5;
+  font-size: 13px;
+}
+
+.six-note {
+  padding: 6px 18px 0;
+  font-size: 13px;
+  opacity: .95;
+}
+
+.six-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 14px 18px 16px;
+  justify-content: center;
+}
+
+/* Buttons (read-only modal: only "Got it") */
+.six-btn {
+  border-radius: 9999px;
+  padding: 10px 14px;
+  font-weight: 700;
+  border: 1px solid currentColor;
+}
+
+.six-btn-primary {
+  background: #111;
+  color: #fff;
+  border-color: #111;
+}
+
+.six-btn-primary:hover {
+  filter: brightness(1.06);
+}
+
+.six-once {
+  text-align: center;
+  font-size: 11px;
+  opacity: .7;
+  padding: 0 0 12px;
+}
+
+/* No-anchor guard: the modal contains no <a>; if any slip in, neutralize them */
+.six-card a {
+  pointer-events: none;
+  text-decoration: none;
+  color: inherit;
+}
+
+/* ==== 6ix Global Button Overrides (place at end of globals.css) ==== */
+:root {
+  --btn-light-bg: #fff;
+  --btn-light-fg: #000;
+  --btn-dark-bg: #111;
+  --btn-dark-fg: #fff;
+  --btn-disabled-light-bg: rgba(255, 255, 255, .26);
+  --btn-disabled-light-fg: rgba(0, 0, 0, .75);
+  --btn-disabled-dark-bg: rgba(17, 17, 17, .55);
+  --btn-disabled-dark-fg: rgba(255, 255, 255, .75);
+}
+
+/* Base normalization (kills any inherit blue) */
+button,
+a.btn, a.six-btn,
+.btn, .six-btn,
+[role="button"],
+input[type="button"],
+input[type="submit"] {
+  text-shadow: none !important;
+  box-shadow: none !important;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* ===== LIGHT (white) buttons → black text */
+.btn-primary,
+.six-btn-primary,
+.btn--white,
+button.btn-primary,
+input[type="submit"].btn-primary,
+input[type="button"].btn-primary {
+  background: var(--btn-light-bg) !important;
+  color: var(--btn-light-fg) !important;
+  border-color: #e5e7eb !important;
+}
+
+.btn-primary:hover,
+.btn-primary:active,
+.btn-primary:focus,
+.btn-primary:focus-visible,
+.six-btn-primary:hover,
+.six-btn-primary:active,
+.six-btn-primary:focus,
+.six-btn-primary:focus-visible {
+  background: var(--btn-light-bg) !important;
+  color: var(--btn-light-fg) !important;
+  border-color: #d1d5db !important;
+}
+
+.btn-primary:disabled,
+.six-btn-primary:disabled {
+  background: var(--btn-disabled-light-bg) !important;
+  color: var(--btn-disabled-light-fg) !important;
+  cursor: not-allowed !important;
+  opacity: 1 !important;
+  /* keep readable */
+}
+
+/* ===== DARK (black) buttons → white text */
+.btn-outline,
+.six-btn-ghost,
+.six-btn-minor,
+.btn--dark,
+button.btn-outline,
+input[type="submit"].btn-outline,
+input[type="button"].btn-outline {
+  background: var(--btn-dark-bg) !important;
+  color: var(--btn-dark-fg) !important;
+  border-color: #0b0c10 !important;
+}
+
+.btn-outline:hover,
+.btn-outline:active,
+.btn-outline:focus,
+.btn-outline:focus-visible,
+.six-btn-ghost:hover,
+.six-btn-ghost:active,
+.six-btn-ghost:focus,
+.six-btn-ghost:focus-visible,
+.six-btn-minor:hover,
+.six-btn-minor:active,
+.six-btn-minor:focus,
+.six-btn-minor:focus-visible {
+  background: #151515 !important;
+  color: var(--btn-dark-fg) !important;
+}
+
+.btn-outline:disabled,
+.six-btn-ghost:disabled,
+.six-btn-minor:disabled {
+  background: var(--btn-disabled-dark-bg) !important;
+  color: var(--btn-disabled-dark-fg) !important;
+  cursor: not-allowed !important;
+  opacity: 1 !important;
+}
+
+/* Remove default blue focus ring across buttons */
+button:focus,
+.btn:focus,
+.six-btn:focus,
+a.btn:focus, a.six-btn:focus,
+input[type="button"]:focus,
+input[type="submit"]:focus {
+  outline: 2px solid currentColor !important;
+  /* uses black on white, white on black */
+  outline-offset: 2px;
+  box-shadow: none !important;
+}
+
+/* Ensure icons/checkmarks on buttons match the text color */
+button svg, .btn svg, .six-btn svg,
+button i, .btn i, .six-btn i {
+  color: currentColor !important;
+  fill: currentColor !important;
+  stroke: currentColor !important;
+}
+
+/* (Optional) scope specifically for onboarding views as well */
