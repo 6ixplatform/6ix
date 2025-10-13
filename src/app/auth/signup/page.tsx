@@ -610,7 +610,23 @@ html.theme-light .auth-scope input[type="checkbox"]:checked { background:#000; b
 /* Small utilities */
 .auth-scope .text-link { text-decoration: underline; text-decoration-color: rgba(255,255,255,.3); }
 html.theme-light .auth-scope .text-link { text-decoration-color: rgba(0,0,0,.3); }
+/* ---- Sign-up: checkbox should be transparent fill, visible tick ---- */
+.auth-scope.signup-scope .chk,
+.signup-scope .chk{
+appearance: auto !important;
+-webkit-appearance: auto !important;
+background-color: transparent !important; /* no solid fill */
+border: 1px solid rgba(255,255,255,.45) !important;
+accent-color: #ffffff; /* white tick in dark mode */
+width: 18px; height: 18px; border-radius: 4px;
+}
 
+html.theme-light .auth-scope.signup-scope .chk,
+html.theme-light .signup-scope .chk{
+background-color: transparent !important;
+border-color: rgba(0,0,0,.45) !important;
+accent-color: #000000; /* black tick in light mode */
+}
 
 `}</style>
             </main>

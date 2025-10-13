@@ -1,20 +1,18 @@
+// src/components/AppHeader.tsx
 'use client';
 
 import React from 'react';
 import Image from 'next/image';
 import BottomNav from '@/components/BottomNav';
-import CrescentIcon from '@/components/CrescentIcon';
+import ThemeMenu from './ThemeMenu';
+import MusicPill from './music/MusicPill';
 import {
     type Plan,
     type UiModelId,
     type SpeedMode,
     coerceUiModelForPlan,
 } from '@/lib/planRules';
-import MusicPill from './music/MusicPill';
-import ThemeMenu from './ThemeMenu';
 
-/* ────────────────────────────────────────────────────────────────────────── */
-/* local fallback + tiny verified badge (mirrors UserMenuPortal) */
 /* ────────────────────────────────────────────────────────────────────────── */
 
 const AVATAR_FALLBACK =
@@ -44,8 +42,6 @@ function VerifiedBadge({ plan }: { plan: Plan }) {
 }
 
 /* ────────────────────────────────────────────────────────────────────────── */
-/* config & helpers */
-/* ────────────────────────────────────────────────────────────────────────── */
 
 const SPEEDS_BY_PLAN: Record<Plan, SpeedMode[]> = {
     free: ['auto'],
@@ -65,32 +61,29 @@ type AnyRef<T> = React.RefObject<T> | React.MutableRefObject<T>;
 
 type Props = {
     headerRef?: AnyRef<HTMLDivElement | null>;
-
     profile: {
         displayName?: string | null;
         avatarUrl?: string | null;
         wallet?: number | null;
         credits?: number | null;
-        email?: string | null; // include email so we can safely split
+        email?: string | null;
     } | null;
     miniSeed: MiniSeed | null;
 
     effPlan: Plan;
-    model: UiModelId; // read-only (tied to plan)
-    speed: SpeedMode; // current chosen speed (if selectable)
+    model: UiModelId;
+    speed: SpeedMode;
     onSpeedChange?: (next: SpeedMode) => void;
-    onUpsell?: (need: Plan) => void; // called if a Free user tries to change speed
+    onUpsell?: (need: Plan) => void;
 
     avatarBtnRef: AnyRef<HTMLButtonElement | null>;
     onAvatarClick: () => void;
-
-   
 
     scrollToBottom: (smooth?: boolean) => void;
     avatarFallback?: string;
 };
 
-/* little UI atoms with the same height as the music pill (h-9) */
+/* simple pill */
 function Pill({
     children,
     className = '',
@@ -122,26 +115,17 @@ function Pill({
     );
 }
 
-/* popover for speed choices on desktop */
+/* desktop speed dropdown */
 function SpeedSelect({
-    value,
-    items,
-    disabled,
-    onPick,
-}: {
-    value: SpeedMode;
-    items: SpeedMode[];
-    disabled?: boolean;
-    onPick: (s: SpeedMode) => void;
-}) {
+    value, items, disabled, onPick,
+}: { value: SpeedMode; items: SpeedMode[]; disabled?: boolean; onPick: (s: SpeedMode) => void }) {
     const [open, setOpen] = React.useState(false);
     const btnRef = React.useRef<HTMLButtonElement | null>(null);
     const panelRef = React.useRef<HTMLDivElement | null>(null);
     const [pos, setPos] = React.useState({ top: 0, left: 0, width: 150 });
 
     const recalc = React.useCallback(() => {
-        const el = btnRef.current;
-        if (!el) return;
+        const el = btnRef.current; if (!el) return;
         const r = el.getBoundingClientRect();
         setPos({ top: Math.round(r.bottom + 8), left: Math.round(r.left), width: Math.round(r.width) });
     }, []);
@@ -177,15 +161,18 @@ function SpeedSelect({
 
     return (
         <>
-            <Pill
+            <button
+                ref={btnRef}
+                type="button"
                 title={disabled ? undefined : 'Speed'}
-                interactive={!disabled}
-                className="select-trigger"
                 onClick={() => !disabled && setOpen(v => !v)}
+                className="select-trigger h-9 px-4 rounded-full bg-white/5 border border-white/15 text-[13px] text-zinc-200 hover:bg-white/10 active:scale-[.98] transition"
+                aria-haspopup="listbox"
+                aria-expanded={open || undefined}
+                aria-disabled={disabled || undefined}
             >
-                {value}
-                {caret}
-            </Pill>
+                {value}{caret}
+            </button>
 
             {open && (
                 <div
@@ -202,10 +189,7 @@ function SpeedSelect({
                                 role="option"
                                 aria-selected={x === value}
                                 className={`glass-dd__item ${x === value ? 'is-active' : ''}`}
-                                onClick={() => {
-                                    setOpen(false);
-                                    onPick(x);
-                                }}
+                                onClick={() => { setOpen(false); onPick(x); }}
                             >
                                 {x}
                             </button>
@@ -232,140 +216,86 @@ export default function AppHeader({
     scrollToBottom,
     avatarFallback = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==',
 }: Props) {
-
-    // same as UserMenuPortal: quick local fallback
     const [mini, setMini] = React.useState<{ avatarUrl?: string | null; displayName?: string | null; email?: string | null; wallet?: number | null; credits?: number | null } | null>(null);
-    React.useEffect(() => {
-        try { setMini(JSON.parse(localStorage.getItem('6ixai:profile') || 'null')); } catch { }
-    }, []);
+    React.useEffect(() => { try { setMini(JSON.parse(localStorage.getItem('6ixai:profile') || 'null')); } catch { } }, []);
 
     const name =
-        (profile?.displayName
-            || (profile as any)?.username
-            || profile?.email?.split?.('@')[0]
-            || miniSeed?.displayName
-            || miniSeed?.email?.split?.('@')[0]
-            || mini?.displayName
-            || mini?.email?.split?.('@')[0]
-            || 'Profile'
+        (profile?.displayName ||
+            (profile as any)?.username ||
+            profile?.email?.split?.('@')[0] ||
+            miniSeed?.displayName ||
+            miniSeed?.email?.split?.('@')[0] ||
+            mini?.displayName ||
+            mini?.email?.split?.('@')[0] ||
+            'Profile'
         ).trim();
 
-    const avatarSrc = (profile?.avatarUrl?.trim()
-        || miniSeed?.avatarUrl?.trim()
-        || mini?.avatarUrl
-        || (avatarFallback || AVATAR_FALLBACK)) as string;
-
+    const avatarSrc = (profile?.avatarUrl?.trim() || miniSeed?.avatarUrl?.trim() || mini?.avatarUrl || (avatarFallback || AVATAR_FALLBACK)) as string;
     const walletNow = Number(profile?.wallet ?? miniSeed?.wallet ?? mini?.wallet ?? 0);
     const creditsNow = Number(profile?.credits ?? miniSeed?.credits ?? mini?.credits ?? 0);
 
-
-
-    // model is tied to plan; ensure it shows the allowed one
     const displayModel: UiModelId = coerceUiModelForPlan(model, effPlan);
-
-    // speed choices depend on plan
     const speedChoices = SPEEDS_BY_PLAN[effPlan];
 
     const handleSpeedPick = (next: SpeedMode) => {
-
-        if (effPlan === 'free') {
-            onUpsell?.('pro'); // suggest upgrading
-            return;
-        }
+        if (effPlan === 'free') { onUpsell?.('pro'); return; }
         onSpeedChange?.(next);
     };
 
     return (
-        <div
-            ref={headerRef}
-            className="app-header sticky top-0 z-30 bg-black/75 backdrop-blur-xl border-b border-white/10"
-        >
-            <div className="mx-auto px-3 pt-2 pb-2 max-w=[min(1100px,92vw)] max-w-[min(1100px,92vw)]">
-                {/* Row 1 — logo • music pill • plan/model/speed • right cluster */}
-                <div className="flex items-center gap-2">
-                    {/* left – logo (back) */}
+        <div ref={headerRef} className="app-header sticky top-0 z-30 bg-black/75 backdrop-blur-xl border-b border-white/10">
+            <div className="mx-auto px-3 pt-2 pb-2 max-w-[min(1100px,92vw)]">
+                {/* Row 1 — mobile */}
+                <div className="md:hidden flex items-center gap-2">
+                    <button onClick={() => scrollToBottom(false)} className="rounded-sm shrink-0" aria-label="Scroll to latest">
+                        <Image src="/splash.png" alt="6IX" width={36} height={36} className="rounded-sm opacity-80" />
+                    </button>
+                    <div className="flex-1 min-w-0">
+                        <MusicPill className="w-full" />
+                    </div>
+                    <button ref={avatarBtnRef} onClick={onAvatarClick} className="relative h-9 w-9 rounded-full overflow-hidden border border-white/15 active:scale-95 shrink-0" aria-label="Account menu">
+                        <img src={avatarSrc} alt={name || 'avatar'} className="h-full w-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).src = AVATAR_FALLBACK; }} />
+                        <VerifiedBadge plan={effPlan} />
+                    </button>
+                </div>
+
+                {/* Row 1 — desktop */}
+                <div className="hidden md:flex items-center gap-2">
                     <button onClick={() => scrollToBottom(false)} className="rounded-sm shrink-0" aria-label="Scroll to latest">
                         <Image src="/splash.png" alt="6IX" width={54} height={54} className="rounded-sm opacity-80" />
                     </button>
 
-                    {/* Music pill (extracted) */}
-                    <MusicPill category="afrobeat" />
+                    <MusicPill className="w-auto" />
 
-                    {/* plan/model/speed cluster (matches pill height & spacing) */}
-                    <div className="hidden md:flex items-center gap-2">
+                    <div className="flex items-center gap-2">
                         <Pill title="Your current plan">{effPlan}</Pill>
                         <Pill title="Model is tied to your plan">{displayModel}</Pill>
-                        <div className="relative">
-                            <SpeedSelect
-                                value={speed}
-                                items={speedChoices}
-                                disabled={effPlan === 'free'}
-                                onPick={handleSpeedPick}
-                            />
-                        </div>
+                        <SpeedSelect value={speed} items={speedChoices} disabled={effPlan === 'free'} onPick={handleSpeedPick} />
                     </div>
 
-                    {/* right – name • avatar • Wallet · Coins • theme */}
                     <div className="flex items-center gap-2 shrink-0 ml-auto">
-                        <div
-                            className="hidden md:block text-[11px] opacity-80 whitespace-nowrap ml-1"
-                            suppressHydrationWarning
-                        >
-                            {/* fixed locale to avoid SSR/CSR locale drift */}
+                        <div className="text-[11px] opacity-80 whitespace-nowrap ml-1" suppressHydrationWarning>
                             <>Wallet ${walletNow.toLocaleString('en-US')} · Coins {creditsNow.toLocaleString('en-US')}</>
                         </div>
-
-                       <ThemeMenu/>
-
-                        {/* Name (portal-style; one source of truth) */}
-                        <div className="hidden sm:block text-sm opacity-90 truncate max-w-[180px]">
-                            <span title={name}>{name}</span>
-                        </div>
-
-                        <button
-                            ref={avatarBtnRef}
-                            onClick={onAvatarClick}
-                            className="relative h-9 w-9 rounded-full overflow-hidden border border-white/15 active:scale-95"
-                            aria-label="Account menu"
-                        >
-                            {/* Avatar (portal-style; single <img>, src updates as props/mini change) */}
-                            <img
-                                src={avatarSrc}
-                                alt={name || 'avatar'}
-                                className="h-full w-full object-cover"
-                                onError={(e) => { (e.currentTarget as HTMLImageElement).src = AVATAR_FALLBACK; }}
-                            />
+                        <ThemeMenu />
+                        <div className="text-sm opacity-90 truncate max-w-[180px]"><span title={name}>{name}</span></div>
+                        <button ref={avatarBtnRef} onClick={onAvatarClick} className="relative h-9 w-9 rounded-full overflow-hidden border border-white/15 active:scale-95" aria-label="Account menu">
+                            <img src={avatarSrc} alt={name || 'avatar'} className="h-full w-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).src = AVATAR_FALLBACK; }} />
                             <VerifiedBadge plan={effPlan} />
                         </button>
-
                     </div>
                 </div>
 
-                {/* Row 2 — nav buttons (desktop) */}
+                {/* Row 2 — desktop nav */}
                 <div className="hidden md:block mt-2">
                     <BottomNav />
                 </div>
 
-                {/* Row 3 — mobile pills */}
-                <div className="md:hidden mt-2 flex items-center gap-2">
-                    <Pill>{effPlan}</Pill>
-                    <Pill>{displayModel}</Pill>
-                    {SPEEDS_BY_PLAN[effPlan].length > 1 ? (
-
-                        <label className="h-9 px-4 rounded-full bg-white/5 border border-white/15 text-[13px] text-zinc-200 grid place-items-center">
-                            <select
-                                className="bg-transparent outline-none"
-                                value={speed}
-                                onChange={(e) => handleSpeedPick(e.target.value as SpeedMode)}
-                            >
-                                {SPEEDS_BY_PLAN[effPlan].map(s => (
-                                    <option key={s} value={s}>{s}</option>
-                                ))}
-                            </select>
-                        </label>
-                    ) : (
-                        <Pill>auto</Pill>
-                    )}
+                {/* Row 3 — mobile: static tiny pills (no chevrons, no selects) */}
+                <div className="md:hidden mt-2 grid grid-cols-3 gap-2">
+                    <div className="h-7 px-3 rounded-full bg-white/5 border border-white/15 text-[12px] text-zinc-200 grid place-items-center">{effPlan}</div>
+                    <div className="h-7 px-3 rounded-full bg-white/5 border border-white/15 text-[12px] text-zinc-200 grid place-items-center">{displayModel}</div>
+                    <div className="h-7 px-3 rounded-full bg-white/5 border border-white/15 text-[12px] text-zinc-200 grid place-items-center">{speed}</div>
                 </div>
             </div>
         </div>

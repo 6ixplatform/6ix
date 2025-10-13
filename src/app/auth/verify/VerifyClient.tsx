@@ -291,7 +291,7 @@ export default function VerifyClient() {
             {/* Mobile */}
             <div className="md:hidden pb-20">
 
-                <div className="verify-card  pt-6 grid place-items-center">
+                <div className="verify-card verify-head pt-6 grid place-items-center">
                     <Image src="/splash.png" alt="6ix" width={120} height={120} priority className="rounded-xl object-cover" />
                     <h1 className="mt-4 text-3xl font-semibold text-center px-6">Verify your code</h1>
                     <p className="mt-2 text-center px-6 text-zinc-300">
@@ -514,7 +514,19 @@ border-top-color: transparent !important;
 animation: six-spin .8s linear infinite;
 vertical-align: -2px; /* sits nicely beside text */
 }
-
+/* Remove the frame around the top "Verify your code" hero only */
+.verify-scope .verify-head{
+border: 0 !important;
+background: transparent !important;
+box-shadow: none !important;
+backdrop-filter: none !important;
+}
+html.theme-light .verify-scope .verify-head{
+border: 0 !important;
+background: transparent !important;
+box-shadow: none !important;
+backdrop-filter: none !important;
+}
 `}</style>
         </main>
     );

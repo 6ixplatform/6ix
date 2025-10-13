@@ -59,6 +59,16 @@ export function getAudioGraph(): Graph {
     return _graph;
 }
 
+export async function getSong(id: string): Promise<Song> {
+    const { data, error } = await supabase
+        .from('songs')
+        .select('id,title,artist,album,year,label,artwork_url,lyrics_url,audio_url')
+        .eq('id', id)
+        .single();
+    if (error) throw error;
+    return data as Song;
+}
+
 /** Call right before play(); resumes suspended contexts on iOS/Chrome. */
 export async function resumeAudioContext(): Promise<void> {
     try {

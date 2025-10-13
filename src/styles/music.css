@@ -1,9 +1,11 @@
 /* ===== MusicPill v2 (compact, overlay sheet) ===== */
 
+/* --- MUSIC PILL: art | text | controls | chevron --- */
 .six-music-pill {
     --pill-h: 36px;
     display: grid;
-    grid-template-columns: 32px minmax(160px, 1fr) auto 260px 28px;
+    grid-template-columns: 32px 1fr auto 28px;
+    /* NO wave column on mobile */
     align-items: center;
     gap: 10px;
     height: var(--pill-h);
@@ -12,6 +14,57 @@
     border: 1px solid var(--th-border);
     background: color-mix(in oklab, var(--th-text) 6%, transparent);
     color: var(--th-text);
+}
+
+/* text block: make sure it can actually shrink on iOS/Android */
+.pill-text {
+    min-width: 0;
+    /* critical on mobile */
+    display: block;
+}
+
+.pill-title {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+
+
+/* controls stick to the right edge of their column */
+.pill-controls {
+    display: flex;
+    gap: 8px;
+    justify-self: end;
+    /* right-align in its grid cell */
+}
+
+/* chevron at the far-right corner */
+.six-music-pill>.icon-btn:last-child {
+    justify-self: end;
+}
+
+/* DESKTOP/TABLET: bring the wave/equalizer back as a column */
+@media (min-width: 768px) {
+    .six-music-pill {
+        grid-template-columns: 32px minmax(180px, 1fr) auto minmax(120px, 24vw) 28px;
+        /* art | text | controls | wave | chevron */
+    }
+
+    .music-wave {
+        display: block;
+        width: 100%;
+        max-width: 360px;
+        height: 18px;
+        background: transparent;
+    }
+}
+
+/* MOBILE: make sure the wave is gone */
+@media (max-width: 767.98px) {
+    .music-wave {
+        display: none !important;
+    }
 }
 
 .pill--compact {
@@ -125,25 +178,6 @@
     max-width: 360px;
 }
 
-@media (max-width: 900px) {
-    .six-music-pill {
-        grid-template-columns: 32px 1fr auto 200px 28px;
-    }
-
-    .music-wave.long {
-        max-width: 220px;
-    }
-}
-
-@media (max-width: 640px) {
-    .six-music-pill {
-        grid-template-columns: 32px 1fr auto 140px 28px;
-    }
-
-    .music-wave.long {
-        max-width: 160px;
-    }
-}
 
 /* ===== Top sheet overlay (no backdrop, transparent container) ===== */
 
@@ -361,4 +395,87 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+/* --- MUSIC PILL GLOBAL FIXES (works with your current JSX) --- */
+
+/* 1) Make the title/artist visible on mobile (flex min-width bug) */
+.six-music-pill :is(.six-music-pill__meta, .min-w-0.flex-1) {
+    min-width: 0 !important;
+    /* critical for iOS/Android */
+    flex: 1 1 auto !important;
+    overflow: hidden !important;
+    white-space: nowrap !important;
+    text-overflow: ellipsis !important;
+    animation: none !important;
+    /* in case an old marquee is lingering */
+    -webkit-mask-image: none !important;
+    mask-image: none !important;
+}
+
+/* 2) Keep controls + chevron stuck to the far right inside the pill */
+.six-music-pill :is(.six-music-pill__controls, .ml-auto.flex.items-center) {
+    margin-left: auto !important;
+    /* pushes group right */
+    display: flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    /* tweak spacing as you like */
+}
+
+/* 3) Tiny nudge between the last control and the chevron */
+.six-music-pill :is(.six-music-pill__chev, .icon-btn.h-7.w-7) {
+    margin-left: 6px !important;
+}
+
+/* Optional: ensure the pill itself doesn’t clip the text by accident */
+.six-music-pill {
+    overflow: visible;
+    /* or keep your existing overflow if needed */
+}
+
+/* one-line rail that can auto-scroll when overflowing */
+.pill-title-rail {
+    position: relative;
+    overflow: hidden;
+    white-space: nowrap;
+    /* soft edges so the scroll feels natural */
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 12px,
+            #000 calc(100% - 22px), transparent);
+    mask-image: linear-gradient(90deg, transparent, #000 12px,
+            #000 calc(100% - 22px), transparent);
+}
+
+.pill-title-chunk {
+    display: inline-block;
+    padding-right: 40px;
+}
+
+/* kick in marquee only when we add .is-marquee */
+.pill-title-rail.is-marquee {
+    animation: pill-title-marquee var(--speed, 14s) linear infinite;
+    will-change: transform;
+}
+
+@keyframes pill-title-marquee {
+    from {
+        transform: translateX(0);
+    }
+
+    to {
+        transform: translateX(calc(-1 * var(--chunk, 300px)));
+    }
+}
+
+/* nice-to-have: pause on hover (desktop) + respect reduced motion */
+@media (hover:hover) {
+    .pill-title-rail.is-marquee:hover {
+        animation-play-state: paused;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .pill-title-rail {
+        animation: none !important;
+    }
 }
