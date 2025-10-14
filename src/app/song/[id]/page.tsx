@@ -1,41 +1,36 @@
 // app/song/[id]/page.tsx
 import type { Metadata } from 'next';
-import { getSong } from '@/lib/music';
 
-export async function generateMetadata(
-    { params }: { params: { id: string } }
-): Promise<Metadata> {
-    const s = await getSong(params.id);
-    const base = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
-    const url = `${base}/song/${params.id}`;
-    const og = `${base}/api/og/song?id=${params.id}`;
+async function getSong(id: string) {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL}/api/song?id=${id}`, { next: { revalidate: 60 } });
+    if (!res.ok) return null;
+    return res.json();
+}
 
+export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
+    const song = await getSong(params.id);
+    const title = song ? `${song.title} — ${song.artist}` : '6IX Music';
+    const img = song?.artwork_url || `${process.env.NEXT_PUBLIC_SITE_URL}/splash.png`;
     return {
-        title: `${s.title} — ${s.artist}`,
-        description: s.album ? `${s.artist} • ${s.album}` : s.artist,
-        metadataBase: new URL(base),
-        openGraph: {
-            type: 'music.song',
-            siteName: '6IX',
-            url,
-            title: `${s.title} — ${s.artist}`,
-            description: s.album ? `${s.artist} • ${s.album}` : s.artist,
-            images: [{ url: og, width: 1200, height: 630 }],
-        },
-        twitter: { card: 'summary_large_image' },
+        title,
+        openGraph: { title, images: [img] },
+        twitter: { card: 'summary_large_image', title, images: [img] },
+        robots: { index: true, follow: true },
     };
 }
 
-export default async function Page({ params }: { params: { id: string } }) {
-    const s = await getSong(params.id);
+export default async function Page({ params, searchParams }: any) {
+    const song = await getSong(params.id);
+    if (!song) return <main style={{ padding: 24 }}>Not found.</main>;
+
     return (
-        <main className="mx-auto max-w-3xl p-6 text-zinc-100">
-            <h1 className="text-2xl font-bold">{s.title}</h1>
-            <p className="opacity-80">{s.artist}</p>
-            <p className="opacity-70 text-sm">
-                {s.album ?? '—'}{s.year ? ` • ${s.year}` : ''}{s.label ? ` • ${s.label}` : ''}
-            </p>
-            {/* Render your player/lyrics UI here (client component) */}
+        <main style={{ minHeight: '100svh', display: 'grid', placeItems: 'center', padding: 24, background: '#0b0b0b', color: '#fff' }}>
+            <div style={{ width: 420, maxWidth: '92vw', border: '1px solid rgba(255,255,255,.12)', borderRadius: 16, padding: 16, background: 'rgba(255,255,255,.04)' }}>
+                <img src={song.artwork_url || '/splash.png'} alt="" style={{ width: '100%', aspectRatio: '1/1', objectFit: 'cover', borderRadius: 12, marginBottom: 12 }} />
+                <div style={{ fontWeight: 700, fontSize: 20, marginBottom: 4 }}>{song.title}</div>
+                <div style={{ opacity: .8, marginBottom: 12 }}>{song.artist}</div>
+                <audio src={song.audio_url} controls autoPlay={String(searchParams?.autoplay) === '1'} style={{ width: '100%' }} />
+            </div>
         </main>
     );
 }
