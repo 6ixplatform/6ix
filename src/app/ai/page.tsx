@@ -12,7 +12,6 @@ import '@/styles/6ix.css';
 import '@/styles/music.css';
 import { build6IXSystem, ProfileHints } from '@/prompts/6ixai-prompts';
 import BackStopper from '@/components/BackStopper';
-import BottomNav from '@/components/BottomNav';
 import { supabaseBrowser } from '@/lib/supabaseBrowser';
 import remarkGfm from 'remark-gfm';
 import ReactMarkdown, { Components } from 'react-markdown';
@@ -60,6 +59,7 @@ import { imagePlanFor } from '@/lib/imagePlan';
 import { sniffImageRequest } from '@/lib/imageSniffer';
 import UserFileMsg from '@/components/UserFileMsg';
 import { analyzeFiles } from '@/lib/analyzer';
+import MobileBottomNav from '@/components/MobileBottomNav';
 const HelpOverlay = NextDynamic(() => import('@/components/HelpOverlay'), { ssr: false });
 
 // --- Control tag parsers (COLOR_PICKER / SWATCH_GRID) ---
@@ -3262,10 +3262,13 @@ function AIPageInner() {
     /* ---------- RENDER 1st return ---------- */
     return (
         <div
-            className="ai-shell fixed inset-0 flex flex-col overflow-hidden themed-page "
+            className="ai-shell fixed inset-0 flex flex-col overflow-hidden"
             style={{
-                height: 'var(--app-h, 100dvh',
+                height: 'var(--app-h, 100dvh)',
                 color: 'var(--th-text)',
+                background: 'transparent',
+                touchAction: 'pan-y',
+                overscrollBehavior: 'none'
             }}
             suppressHydrationWarning
         >
@@ -3287,7 +3290,7 @@ function AIPageInner() {
 
             {/* EMPTY STATE — tagline above orb */}
             {booted && messages.length === 0 && !streaming && (
-                <section className="intro-orb__stage relative mx-auto max-w-[900px] pt-8 pb-8">
+                <section className="ai-scope intro-orb__stage relative mx-auto max-w-[900px] pt-8 pb-8">
                     {/* Orb */}
                     <LandingOrb />
                 </section>
@@ -3428,12 +3431,10 @@ function AIPageInner() {
             {/* message LIST */}
             <div
                 ref={listRef}
-                className="
-chat-list mx-auto w-full px-3 pt-2 pb-8 space-y-2 will-change-scroll
-flex-1 overflow-y-auto scroll-pb-[160px]
-max-w-[min(1200px,92vw)]
-"
-                style={{ paddingBottom: 'calc(var(--composer-h,260px) + env(safe-area-inset-bottom,0px) + 120px)' }}
+                className="chat-list flex-1 min-h-0 px-3 md:px-4"
+                role="log"
+                aria-live="polite"
+                style={{ background: 'transparent' }}
                 suppressHydrationWarning
             >
 
@@ -3639,17 +3640,15 @@ If a message is still streaming and it's the last one, hide until it finishes. *
             />
 
 
-            {/* Mobile bottom nav — measured & behind composer */}
-            <div
-                ref={mbnavRef}
-                id="mobile-nav"
-                className="md:hidden fixed bottom-0 inset-x-0 z-[30]"
-                style={{ paddingBottom: 'env(safe-area-inset-bottom,0px)' }}
-            >
-                {/* If BottomNav lets you pass items, uncomment the next line and remove the one below */}
-                {/* <BottomNav items={['6FEED','6IXAI','6GAME']} /> */}
-                <BottomNav />
-            </div>
+            {/* Mobile bottom nav — sits under the floating composer */}
+            <MobileBottomNav
+            // optional: pass your own items or handlers
+            // items={[
+            // { id: 'feed', label: '6FEED', onClick: () => router.push('/feed') },
+            // { id: 'ai', label: '6IXAI', active: true, onClick: () => router.push('/ai') },
+            // { id: 'game', label: '6GAME', onClick: () => router.push('/game') },
+            // ]}
+            />
 
 
 

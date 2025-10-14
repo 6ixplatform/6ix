@@ -212,7 +212,8 @@ export default function FloatingComposer({
             {/* Floating pill */}
             <div
                 ref={compRef}
-                className="fixed z-40 bottom-4 md:bottom-6 left-1/2 -translate-x-1/2 w-[min(96vw,760px)] md:w-[min(92vw,980px)] px-3 pointer-events-none"
+                className="fixed z-40 left-1/2 -translate-x-1/2 w-[min(96vw,760px)] md:w-[min(92vw,980px)] mb-8 px-3 pointer-events-none"
+                style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 12px)' }}
             >
                 {/* attachments row */}
                 {attachments.length > 0 && (
@@ -291,12 +292,12 @@ export default function FloatingComposer({
                     }}
                 />
 
-                {/* shell */}
+                {/* shell (mobile = inline row, desktop = current absolute layout) */}
                 <div
                     className="pointer-events-auto relative sr-ring sr-20 rounded-[9999px] min-h-[40px] backdrop-blur-md bg-transparent overflow-hidden"
                     style={{ backgroundColor: 'transparent' }}
                 >
-                    {/* Maximize */}
+                    {/* Maximize (unchanged) */}
                     {showMaxBtn && (
                         <button
                             type="button"
@@ -312,96 +313,108 @@ export default function FloatingComposer({
                         </button>
                     )}
 
-                    {/* + button */}
-                    <button
-                        type="button"
-                        className="absolute left-1.5 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full grid place-items-center active:scale-95"
-                        title="Add files"
-                        aria-label="Add files"
-                        onClick={openFiles}
-                        style={chipStyle}
-                    >
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M12 5v14M5 12h14" />
-                        </svg>
-                    </button>
-
-                    {/* text area */}
-                    <textarea
-                        ref={textRef}
-                        value={input}
-                        onChange={(e) => setInput(e.target.value)}
-                        placeholder="Message 6IX AI"
-                        rows={1}
-                        className="w-full bg-transparent outline-none text-[15px] md:text-[16px] leading-[20px] pl-12 pr-[96px] py-[8px] resize-none rounded-[9999px]"
-                        onFocus={() => { focusLockRef.current = true; }}
-                        onBlur={() => { if (!pickerOpenRef.current && focusLockRef.current) { requestAnimationFrame(() => textRef.current?.focus({ preventScroll: true })); } }}
-                        onInput={(e) => { const el = e.currentTarget; el.style.height = 'auto'; el.style.height = Math.min(160, el.scrollHeight) + 'px'; }}
-                        onKeyDown={onTextareaKeyDown}
-                        aria-keyshortcuts="Enter Tab"
-                        style={{ color: 'var(--th-text)' }}
-                    />
-
-                    {/* right chip controls */}
-                    <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
-                        {/* mic */}
+                    {/* MOBILE layout uses inline row; DESKTOP keeps absolute layout */}
+                    <div className="flex md:block items-center gap-1 px-1 py-1">
+                        {/* + button */}
                         <button
                             type="button"
-                            className={`h-8 rounded-full active:scale-95 flex items-center gap-2 px-2 ${recState === 'recording' ? 'min-w-[72px]' : 'w-8 justify-center'}`}
-                            title={recState === 'recording' ? 'Stop recording' : 'Record voice'}
-                            aria-label="Record voice"
-                            onClick={recState === 'recording' ? stopRecording : startRecording}
-                            disabled={transcribing}
+                            className="h-7 w-7 md:h-8 md:w-8 rounded-full grid place-items-center active:scale-95
+md:absolute md:left-1.5 md:top-1/2 md:-translate-y-1/2"
+                            title="Add files"
+                            aria-label="Add files"
+                            onClick={openFiles}
                             style={chipStyle}
                         >
-                            {recState === 'recording' ? (
-                                <>
-                                    <span className="inline-block h-[9px] w-[9px] rounded-full" style={{ background: '#ef4444' }} />
-                                    <MicWave active level={vu} />
-                                </>
-                            ) : (
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <path d="M12 1a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V4a3 3 0 0 1 3-3z" />
-                                    <path d="M19 10a7 7 0 0 1-14 0" />
-                                    <path d="M12 19v4" />
-                                    <path d="M8 23h8" />
-                                </svg>
-                            )}
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M12 5v14M5 12h14" />
+                            </svg>
                         </button>
 
-                        {/* transcribing pill */}
-                        {transcribing && (
-                            <span className="h-8 px-3 rounded-full text-[12px] inline-flex items-center gap-2" style={chipStyle}>
-                                <svg width="14" height="14" viewBox="0 0 24 24" className="animate-spin opacity-80" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <path d="M12 2a10 10 0 1 1-7.07 2.93" />
-                                </svg>
-                                Transcribing…
-                            </span>
-                        )}
+                        {/* text area (single element for both views) */}
+                        <textarea
+                            ref={textRef}
+                            value={input}
+                            onChange={(e) => setInput(e.target.value)}
+                            placeholder="Message 6IX AI"
+                            rows={1}
+                            className="flex-1 bg-transparent outline-none text-[15px] md:text-[16px] leading-[20px]
+pl-1.5 pr-2 md:pl-12 md:pr-[96px] py-[8px] resize-none rounded-[9999px]"
+                            onFocus={() => { focusLockRef.current = true; }}
+                            onBlur={() => {
+                                if (!pickerOpenRef.current && focusLockRef.current) {
+                                    requestAnimationFrame(() => textRef.current?.focus({ preventScroll: true }));
+                                }
+                            }}
+                            onInput={(e) => { const el = e.currentTarget; el.style.height = 'auto'; el.style.height = Math.min(160, el.scrollHeight) + 'px'; }}
+                            onKeyDown={onTextareaKeyDown}
+                            aria-keyshortcuts="Enter Tab"
+                            style={{ color: 'var(--th-text)' }}
+                        />
 
-                        {/* send / stop */}
-                        <button
-                            type="button"
-                            onClick={() => (streaming ? handleStop() : send())}
-                            disabled={!canSend && !streaming}
-                            aria-label={streaming ? 'Stop' : 'Send'}
-                            title={streaming ? 'Stop' : 'Send (Enter)'}
-                            className={`h-8 w-8 rounded-full grid place-items-center active:scale-95 transition ${(!canSend && !streaming) ? 'opacity-60' : ''}`}
-                            style={chipStyle}
-                        >
-                            {streaming ? (
-                                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-                                    <rect x="6" y="6" width="12" height="12" rx="2" />
-                                </svg>
-                            ) : (
-                                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <path d="M12 19V5" strokeLinecap="round" />
-                                    <path d="M7 10l5-5 5 5" strokeLinecap="round" strokeLinejoin="round" />
-                                </svg>
+                        {/* right chip controls */}
+                        <div className="flex items-center gap-1
+md:absolute md:right-1.5 md:top-1/2 md:-translate-y-1/2">
+                            {/* mic */}
+                            <button
+                                type="button"
+                                className={`h-8 rounded-full active:scale-95 flex items-center gap-2 px-2
+${recState === 'recording' ? 'min-w-[72px]' : 'w-8 justify-center'}`}
+                                title={recState === 'recording' ? 'Stop recording' : 'Record voice'}
+                                aria-label="Record voice"
+                                onClick={recState === 'recording' ? stopRecording : startRecording}
+                                disabled={transcribing}
+                                style={chipStyle}
+                            >
+                                {recState === 'recording' ? (
+                                    <>
+                                        <span className="inline-block h-[9px] w-[9px] rounded-full" style={{ background: '#ef4444' }} />
+                                        <MicWave active level={vu} />
+                                    </>
+                                ) : (
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <path d="M12 1a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V4a3 3 0 0 1 3-3z" />
+                                        <path d="M19 10a7 7 0 0 1-14 0" />
+                                        <path d="M12 19v4" />
+                                        <path d="M8 23h8" />
+                                    </svg>
+                                )}
+                            </button>
+
+                            {/* transcribing pill */}
+                            {transcribing && (
+                                <span className="h-8 px-3 rounded-full text-[12px] inline-flex items-center gap-2" style={chipStyle}>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" className="animate-spin opacity-80" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <path d="M12 2a10 10 0 1 1-7.07 2.93" />
+                                    </svg>
+                                    Transcribing…
+                                </span>
                             )}
-                        </button>
+
+                            {/* send / stop */}
+                            <button
+                                type="button"
+                                onClick={() => (streaming ? handleStop() : send())}
+                                disabled={!canSend && !streaming}
+                                aria-label={streaming ? 'Stop' : 'Send'}
+                                title={streaming ? 'Stop' : 'Send (Enter)'}
+                                className={`h-8 w-8 rounded-full grid place-items-center active:scale-95 transition ${(!canSend && !streaming) ? 'opacity-60' : ''}`}
+                                style={chipStyle}
+                            >
+                                {streaming ? (
+                                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                                        <rect x="6" y="6" width="12" height="12" rx="2" />
+                                    </svg>
+                                ) : (
+                                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <path d="M12 19V5" strokeLinecap="round" />
+                                        <path d="M7 10l5-5 5 5" strokeLinecap="round" strokeLinejoin="round" />
+                                    </svg>
+                                )}
+                            </button>
+                        </div>
                     </div>
                 </div>
+
             </div>
 
             {/* Fullscreen modal editor */}
