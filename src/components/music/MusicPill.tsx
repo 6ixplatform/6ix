@@ -4,12 +4,12 @@ import * as React from 'react';
 import NextImage from 'next/image';
 import { createPortal } from 'react-dom';
 import '@/styles/music.css';
-import { fetchSongs, fetchLRC, getPlayer, getAudioGraph, subscribeSongs } from '@/lib/music';
+import { fetchSongs, fetchLRC, getPlayer, getAudioGraph, subscribeSongs, supabase } from '@/lib/music';
 import type { Song } from '@/lib/musicTypes';
 import { fetchTotals, recordPlay, toggleLike } from '@/lib/musicStats';
 // ADD these:
 import { recordShareOnce } from '@/lib/musicStats'; // count share once per user
-import { recordShare } from '@/lib/musicStats'; // returns a shareable URL
+import { ADS } from '@/lib/ads';
 
 
 type Props = { category?: string; className?: string };
@@ -45,6 +45,36 @@ export default function MusicPill({ category, className = '' }: Props) {
     const [lyrics, setLyrics] = React.useState<{ t: number; text: string }[]>([]);
     const [isDesktop, setIsDesktop] = React.useState(false);
 
+    // Ads
+    // Ads
+    const [isFreeUser, setIsFreeUser] = React.useState<boolean>(true); // default true for guests
+
+    // Resolve actual plan once on mount
+    React.useEffect(() => {
+        (async () => {
+            try {
+                const { data: auth } = await supabase.auth.getUser();
+                const user = auth?.user;
+                if (!user) { setIsFreeUser(true); return; } // guests are free
+
+                const { data: prof } = await supabase
+                    .from('profiles')
+                    .select('plan')
+                    .eq('id', user.id)
+                    .single();
+
+                setIsFreeUser((prof?.plan ?? 'free') === 'free');
+            } catch {
+                setIsFreeUser(true);
+            }
+        })();
+    }, []);
+
+    const [adDue, setAdDue] = React.useState(false); // a break is due
+    const [adActive, setAdActive] = React.useState(false);
+    const [adUiOpen, setAdUiOpen] = React.useState(false);
+    const [adIdx, setAdIdx] = React.useState(0); // rotate 0..3
+
     // stats cache keyed by song id
     const [stats, setStats] = React.useState<Record<string, { plays: number; likes: number; shares: number; liked?: boolean; played?: boolean; shared?: boolean }>>({});
 
@@ -66,7 +96,12 @@ export default function MusicPill({ category, className = '' }: Props) {
         setChunk(need + GAP);
         setSpeed(Math.min(28, Math.max(12, Math.round((need + GAP) / 22))));
     }, []);
-
+    // Every 30 min mark an ad as due (free users only)
+    React.useEffect(() => {
+        if (!isFreeUser) return;
+        const t = setInterval(() => setAdDue(true), 30 * 60 * 1000);
+        return () => clearInterval(t);
+    }, [isFreeUser]);
     React.useEffect(() => setMounted(true), []);
     React.useEffect(() => {
         if (typeof window === 'undefined') return;
@@ -159,6 +194,7 @@ export default function MusicPill({ category, className = '' }: Props) {
     React.useEffect(() => {
         const onPlay = async () => {
             setPlaying(true);
+            if (adActive) return; // <-- ignore ads in your DB counts
             const s = songs[idx];
             if (s?.id && !stats[s.id]?.played) {
                 const inserted = await recordPlay(s.id);
@@ -169,12 +205,30 @@ export default function MusicPill({ category, className = '' }: Props) {
             }
         };
         const onPause = () => setPlaying(false);
-        const onEnded = () => {
+        const advanceToNextTrack = () => {
             if (repeat === 'one') { player.currentTime = 0; void player.play(); return; }
             const nextIndex = shuffle ? Math.floor(Math.random() * songs.length) : idx + 1;
             if (nextIndex < songs.length) { autoPlayOnChange.current = true; setIdx(nextIndex); }
             else if (repeat === 'all' && songs.length) { autoPlayOnChange.current = true; setIdx(0); }
         };
+
+        const onEnded = () => {
+            // If we just finished an ad, close UI and continue as normal
+            if (adActive) {
+                setAdActive(false);
+                setAdUiOpen(false);
+                advanceToNextTrack();
+                return;
+            }
+            // If an ad is due, start it now (after the song naturally ended)
+            if (adDue && isFreeUser) {
+                startAd();
+                return;
+            }
+            // Normal flow
+            advanceToNextTrack();
+        };
+
         player.addEventListener('play', onPlay);
         player.addEventListener('pause', onPause);
         player.addEventListener('ended', onEnded);
@@ -213,28 +267,55 @@ export default function MusicPill({ category, className = '' }: Props) {
 
     // --- Like: toggle + snap UI color; never below 0; rollback on error
     const onToggleLike = async (songId: string) => {
-        // optimistic
+        // optimistic UI
         setStats(prev => {
             const cur = prev[songId] ?? { plays: 0, likes: 0, shares: 0, liked: false };
             const nextLiked = !cur.liked;
-            return { ...prev, [songId]: { ...cur, liked: nextLiked, likes: Math.max(0, cur.likes + (nextLiked ? 1 : -1)) } };
+            return {
+                ...prev,
+                [songId]: { ...cur, liked: nextLiked, likes: Math.max(0, (cur.likes ?? 0) + (nextLiked ? 1 : -1)) },
+            };
         });
 
         try {
-            // RPC returns { is_liked, like_count }
             const res: any = await toggleLike(songId);
-            if (res && typeof res.like_count === 'number') {
+
+            // If your RPC returns the table row ({is_liked, like_count}):
+            if (res && typeof res === 'object' && typeof res.like_count === 'number') {
                 setStats(prev => ({
                     ...prev,
-                    [songId]: { ...(prev[songId] ?? {}), liked: !!res.is_liked, likes: Math.max(0, res.like_count) }
+                    [songId]: {
+                        ...(prev[songId] ?? { plays: 0, shares: 0 }),
+                        liked: !!res.is_liked,
+                        likes: Math.max(0, res.like_count),
+                    },
                 }));
+                return;
+            }
+
+            // If your RPC returns a boolean:
+            if (typeof res === 'boolean') {
+                setStats(prev => {
+                    const cur = prev[songId] ?? { plays: 0, likes: 0, shares: 0 };
+                    // compute delta relative to what UI currently shows
+                    const delta =
+                        (res ? 1 : -1) * (cur.liked === res ? 0 : 1);
+                    return {
+                        ...prev,
+                        [songId]: {
+                            ...cur,
+                            liked: res,
+                            likes: Math.max(0, (cur.likes ?? 0) + delta),
+                        },
+                    };
+                });
             }
         } catch (e) {
-            // rollback on error (e.g. not signed in)
+            // rollback on failure + nudge to sign in
             setStats(prev => {
                 const cur = prev[songId] ?? { plays: 0, likes: 0, shares: 0, liked: false };
-                const rolled = !cur.liked;
-                return { ...prev, [songId]: { ...cur, liked: rolled, likes: Math.max(0, cur.likes + (rolled ? 1 : -1)) } };
+                const rolled = !cur.liked; // revert the optimistic flip
+                return { ...prev, [songId]: { ...cur, liked: rolled, likes: Math.max(0, (cur.likes ?? 0) + (rolled ? 1 : -1)) } };
             });
             alert('Sign in to like songs.');
         }
@@ -244,16 +325,18 @@ export default function MusicPill({ category, className = '' }: Props) {
     // --- Share: mint/return URL, share or copy, then +1 once per user (idempotent in UI)
     const onShare = async (song: Song) => {
         try {
-            // Get shareable link (add autoplay so the landing page can start the track)
-            const base = await recordShare(song.id); // returns e.g. https://…/api/s/<token> or your /song/<id>
-            const url = `${base}${base.includes('?') ? '&' : '?'}autoplay=1`;
+            const base = typeof window !== 'undefined'
+                ? `${window.location.origin}/song/${song.id}`
+                : `${process.env.NEXT_PUBLIC_SITE_URL}/song/${song.id}`;
+
+            const url = `${base}?autoplay=1`;
 
             let ok = false;
             if (navigator.share) {
                 await navigator.share({
                     title: song.title,
                     text: `${song.title} — ${song.artist}`,
-                    url
+                    url,
                 });
                 ok = true;
             } else {
@@ -262,24 +345,42 @@ export default function MusicPill({ category, className = '' }: Props) {
                 alert('Share link copied!');
             }
 
-            // Count share once per user (idempotent). If not signed in, this may throw—ignore count but sharing still works.
             if (ok) {
                 try {
-                    const changed = await recordShareOnce(song.id); // true only first time
+                    const changed = await recordShareOnce(song.id); // true only first time per user
                     if (changed) {
                         setStats(prev => {
                             const cur = prev[song.id] ?? { plays: 0, likes: 0, shares: 0 };
-                            return { ...prev, [song.id]: { ...cur, shared: true, shares: (cur.shares || 0) + 1 } };
+                            return { ...prev, [song.id]: { ...cur, shared: true, shares: (cur.shares ?? 0) + 1 } };
                         });
                     }
-                } catch { /* not signed in -> no count, but link shared */ }
+                } catch {
+                    // not signed in: ignore count
+                }
             }
         } catch {
-            // no-op
+            // ignore
         }
     };
 
+    async function startAd() {
+        if (!isFreeUser || adActive) return;
+        setAdDue(false);
+        setAdActive(true);
+        setAdUiOpen(true);
 
+        // pick next ad
+        const ad = ADS[adIdx % ADS.length];
+        setAdIdx(i => (i + 1) % ADS.length);
+
+        // swap player to ad audio and play
+        try {
+            player.src = ad.audio;
+            player.load();
+            try { await getAudioGraph().ctx.resume(); } catch { }
+            await player.play();
+        } catch { }
+    }
     return (
         <>
             {/* PILL */}
@@ -307,17 +408,44 @@ export default function MusicPill({ category, className = '' }: Props) {
 
                 {/* Controls pinned right */}
                 <div className="ml-auto shrink-0 flex items-center gap-1 sm:gap-2">
-                    <button className="icon-btn" aria-label="Previous" onClick={prev}><IcnPrev /></button>
+                    <button className="icon-btn" aria-label="Previous" onClick={prev} disabled={adActive}><IcnPrev /></button>
                     <button className="icon-btn" aria-label={playing ? 'Pause' : 'Play'} onClick={() => (playing ? pause() : play())}>
                         {playing ? <IcnPause /> : <IcnPlay />}
                     </button>
-                    <button className="icon-btn" aria-label="Next" onClick={next}><IcnNext /></button>
+                    <button className="icon-btn" aria-label="Next" onClick={next} disabled={adActive}><IcnNext /></button>
+
                     <button className="icon-btn h-7 w-7 grid place-items-center" aria-label="Open songs" onClick={openOverlay}>
                         <span className="sm:hidden"><IcnChevronDown /></span>
                         <span className="hidden sm:inline"><IcnMore /></span>
                     </button>
                 </div>
             </div>
+
+            {adUiOpen && createPortal(
+                <div className="fixed inset-0 z-[1200]" role="dialog" aria-modal="true">
+                    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+                    <div className="absolute inset-0 flex items-center justify-center p-4">
+                        <div className="rounded-2xl bg-[rgba(20,20,20,.85)] border border-white/10 shadow-2xl max-w-[520px] w-[92vw] p-18 relative">
+                            <div className="text-center text-[12px] tracking-[.35em] opacity-80 mb-3">ADVERTISEMENT</div>
+                            {/* Artwork */}
+                            <img
+                                src={ADS[(adIdx + ADS.length - 1) % ADS.length].artwork}
+                                alt="Advertisement"
+                                className="w-full rounded-xl object-cover max-h-[70vh]"
+                                style={{ aspectRatio: '1 / 1' }}
+                            />
+                            {/* Dismiss: closes UI, audio keeps playing */}
+                            <button
+                                className="absolute top-3 right-3 text-white/80 hover:text-white text-[13px]"
+                                onClick={() => setAdUiOpen(false)}
+                                aria-label="Dismiss"
+                                title="Dismiss"
+                            >✕</button>
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )}
 
             {/* OVERLAY */}
             {open && mounted && createPortal(
@@ -327,10 +455,9 @@ export default function MusicPill({ category, className = '' }: Props) {
                         <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-transparent/30 backdrop-blur-sm sticky top-0 z-10">
                             <div className="flex items-center gap-2">
                                 <button className="icon-btn" aria-pressed={shuffle} data-active={shuffle ? 'true' : 'false'} title={`Shuffle ${shuffle ? 'On' : 'Off'}`} onClick={() => setShuffle(s => !s)}><IcnShuffle /></button>
-                                <button className="icon-btn" aria-label="Previous" onClick={prev}><IcnPrev /></button>
+                                <button className="icon-btn" aria-label="Previous" onClick={prev} disabled={adActive}><IcnPrev /></button>
                                 <button className="icon-btn" aria-label={playing ? 'Pause' : 'Play'} onClick={() => (playing ? pause() : play())}>{playing ? <IcnPause /> : <IcnPlay />}</button>
-                                <button className="icon-btn" aria-label="Next" onClick={next}><IcnNext /></button>
-
+                                <button className="icon-btn" aria-label="Next" onClick={next} disabled={adActive}><IcnNext /></button>
                                 {/* Repeat: off → one → all (badge is outline only; no fill) */}
                                 <button
                                     className="icon-btn relative btn-repeat"
@@ -369,7 +496,11 @@ export default function MusicPill({ category, className = '' }: Props) {
                                                 {s?.id ? (
                                                     <>
                                                         <div className="font-semibold truncate">{s.title}</div>
-                                                        <div className="text-sm opacity-80 truncate">{s.artist}</div>
+                                                        <div className="text-sm opacity-80 truncate">
+                                                            {s.artist}
+                                                            {s.verified_badge === 'gold' && <span className="badge badge-gold">✓</span>}
+                                                            {s.verified_badge === 'blue' && <span className="badge badge-blue">✓</span>}
+                                                        </div>
                                                         <div className="text-xs opacity-70 truncate">{(s.album || '—')}{s.year ? ` • ${s.year}` : ''}{s.label ? ` • ${s.label}` : ''}</div>
 
                                                         {/* stats row like the screenshot */}
@@ -447,6 +578,16 @@ to { transform: translateX(calc(-1 * var(--chunk, 0px))); }
 }
 .stat-like[data-active="true"] { color: var(--accent, #f472b6); }
 .stat-like:active { filter: brightness(1.25); transform: scale(0.98); }
+.badge {
+display:inline-grid; place-items:center;
+width:14px; height:14px; border-radius:999px;
+font-size:10px; font-weight:700; line-height:1;
+margin-left:6px;
+border:1px solid rgba(0,0,0,.2);
+}
+.badge-gold { background:#f7c948; color:#121212; border-color:#e0b100; }
+.badge-blue { background:#1da1f2; color:#fff; border-color:#1483d6; }
+.icon-btn[disabled] { opacity:.35; pointer-events:none; }
 `}</style>
         </>
     );

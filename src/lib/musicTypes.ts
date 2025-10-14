@@ -11,4 +11,5 @@ export type Song = {
     category: string;
     bio?: string;
     sort_order: number;
+    verified_badge?: 'gold' | 'blue' | null;
 };
