@@ -25,31 +25,38 @@ const CARD_RADIUS_CLASS = 'rounded-2xl';
 /* -------- icons -------- */
 const Icon = {
     Volume: () => (
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
-            <path d="M4 10v4h4l5 4V6l-5 4H4z" />
-            <path d="M16 9a5 5 0 0 1 0 6" fill="none" stroke="currentColor" strokeWidth="1.6" />
-            <path d="M18 7a8 8 0 0 1 0 10" fill="none" stroke="currentColor" strokeWidth="1.6" />
-        </svg>
-    ),
-    Open: () => (
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8">
-            <path d="M14 3h7v7" /><path d="M21 3l-9 9" /><path d="M5 7v12h12" />
+        <svg viewBox="0 0 24 24" width="18" height="18"
+            fill="none" stroke="currentColor" strokeWidth="1.8"
+            strokeLinecap="round" strokeLinejoin="round">
+            {/* speaker body as outline (no fill) */}
+            <path d="M11 5L6 9H4v6h2l5 4V5z" />
+            {/* sound waves */}
+            <path d="M16 9a5 5 0 0 1 0 6" />
+            <path d="M18 7a8 8 0 0 1 0 10" />
         </svg>
     ),
     Refresh: () => (
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8">
-            <path d="M3 12a9 9 0 0 1 15.6-6.4M21 12a9 9 0 0 1-15.6 6.4" />
+        <svg viewBox="0 0 24 24" width="18" height="18"
+            fill="none" stroke="currentColor" strokeWidth="1.8"
+            strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 12a9 9 0 0 1 15.6-6.4" />
+            <path d="M21 12a9 9 0 0 1-15.6 6.4" />
             <path d="M18 3v4h-4M6 21v-4h4" />
         </svg>
     ),
     Share: () => (
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8">
-            <circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" />
+        <svg viewBox="0 0 24 24" width="18" height="18"
+            fill="none" stroke="currentColor" strokeWidth="1.8"
+            strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="18" cy="5" r="3" />
+            <circle cx="6" cy="12" r="3" />
+            <circle cx="18" cy="19" r="3" />
             <path d="M8.6 13.5l6.8 3.9M15.4 6.6L8.6 10.5" />
         </svg>
     ),
     Spinner: ({ fast }: { fast?: boolean }) => (
-        <svg viewBox="0 0 24 24" width="16" height="16" className="animate-spin" style={fast ? { animationDuration: '0.6s' } : undefined}>
+        <svg viewBox="0 0 24 24" width="16" height="16" className="animate-spin"
+            style={fast ? { animationDuration: '0.6s' } : undefined}>
             <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" fill="none" opacity=".25" />
             <path d="M21 12a9 9 0 0 1-9 9" stroke="currentColor" strokeWidth="2" fill="none" />
         </svg>
@@ -71,6 +78,15 @@ export default function ImageMsg({
     const [status, setStatus] = useState<'idle' | 'pending' | 'ready' | 'error'>(() => (url ? 'pending' : 'idle'));
     const [displayUrl, setDisplayUrl] = useState<string | null>(null);
     const [imgLoaded, setImgLoaded] = useState(false);
+    // add near the other hooks
+    const [canOpen, setCanOpen] = useState(false);
+
+    // desktop (pointer: fine + hover) can open; mobile (coarse) cannot
+    useEffect(() => {
+        const finePointer = typeof window !== 'undefined'
+            && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+        setCanOpen(finePointer);
+    }, []);
 
     // natural image AR for skeleton (so the rounded skeleton never peeks)
     const [nat, setNat] = useState<{ w: number; h: number } | null>(null);
@@ -159,13 +175,15 @@ export default function ImageMsg({
                         src={displayUrl}
                         alt={prompt || 'generated image'}
                         className={[
-                            'block w-full h-auto', // full-bleed
-                            'transition-opacity duration-500', // fade-in
+                            'block w-full h-auto',
+                            'transition-opacity duration-500',
                             imgLoaded ? 'opacity-100' : 'opacity-0',
                         ].join(' ')}
-                        onClick={onOpen}
+                        onClick={canOpen ? onOpen : undefined} // ⬅️ desktop only
                         draggable={false}
-                        style={{ cursor: 'zoom-in' }}
+                        style={{ cursor: canOpen ? 'zoom-in' : 'default' }} // ⬅️ no zoom cursor on mobile
+                        role={canOpen ? 'button' : undefined}
+                        tabIndex={canOpen ? 0 : -1}
                     />
                 )}
 
@@ -182,18 +200,6 @@ export default function ImageMsg({
                             className="h-7 w-7 grid place-items-center rounded-full bg-black text-white/95 shadow-sm hover:bg-black/85 active:scale-95 disabled:opacity-40 disabled:pointer-events-none"
                         >
                             {busy && !isRecreating ? <Icon.Spinner fast /> : <Icon.Volume />}
-                        </button>
-
-                        {/* OPEN */}
-                        <button
-                            type="button"
-                            title="Open"
-                            aria-label="Open"
-                            onClick={onOpen}
-                            disabled={!displayUrl}
-                            className="h-7 w-7 grid place-items-center rounded-full bg-black text-white/95 shadow-sm hover:bg-black/85 disabled:opacity-40"
-                        >
-                            <Icon.Open />
                         </button>
 
                         {/* RECREATE */}
@@ -265,6 +271,11 @@ border: 0 !important;
 background: transparent !important;
 }
 .image-msg .${CARD_RADIUS_CLASS} { overflow: hidden !important; }
+`}</style>
+
+            <style jsx global>{`
+/* Make absolutely sure nothing inside ImageMsg gets filled by accident */
+.image-msg svg, .image-msg svg * { fill: none !important; }
 `}</style>
         </div>
     );

@@ -1,15 +1,6 @@
 /* ======================== 6IX — GLOBALS ======================== */
 
-/* Light/Dark tokens */
-html.theme-light {
-    --th-bg: #fff;
-    --th-text: #000;
-}
 
-html.theme-dark {
-    --th-bg: #000;
-    --th-text: #fff;
-}
 
 /* Base font & polish */
 html,
@@ -322,45 +313,7 @@ html.theme-light .history-card .action-btn svg {
     transform: translateX(-50%) rotate(180deg);
 }
 
-/* ======================== LAYOUT / SCROLLER ==================== */
-
-.app-header,
-.composer-root {
-    contain: paint;
-    isolation: isolate;
-}
-
-.chat-list {
-    overscroll-behavior: contain;
-    scroll-padding-bottom: calc(var(--composer-h, 160px) + 12px);
-    scroll-behavior: auto;
-    overflow-anchor: none;
-    transform: translateZ(0);
-    will-change: scroll-position;
-    contain: layout paint;
-}
-
-:root {
-    --text-bottom-gap: 220px;
-    --image-bottom-gap: calc(var(--composer-h, 160px) + 12px);
-}
-
-.chat-list [data-mid] {
-    scroll-margin-top: calc(var(--header-h, 120px) + 12px);
-}
-
-.chat-list [data-kind="text"] {
-    scroll-margin-bottom: var(--text-bottom-gap);
-}
-
-.chat-list [data-kind="image"] {
-    scroll-margin-bottom: var(--image-bottom-gap);
-    margin-bottom: calc(var(--image-bottom-gap) - 12px);
-}
-
 /* ======================== IMAGE BUBBLES ======================== */
-
-/* Wraps */
 .img-wrap img {
     border-radius: 16px !important;
 }
@@ -885,7 +838,7 @@ html.theme-light .composer-shine::before {
     transform: translateZ(0);
     will-change: transform, opacity;
     backface-visibility: hidden;
-    contain: paint;
+    contain: none;
     isolation: isolate;
 }
 
@@ -1004,26 +957,6 @@ html.theme-light .sr-ring::after {
     line-height: 20px;
     padding: 6px 6px;
     resize: none;
-}
-
-.spinner {
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
-    border: 2px solid rgba(255, 255, 255, .25);
-    border-top-color: #fff;
-    animation: spin .8s linear infinite
-}
-
-@keyframes spin {
-    to {
-        transform: rotate(360deg)
-    }
-}
-
-/* composer card */
-.composer-shine {
-    transition: border-radius .18s ease, box-shadow .18s ease;
 }
 
 /* attachment chip */
@@ -1293,39 +1226,6 @@ html.theme-light .sr-ring::after {
     /* iOS only; harmless on Android */
 }
 
-
-/* ===== THEME TOKENS (global) ===== */
-:root {
-    /* page + text */
-    --th-bg: #000;
-    --th-text: #fff;
-    /* buttons / chips / borders adapt via these */
-    --th-btn-bg: rgba(255, 255, 255, .08);
-    --th-btn-bd: rgba(255, 255, 255, .18);
-    --th-accent: #409cff;
-}
-
-html.theme-light {
-    --th-bg: #fff;
-    --th-text: #000;
-    --th-btn-bg: rgba(0, 0, 0, .08);
-    --th-btn-bd: rgba(0, 0, 0, .18);
-}
-
-html.theme-dark {
-    --th-bg: #000;
-    --th-text: #fff;
-    --th-btn-bg: rgba(255, 255, 255, .08);
-    --th-btn-bd: rgba(255, 255, 255, .18);
-}
-
-/* Make water buttons pick up tokens */
-.btn.btn-water {
-    background: var(--th-btn-bg) !important;
-    border: 1px solid var(--th-btn-bd) !important;
-    color: var(--th-text) !important;
-}
-
 /* ===== THEME PANEL (glass slide-in on desktop) ===== */
 .theme-btn {
     height: 36px;
@@ -1484,11 +1384,6 @@ html.theme-dark {
     color-scheme: light;
 }
 
-html, body {
-    background: var(--th-bg);
-    color: var(--th-text);
-}
-
 .btn {
     color: var(--th-text);
     transition: transform .06s ease, box-shadow .2s ease;
@@ -1517,93 +1412,6 @@ html, body {
 
 .theme-light .app-header, .theme-light .composer-root {
     background: rgba(255, 255, 255, .82);
-}
-
-/* ===== THEME PANEL ===== */
-.theme-backdrop {
-    position: fixed;
-    inset: 0;
-    z-index: 59;
-}
-
-.theme-panel {
-    position: fixed;
-    z-index: 60;
-    width: 340px;
-    max-height: 78vh;
-    border-radius: 18px;
-    overflow: hidden;
-    border: 1px solid rgba(255, 255, 255, .12);
-    background: rgba(30, 30, 30, .96);
-    color: #f2f2f2;
-}
-
-.theme-light .theme-panel {
-    background: rgba(255, 255, 255, .98);
-    color: #111;
-    border-color: rgba(0, 0, 0, .12);
-}
-
-.theme-head {
-    display: flex;
-    gap: 10px;
-    align-items: center;
-    padding: 10px 12px 8px 12px;
-}
-
-.theme-title {
-    font-weight: 700;
-}
-
-.theme-row {
-    padding: 4px 10px 14px 10px;
-    overflow: hidden;
-}
-
-.theme-block+.theme-block {
-    margin-top: 10px;
-}
-
-.theme-sub {
-    font-size: 12px;
-    opacity: .7;
-    margin: 8px 2px;
-}
-
-/* scrollable grid */
-.palette-row {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 10px;
-    max-height: 24rem;
-    overflow-y: auto;
-    padding-right: 4px;
-}
-
-.swatch {
-    height: 64px;
-    border-radius: 14px;
-    border: 1px solid rgba(0, 0, 0, .15);
-    display: grid;
-    place-items: end start;
-    padding: 8px;
-    font-size: 12px;
-    line-height: 1;
-    isolation: isolate;
-    transition: transform .08s ease, box-shadow .25s ease;
-}
-
-.theme-dark .swatch {
-    border-color: rgba(255, 255, 255, .16);
-}
-
-.swatch.is-active {
-    outline: 2px solid #fff;
-    outline-offset: 2px;
-}
-
-.theme-light .swatch.is-active {
-    outline-color: #000;
 }
 
 .swatch:active::after {
@@ -2000,430 +1808,10 @@ html, body {
     fill: currentColor;
 }
 
-/* ========= HORIZONTAL SCROLLER (used for anim row + every palette row) ========= */
-.hscroll-row {
-    position: relative;
-}
-
-.hscroll-wrap {
-    display: flex;
-    gap: 10px;
-    overflow-x: auto;
-    padding: 2px 2px 6px;
-    scroll-behavior: smooth;
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-}
-
-.hscroll-wrap::-webkit-scrollbar {
-    display: none;
-}
-
-.hscroll-bar {
-    padding: 0 6px 8px;
-}
-
-.hscroll-bar input[type="range"] {
-    width: 100%;
-    accent-color: var(--btn-fg);
-}
-
-/* Cards */
-.anim-row {
-    display: flex;
-    gap: 10px;
-}
-
-.anim-card {
-    position: relative;
-    width: 132px;
-    height: 74px;
-    border-radius: 14px;
-    border: 1px solid var(--th-border);
-    overflow: hidden;
-    display: grid;
-    place-items: end start;
-    padding: 8px;
-    color: #fff;
-}
-
-.anim-card span {
-    font-size: 12px;
-    line-height: 1;
-    background: rgba(0, 0, 0, .45);
-    padding: 3px 8px;
-    border-radius: 999px;
-}
-
-.anim-card.is-active {
-    outline: 2px solid rgba(255, 255, 255, .55);
-}
-
-.palette-row {
-    display: flex;
-    gap: 10px;
-}
-
-.swatch {
-    width: 150px;
-    height: 64px;
-    border-radius: 14px;
-    border: 1px solid var(--th-border);
-    display: grid;
-    align-content: end;
-    padding: 8px;
-}
-
-.swatch span {
-    font-size: 12px;
-    padding: 3px 8px;
-    border-radius: 999px;
-    background: rgba(255, 255, 255, .85);
-    color: #000;
-}
-
-.theme-dark .swatch span {
-    background: rgba(0, 0, 0, .65);
-    color: #fff;
-}
-
-.swatch.is-active {
-    outline: 2px solid var(--btn-fg);
-}
-
-/* ========= LIVE ANIMATED THEMES (16) ========= */
-/* 1) Matrix */
-:root[data-anim="matrix"] body {
-    background:
-        repeating-linear-gradient(180deg, rgba(0, 255, 120, .10) 0 2px, transparent 2px 16px),
-        radial-gradient(1200px 600px at 120% -10%, #001, #000 60%);
-    background-size: auto, auto;
-    background-position: 0 0, 50% 0%;
-    animation: six-matrix 24s linear infinite;
-}
-
-@keyframes six-matrix {
-    from {
-        background-position: 0 0, 50% 0%;
-    }
-
-    to {
-        background-position: 0 1000px, 50% 0%;
-    }
-}
-
-/* 2) Aquarium */
-:root[data-anim="aquarium"] body {
-    background:
-        radial-gradient(600px 400px at 30% 25%, #00f0ff33, transparent 60%),
-        radial-gradient(800px 520px at 70% 70%, #00ff8833, transparent 60%),
-        linear-gradient(180deg, #02131e, #012431);
-    background-size: auto, auto, cover;
-    background-position: 30% 25%, 70% 70%, center;
-    animation: six-aquarium 20s ease-in-out infinite alternate;
-}
-
-@keyframes six-aquarium {
-    0% {
-        background-position: 28% 27%, 70% 72%, center;
-    }
-
-    100% {
-        background-position: 34% 23%, 66% 68%, center;
-    }
-}
-
-/* 3) Server */
-:root[data-anim="server"] body {
-    background:
-        repeating-linear-gradient(0deg, rgba(0, 255, 120, .16) 0 1px, transparent 1px 18px),
-        linear-gradient(90deg, #020, #041);
-    animation: six-server 18s linear infinite;
-}
-
-@keyframes six-server {
-    to {
-        background-position: 300px 0, 0 0;
-    }
-}
-
-/* 4) Racing */
-:root[data-anim="racing"] body {
-    background:
-        repeating-linear-gradient(120deg, #111 0 12px, #222 12px 24px),
-        linear-gradient(180deg, #000, #001);
-    animation: six-racing 8s linear infinite;
-}
-
-@keyframes six-racing {
-    to {
-        background-position: 400px 0, 0 0;
-    }
-}
-
-/* 5) Water */
-:root[data-anim="water"] body {
-    background:
-        radial-gradient(1200px 800px at 50% 120%, #032a40, #001926 60%),
-        repeating-radial-gradient(circle at 50% 40%, rgba(255, 255, 255, .08) 0 2px, transparent 2px 8px);
-    animation: six-water 12s ease-in-out infinite alternate;
-}
-
-@keyframes six-water {
-    0% {
-        background-position: 50% 60%, 50% 40%;
-    }
-
-    100% {
-        background-position: 50% 70%, 48% 45%;
-    }
-}
-
-/* 6) Crypto Grid */
-:root[data-anim="crypto-grid"] body {
-    background:
-        linear-gradient(180deg, rgba(0, 255, 150, .12), rgba(0, 180, 255, .12)),
-        repeating-linear-gradient(90deg, rgba(0, 255, 200, .18) 0 1px, transparent 1px 40px),
-        repeating-linear-gradient(0deg, rgba(0, 255, 200, .18) 0 1px, transparent 1px 40px),
-        radial-gradient(1200px 800px at 120% -10%, #001025, #000 60%);
-    background-size: cover, 40px 100%, 100% 40px, cover;
-    animation: six-grid 30s linear infinite;
-}
-
-@keyframes six-grid {
-    to {
-        background-position: center, 1000px 0, 0 1000px, center;
-    }
-}
-
-/* 7) Trading Ticks */
-:root[data-anim="trading-ticks"] body {
-    background:
-        repeating-linear-gradient(90deg, rgba(0, 255, 0, .20) 0 3px, transparent 3px 12px),
-        repeating-linear-gradient(90deg, rgba(255, 0, 0, .20) 6px 9px, transparent 9px 18px),
-        linear-gradient(180deg, #001016, #000);
-    animation: six-ticks 10s linear infinite;
-}
-
-@keyframes six-ticks {
-    to {
-        background-position: 600px 0, 600px 0, 0 0;
-    }
-}
-
-/* 8) Runway */
-:root[data-anim="runway"] body {
-    background:
-        repeating-linear-gradient(90deg, transparent 0 46px, rgba(255, 255, 255, .18) 46px 50px, transparent 50px 96px),
-        radial-gradient(1200px 600px at 50% -20%, #210, #000 60%);
-    animation: six-runway 12s linear infinite;
-}
-
-@keyframes six-runway {
-    to {
-        background-position: 600px 0, 0 0;
-    }
-}
-
-/* 9) Stars */
-:root[data-anim="stars"] body {
-    background:
-        radial-gradient(2px 2px at 15% 35%, #fff8, transparent 30%),
-        radial-gradient(1px 1px at 65% 60%, #fff6, transparent 30%),
-        radial-gradient(1200px 600px at 50% -20%, #001, #000 65%);
-    animation: six-stars 40s linear infinite;
-}
-
-@keyframes six-stars {
-    to {
-        background-position: 55% 38%, 68% 63%, 50% -15%;
-    }
-}
-
-/* 10) Plasma */
-:root[data-anim="plasma"] body {
-    background:
-        radial-gradient(60% 60% at 30% 40%, #7f1aff, transparent 60%),
-        radial-gradient(60% 60% at 70% 60%, #00e0ff, transparent 60%),
-        radial-gradient(80% 80% at 50% 50%, #ffff66, #000 70%);
-    animation: six-plasma 14s ease-in-out infinite alternate;
-}
-
-@keyframes six-plasma {
-    0% {
-        background-position: 30% 40%, 70% 60%, 50% 50%;
-    }
-
-    100% {
-        background-position: 35% 35%, 65% 65%, 48% 52%;
-    }
-}
-
-/* 11) Waves */
-:root[data-anim="waves"] body {
-    background:
-        radial-gradient(800px 200px at 50% 120%, rgba(255, 255, 255, .06), transparent 60%),
-        repeating-linear-gradient(180deg, rgba(255, 255, 255, .05) 0 2px, transparent 2px 10px),
-        linear-gradient(180deg, #001633, #000a1e);
-    animation: six-waves 10s ease-in-out infinite alternate;
-}
-
-@keyframes six-waves {
-    0% {
-        background-position: 50% 110%, 0 0, 0 0;
-    }
-
-    100% {
-        background-position: 50% 100%, 0 16px, 0 0;
-    }
-}
-
-/* 12) Radial Sun */
-:root[data-anim="radial-sun"] body {
-    background:
-        radial-gradient(400px 400px at 40% 35%, #ffd966, transparent 60%),
-        radial-gradient(1000px 600px at 50% -10%, #220700, #000 60%);
-    animation: six-sun 6s ease-in-out infinite;
-}
-
-@keyframes six-sun {
-    0%, 100% {
-        background-size: 400px 400px, auto;
-    }
-
-    50% {
-        background-size: 520px 520px, auto;
-    }
-}
-
-/* 13) Camo Woodland */
-:root[data-anim="camo-woodland"] body {
-    background:
-        repeating-radial-gradient(circle at 20% 30%, #2c3 0 6%, transparent 6% 12%),
-        repeating-radial-gradient(circle at 70% 60%, #263 0 6%, transparent 6% 12%),
-        repeating-radial-gradient(circle at 40% 70%, #1a2 0 6%, transparent 6% 12%),
-        #0b1e12;
-    animation: six-camo 40s linear infinite;
-}
-
-/* 14) Camo Desert */
-:root[data-anim="camo-desert"] body {
-    background:
-        repeating-radial-gradient(circle at 25% 35%, #caa 0 6%, transparent 6% 12%),
-        repeating-radial-gradient(circle at 60% 65%, #b98 0 6%, transparent 6% 12%),
-        repeating-radial-gradient(circle at 45% 75%, #a87 0 6%, transparent 6% 12%),
-        #6f574b;
-    animation: six-camo 40s linear infinite;
-}
-
-/* 15) Camo Urban */
-:root[data-anim="camo-urban"] body {
-    background:
-        repeating-radial-gradient(circle at 30% 30%, #777 0 6%, transparent 6% 12%),
-        repeating-radial-gradient(circle at 65% 60%, #666 0 6%, transparent 6% 12%),
-        repeating-radial-gradient(circle at 40% 80%, #444 0 6%, transparent 6% 12%),
-        #2f2f2f;
-    animation: six-camo 40s linear infinite;
-}
-
-/* 16) Camo Navy */
-:root[data-anim="camo-navy"] body {
-    background:
-        repeating-radial-gradient(circle at 25% 35%, #113 0 6%, transparent 6% 12%),
-        repeating-radial-gradient(circle at 60% 65%, #224 0 6%, transparent 6% 12%),
-        repeating-radial-gradient(circle at 45% 75%, #335 0 6%, transparent 6% 12%),
-        #0d1522;
-    animation: six-camo 40s linear infinite;
-}
-
-/* Shared pan for camo variants */
-@keyframes six-camo {
-    to {
-        background-position: 140% 120%, 120% 140%, 160% 100%, 0 0;
-    }
-}
-
 /* --- Theme panel vertical scrolling --- */
 .theme-panel {
     max-height: min(78vh, 640px);
     overflow-y: auto;
-}
-
-/* --- Generic horizontal row with slider (used by animations AND palettes) --- */
-.hscroll-row {
-    position: relative;
-    margin-bottom: 6px;
-}
-
-.hscroll-wrap {
-    overflow-x: auto;
-    overflow-y: hidden;
-    -webkit-overflow-scrolling: touch;
-    scroll-behavior: smooth;
-    padding: 2px 0 10px;
-}
-
-.hscroll-bar {
-    display: grid;
-    place-items: center;
-    padding: 2px 0 8px;
-}
-
-.hscroll-bar input[type="range"] {
-    width: 128px;
-}
-
-/* Hide native scrollbar but keep scrollability */
-.hscroll-wrap::-webkit-scrollbar {
-    height: 6px;
-}
-
-.hscroll-wrap::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-.hscroll-wrap::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, .18);
-    border-radius: 999px;
-}
-
-/* --- Row contents must not wrap; force horizontal overflow --- */
-.anim-row,
-.palette-row.is-hscroll {
-    display: flex;
-    gap: 12px;
-    flex-wrap: nowrap;
-    /* important */
-    padding: 2px 2px 4px;
-}
-
-/* Cards / swatches sized so they overflow on narrow panels */
-.anim-card {
-    flex: 0 0 180px;
-    height: 100px;
-    border-radius: 18px;
-}
-
-.swatch {
-    flex: 0 0 180px;
-    /* same width for consistent slide */
-    height: 84px;
-    border-radius: 18px;
-}
-
-.swatch span,
-.anim-card span {
-    font-size: 12px;
-    padding: 6px 8px;
-    background: rgba(255, 255, 255, .85);
-    color: #000;
-    border-radius: 999px;
-}
-
-.theme-dark .swatch span,
-.theme-dark .anim-card span {
-    background: rgba(0, 0, 0, .85);
-    color: #fff;
 }
 
 .hscroll-bar {
@@ -2550,92 +1938,6 @@ html, body {
     background: var(--th-bg, #000);
 }
 
-/* Animated themes. Put after the default block above. */
-@keyframes pan-slow {
-    to {
-        background-position: 200% 200%;
-    }
-}
-
-:root[data-anim] body {
-    background-attachment: fixed;
-}
-
-:root[data-anim="matrix"] body {
-    background:
-        repeating-linear-gradient(180deg, rgba(0, 255, 120, .14) 0 2px, transparent 2px 16px),
-        radial-gradient(1200px 600px at 120% -10%, #001, #000 60%) !important;
-}
-
-:root[data-anim="aquarium"] body {
-    background:
-        radial-gradient(600px 400px at 30% 25%, #00f0ff33, transparent 60%),
-        radial-gradient(800px 520px at 70% 70%, #00ff8833, transparent 60%),
-        linear-gradient(180deg, #02131e, #012431) !important;
-    background-size: 160% 160%, 160% 160%, 100% 100%;
-    animation: pan-slow 24s linear infinite;
-}
-
-:root[data-anim="stars"] body {
-    background:
-        radial-gradient(2px 2px at 15% 35%, #fff8, transparent 30%),
-        radial-gradient(1px 1px at 65% 60%, #fff6, transparent 30%),
-        radial-gradient(1200px 600px at 50% -20%, #001, #000 65%) !important;
-}
-
-/* quick placeholders for the others so every tile works now */
-:root[data-anim="server"] body {
-    background: linear-gradient(90deg, #020, #063) !important;
-}
-
-:root[data-anim="racing"] body {
-    background: repeating-linear-gradient(120deg, #111, #111 8px, #333 8px, #333 16px) !important;
-}
-
-:root[data-anim="water"] body {
-    background: radial-gradient(circle at 40% 40%, #aee, #036) !important;
-}
-
-:root[data-anim="crypto-grid"] body {
-    background: linear-gradient(90deg, #011, #022) !important;
-}
-
-:root[data-anim="trading-ticks"] body {
-    background: linear-gradient(90deg, #001, #112) !important;
-}
-
-:root[data-anim="runway"] body {
-    background: linear-gradient(90deg, #210, #420) !important;
-}
-
-:root[data-anim="plasma"] body {
-    background: conic-gradient(from 0deg at 50% 50%, #f0f, #0ff, #ff0, #f0f) !important;
-}
-
-:root[data-anim="waves"] body {
-    background: linear-gradient(90deg, #003, #006) !important;
-}
-
-:root[data-anim="radial-sun"] body {
-    background: radial-gradient(circle at 40% 40%, #ff8, #f60) !important;
-}
-
-:root[data-anim="camo-woodland"] body {
-    background: repeating-radial-gradient(#2c3, #263, #1a2 20%) !important;
-}
-
-:root[data-anim="camo-desert"] body {
-    background: repeating-radial-gradient(#caa, #b98, #a87 20%) !important;
-}
-
-:root[data-anim="camo-urban"] body {
-    background: repeating-radial-gradient(#777, #666, #444 20%) !important;
-}
-
-:root[data-anim="camo-navy"] body {
-    background: repeating-radial-gradient(#113, #224, #335 20%) !important;
-}
-
 /* ===== LIVE BACKGROUND ENGINE (animated) ===== */
 :root[data-anim] body {
     background: none !important;
@@ -2687,12 +1989,6 @@ html, body {
     }
 }
 
-@keyframes spin {
-    to {
-        transform: rotate(360deg) scale(1.08);
-    }
-}
-
 @keyframes pulse {
     0%, 100% {
         transform: scale(1);
@@ -2703,157 +1999,6 @@ html, body {
     }
 }
 
-/* MATRIX (vertical drift) */
-:root[data-anim="matrix"] body::before {
-    background:
-        repeating-linear-gradient(180deg, rgba(0, 255, 120, .12) 0 2px, transparent 2px 18px),
-        radial-gradient(1200px 600px at 120% -10%, #001, #000 60%);
-    animation: pan-y 12s linear infinite;
-    background-size: 100% 600px, 100% 100%;
-}
-
-/* AQUARIUM (bubbley drift) */
-:root[data-anim="aquarium"] body::before {
-    background:
-        radial-gradient(600px 400px at 30% 25%, #00f0ff33, transparent 60%),
-        radial-gradient(800px 520px at 70% 70%, #00ff8833, transparent 60%),
-        linear-gradient(180deg, #02131e, #012431);
-    background-size: 160% 160%, 140% 140%, 100% 100%;
-    animation: pan-slow 36s linear infinite;
-}
-
-/* SERVER (subtle hue drift) */
-:root[data-anim="server"] body::before {
-    background: linear-gradient(90deg, #020, #063);
-    filter: saturate(1.1);
-    animation: hueShift 12s ease-in-out infinite alternate;
-}
-
-@keyframes hueShift {
-    from {
-        filter: hue-rotate(0deg)
-    }
-
-    to {
-        filter: hue-rotate(20deg)
-    }
-}
-
-/* RACING (diagonal stripes scrolling) */
-:root[data-anim="racing"] body::before {
-    background: repeating-linear-gradient(120deg, #111 0 12px, #333 12px 24px);
-    background-size: 300px 300px;
-    animation: pan-x 3.2s linear infinite;
-}
-
-/* WATER (gentle swirl) */
-:root[data-anim="water"] body::before {
-    background: radial-gradient(circle at 40% 40%, #aee, #036);
-    animation: pulse 9s ease-in-out infinite;
-}
-
-/* CRYPTO GRID (moving grid) */
-:root[data-anim="crypto-grid"] body::before {
-    background:
-        linear-gradient(#0f81 1px, transparent 1px),
-        linear-gradient(90deg, #0f81 1px, transparent 1px),
-        linear-gradient(180deg, #011, #022);
-    background-size: 60px 60px, 60px 60px, 100% 100%;
-    background-position: 0 0, 0 0, 0 0;
-    animation: gridmove 18s linear infinite;
-}
-
-@keyframes gridmove {
-    to {
-        background-position: 60px 0, 0 60px, 0 0;
-    }
-}
-
-/* TRADING TICKS (columns sliding) */
-:root[data-anim="trading-ticks"] body::before {
-    background:
-        repeating-linear-gradient(90deg, #0f81 0 1px, transparent 1px 10px),
-        linear-gradient(180deg, #001, #112);
-    background-size: 240px 100%, 100% 100%;
-    animation: pan-x 10s linear infinite;
-}
-
-/* RUNWAY (center dashes moving) */
-:root[data-anim="runway"] body::before {
-    background:
-        radial-gradient(800px 400px at 50% 120%, #000, #210),
-        repeating-linear-gradient(90deg, transparent 0 98px, #fff8 98px 102px, transparent 102px 200px);
-    background-size: 100% 100%, 100% 200px;
-    animation: moveRunway 6s linear infinite;
-}
-
-@keyframes moveRunway {
-    to {
-        background-position: 0 0, 0 -200px;
-    }
-}
-
-/* STARS (soft twinkle) */
-:root[data-anim="stars"] body::before {
-    background:
-        radial-gradient(2px 2px at 15% 35%, #fff8, transparent 30%),
-        radial-gradient(1px 1px at 65% 60%, #fff6, transparent 30%),
-        radial-gradient(1200px 600px at 50% -20%, #001, #000 65%);
-    animation: twinkle 8s ease-in-out infinite alternate;
-}
-
-@keyframes twinkle {
-    from {
-        opacity: .82
-    }
-
-    to {
-        opacity: 1
-    }
-}
-
-/* PLASMA (rotating conic) */
-:root[data-anim="plasma"] body::before {
-    background: conic-gradient(from 0deg at 50% 50%, #f0f, #0ff, #ff0, #f0f);
-    transform: scale(1.08);
-    animation: spin 28s linear infinite;
-}
-
-/* WAVES (horizontal motion) */
-:root[data-anim="waves"] body::before {
-    background: linear-gradient(90deg, #003, #006);
-    background-size: 600px 100%;
-    animation: pan-x 16s linear infinite;
-}
-
-/* RADIAL SUN (breathing) */
-:root[data-anim="radial-sun"] body::before {
-    background: radial-gradient(circle at 40% 40%, #ff8, #f60);
-    animation: pulse 7s ease-in-out infinite;
-}
-
-/* CAMO variants (slow drift) */
-:root[data-anim^="camo-"] body::before {
-    background-size: 180% 180%;
-    animation: pan-slow 40s linear infinite;
-}
-
-:root[data-anim="camo-woodland"] body::before {
-    background: repeating-radial-gradient(#2c3, #263, #1a2 20%);
-}
-
-:root[data-anim="camo-desert"] body::before {
-    background: repeating-radial-gradient(#caa, #b98, #a87 20%);
-}
-
-:root[data-anim="camo-urban"] body::before {
-    background: repeating-radial-gradient(#777, #666, #444 20%);
-}
-
-:root[data-anim="camo-navy"] body::before {
-    background: repeating-radial-gradient(#113, #224, #335 20%);
-}
-
 /* Accessibility: if OS has “Reduce motion”, you can keep animations but slower, or disable.
 Comment the next block if you want full motion regardless. */
 @media (prefers-reduced-motion: reduce) {
@@ -2861,70 +2006,6 @@ Comment the next block if you want full motion regardless. */
         animation-duration: 0s !important;
         animation: none !important;
     }
-}
-
-/* === Theme panel sections (mirrors "Live animations") === */
-.theme-panel .th-section {
-    position: relative;
-    overflow: visible;
-    /* prevent the slider from being clipped */
-    margin-top: 14px;
-}
-
-/* Use the same row layout for palettes as for animations */
-.theme-panel .swatch-row,
-.theme-panel .anim-row {
-    display: flex;
-    gap: 12px;
-}
-
-/* Ensure there's room for the slider under each row */
-.theme-panel .hscroll-wrap {
-    padding: 8px 8px 30px;
-    /* bottom padding reserves space for the slider */
-    overflow-x: auto;
-    overflow-y: hidden;
-    -webkit-overflow-scrolling: touch;
-    scroll-behavior: smooth;
-}
-
-/* Slider/arrow bar (same for all rows) */
-.theme-panel .hscroll-bar {
-    display: grid;
-    grid-template-columns: 24px 1fr 24px;
-    align-items: center;
-    gap: 8px;
-    margin-top: -22px;
-    /* tucks under the row neatly */
-    padding: 0 8px 10px 8px;
-}
-
-.theme-panel .hs-arrow {
-    border: 1px solid var(--th-border);
-    background: var(--btn-bg);
-    color: var(--btn-fg);
-    border-radius: 10px;
-    height: 20px;
-    line-height: 18px;
-}
-
-/* Optional: make swatches consistent widths so the slider feels right */
-.theme-panel .swatch.swatch-sm {
-    min-width: 220px;
-    /* tweak if you want more/less per screen */
-    height: 120px;
-    border-radius: 18px;
-    border: 1px solid var(--th-border);
-    display: grid;
-    align-items: end;
-    padding: 10px 12px;
-}
-
-.anim-card video {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
 }
 
 .msg-actions {
@@ -4135,55 +3216,904 @@ html.theme-light .orb-name-ink {
     margin-bottom: 6px;
 }
 
-/* --- Lock axis + transparent page --- */
-html, body {
+/* Wrap long code/links without blowing out width */
+.msg-body pre,
+.msg-body code {
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+/* Composer: truly fixed to bottom; fills width safely */
+.floating-composer {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: calc(var(--mbnav-h, 0px) + env(safe-area-inset-bottom, 0px));
+    z-index: 40;
+}
+
+/* Bottom nav: fixed under the composer */
+.mobile-bottom-nav {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 35;
+}
+
+/* When you hide the bottom nav, make its height zero so we don't reserve space */
+.mobile-bottom-nav[aria-hidden="true"] {
+    height: 0 !important;
+}
+
+/* Media inside bubbles never forces sideways scroll */
+.chat-bubble img,
+.chat-bubble video,
+.chat-bubble canvas,
+.chat-bubble iframe {
     max-width: 100%;
-    overflow-x: hidden;
+    height: auto;
+    display: block;
+}
+
+/* ===== App shell: page never scrolls; only chat list does ===== */
+html, body {
+    height: 100%;
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
+    /* stop page scroll */
+    overscroll-behavior: none;
+    /* stop iOS bounce interactions */
+}
+
+#app-shell.app-shell {
+    position: fixed;
+    inset: 8;
+    display: grid;
+    grid-template-rows: var(--header-h, 56px) 1fr;
+}
+
+/* Header is fixed (see markup tweak above) */
+.app-header {
+    height: var(--header-h, 56px);
+}
+
+/* Main area under the header */
+.app-main {
+    grid-row: 2 / -1;
+    position: relative;
     height: 100%;
 }
 
-body, .ai-shell {
-    touch-action: pan-y;
-    overscroll-behavior-x: none;
-    background: transparent;
-}
-
-/* If anything still forces a bg, neutralize it */
-.themed-page, .chat-area, .msgs-root {
-    background: transparent !important;
-}
-
-/* The ONLY scroller: your message list */
-.chat-list {
+/* Only this scrolls */
+.chat-scroll {
+    position: absolute;
+    inset: 0;
     overflow-y: auto;
-    /* scroll appears only when needed */
-    overflow-x: hidden;
-    /* no sideways scroll */
-    min-height: 0;
-    /* allow flex child to shrink */
-    overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+    overscroll-behavior-x: none;
+    scrollbar-gutter: stable both-edges;
+    /* prevents content shift when showing scrollbar */
+    padding-top: 8px;
+    /* small gap below header */
+    padding-bottom: calc(var(--composer-h, 64px) + var(--mbnav-h, 0px) + env(safe-area-inset-bottom, 0px));
+}
+
+/* Remove ANY horizontal wiggle */
+:where(html, body, #__next, #app-shell, .app-main, .chat-scroll) {
+    max-width: 100%;
+    overflow-x: clip;
+}
+
+:where(.w-screen, [style*="width: 100vw"]) {
+    width: 100% !important;
+}
+
+/* Composer and mobile nav are fixed and layered correctly */
+.floating-composer {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + var(--mbnav-h, 0px));
+    z-index: 60;
+    pointer-events: auto;
+}
+
+/* Kill any dark fade shim that sits above chat */
+.floating-composer::before,
+.floating-composer::after {
+    content: none !important;
+}
+
+.mobile-bottom-nav {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 50;
+    /* under composer */
+    width: auto;
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+/* Chat list spacing & text wrapping */
+.chat-list {
+    gap: 14px;
+    padding: 0 12px;
+}
+
+.chat-bubble pre, .chat-bubble code {
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+/* ===== 6IX — SHELL v2 (single source of truth) ===== */
+:root {
+    --hdr-h: 64px;
+    /* header height */
+    --composer-h: 84px;
+    /* measured composer height */
+    --mbnav-h: 0px;
+    /* updated by JS if your bottom nav is visible */
+    --gutter: 16px;
+    /* side padding for chat (mobile-safe) */
+}
+
+/* Page never scrolls. Only the chat scroller moves. No sideways pan. */
+html, body {
+    height: 100%;
+    overflow: hidden !important;
+    overscroll-behavior: none !important;
+    touch-action: pan-y pinch-zoom !important;
+    max-width: 100%;
+}
+
+/* Hard kill any horizontal wiggle anywhere */
+:where(html, body, #__next, .ai-shell, #app-shell, .app-main, .chat-scroll) {
+    max-width: 100% !important;
+    overflow-x: clip !important;
+}
+
+/* App shell: fixed to viewport */
+.ai-shell, #app-shell.app-shell {
+    position: fixed !important;
+    inset: 0 !important;
+}
+
+/* Header: fixed, no “liner”, no extra dark pad */
+.app-header {
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: var(--header-h);
+    z-index: 120;
+    background: transparent !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+}
+
+/* Main area sits exactly under the fixed header */
+.app-main {
+    position: absolute;
+    inset: var(--header-h) 0 0 0;
+}
+
+/* The ONLY scroller */
+.chat-scroll {
+    position: absolute;
+    inset: 0;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: none !important;
+    padding:
+        8px
+        /* top */
+        var(--gutter)
+        /* sides (safe gutters) */
+        calc(var(--composer-h) + var(--mbnav-h) + env(safe-area-inset-bottom, 0px) + 8px);
+    /* bottom */
+    scroll-padding-bottom: calc(var(--composer-h) + var(--mbnav-h) + env(safe-area-inset-bottom, 0px) + 8px);
+}
+
+/* Inner chat list can keep its own gap; ensure no extra horizontal padding elsewhere */
+.chat-list {
+    padding-inline: 0 !important;
+    gap: 14px;
+}
+
+/* Bubbles: one line first; wrap only when needed; never touch edges */
+.chat-bubble,
+.msg-body {
+    display: inline-block;
+    width: auto;
+    min-width: max-content;
+    /* keep short messages on one line */
+    white-space: normal;
+    /* allow natural wrapping when needed */
+    word-break: normal;
+    overflow-wrap: break-word;
+    /* Max bubble width = viewport minus side gutters */
+    max-width: min(calc(100vw - (var(--gutter) * 2)), 680px);
+}
+
+/* Smaller bubble width / bigger gutters on tiny screens */
+@media (max-width: 480px) {
+    :root {
+        --gutter: 18px;
+    }
+
+    .chat-bubble, .msg-body {
+        max-width: calc(100vw - (var(--gutter) * 2));
+    }
+}
+
+/* Media inside bubbles never creates sideways scroll */
+.chat-bubble img,
+.chat-bubble video,
+.chat-bubble canvas,
+.chat-bubble iframe {
+    max-width: 100%;
+    height: auto;
+    display: block;
+}
+
+/* Composer + bottom nav are fixed; only chat moves */
+.floating-composer {
+    position: fixed !important;
+    left: 0;
+    right: 0;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + var(--mbnav-h, 0px) + 10px);
+    /* nudged up a bit */
+    z-index: 80;
+}
+
+/* Bottom nav pinned to bottom (under composer if present) */
+.mobile-bottom-nav {
+    position: fixed !important;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 75;
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+/* Strip any accidental bottom overlays on the composer */
+.floating-composer::before,
+.floating-composer::after {
+    content: none !important;
+}
+
+/* Bubble sizing — narrower on mobile, never hugs the edges */
+:root {
+    --bubble-max-mobile: 82vw;
+    /* was ~92% — this is the shrink */
+    --bubble-max-desktop: 640px;
+    /* cap for large screens */
+    --bubble-side-gap: 10px;
+    /* visual breathing room */
+}
+
+.chat-bubble,
+.msg-body {
+    display: inline-block;
+    max-width: min(var(--bubble-max-mobile), var(--bubble-max-desktop)) !important;
+    width: max-content;
+    /* grow to content up to max */
+    min-width: 44px;
+    /* tiny single-word bubbles look nice */
+    margin-inline: var(--bubble-side-gap);
+    line-height: 1.35;
+    white-space: pre-wrap;
+    /* keep newlines; one-line if short */
+    overflow-wrap: break-word;
+    /* wrap long words/links */
+    word-break: normal;
+    /* don’t split letters */
+    border-radius: 16px;
+}
+
+/* Slightly wider on tablets/desktops, still not edge-to-edge */
+@media (min-width: 768px) {
+    :root {
+        --bubble-max-mobile: 70vw;
+    }
+}
+
+/* Absolutely kill horizontal scroll anywhere */
+html, body, #app-shell, .app-main, .chat-scroll, .chat-list {
+    max-width: 100%;
+    overflow-x: hidden !important;
+}
+
+/* If any utility injects 100vw widths, normalize them */
+:where([style*="width: 100vw"], .w-screen) {
+    width: 100% !important;
+}
+
+/* --- Nuke the header tint/blur everywhere (mobile + desktop) --- */
+.app-header {
+    background: transparent !important;
+    border: 0 !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    box-shadow: none !important;
+}
+
+/* wipe theme variants too */
+.theme-dark .app-header,
+.theme-light .app-header {
+    background: transparent !important;
+    border-color: transparent !important;
+}
+
+/* just in case any pseudo paints were added */
+.app-header::before,
+.app-header::after {
+    content: none !important;
+}
+
+/* ===== 6IX PATCH: no auto zoom, transparent header, narrower bubbles ===== */
+
+/* 1) iOS Safari: prevent auto-zoom when focusing inputs (needs >=16px) */
+input, textarea, select, button,
+.composer-root input, .composer-root textarea {
+    font-size: 17px !important;
+    /* 17 to be extra-safe on iOS */
+}
+
+html {
+    -webkit-text-size-adjust: 100% !important;
+}
+
+/* 2) Make the header 100% clear (no tint, no blur, no border) */
+.app-header {
+    background: transparent !important;
+    border: 0 !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    box-shadow: none !important;
+}
+
+.app-header::before,
+.app-header::after {
+    content: none !important;
+}
+
+/* nuke any stray borders/tints added by inner header rows/components */
+.app-header * {
+    border-color: transparent !important;
+}
+
+/* 3) Narrow the chat bubbles so they never hit the screen edge */
+:root {
+    --bubble-max: min(82%, 620px);
+}
+
+/* tweak % if you want tighter */
+.chat-bubble, .msg-body {
+    max-width: var(--bubble-max) !important;
+    width: max-content;
+    overflow-wrap: break-word;
+    word-break: normal;
+}
+
+/* Keep the chat column centered and remove any sideways wiggle */
+.chat-list {
+    padding-inline: 12px !important;
+}
+
+:where(html, body, #__next, #app-shell, .app-main, .chat-scroll) {
+    max-width: 100% !important;
+    overflow-x: clip !important;
+}
+
+/* Composer should not add dark veils */
+.floating-composer::before,
+.floating-composer::after {
+    display: none !important;
+}
+
+/* Bottom nav: reduce vertical padding a bit */
+.mobile-bottom-nav {
+    padding: 2px 8px env(safe-area-inset-bottom, 4px) !important;
+}
+
+/* --- AI page header overlap fixes (global) --- */
+
+/* Keep visual backgrounds behind the header */
+.ai-bg,
+.landing-orb,
+.history-mask,
+.modal-overlay {
+    z-index: 0 !important;
+}
+
+/* Make sure the fixed AppHeader always wins */
+.app-header {
+    z-index: 60 !important;
+    /* overrides Tailwind z-40 on the component */
+}
+
+/* Remove accidental seam between header and chat */
+[data-chat-root] {
+    border-top: none !important;
+    box-shadow: none !important;
+}
+
+/* Light/Dark: match page top to header so there’s no visible edge */
+@media (prefers-color-scheme: light) {
+
+    .chat-list,
+    [data-chat-root] {
+        background-color: #fafafa;
+    }
+}
+
+@media (prefers-color-scheme: dark) {
+
+    .chat-list,
+    [data-chat-root] {
+        background-color: #0b0b0c;
+    }
+}
+
+
+
+/* Make sure the chat surface honors the header height even before JS runs */
+.chat-list, [data-chat-root] {
+    padding-top: calc(var(--header-h, 56px) + env(safe-area-inset-top, 0px));
+}
+
+/* If any ancestor had overflow clipping, don't clip the fixed header */
+.ai-shell, .ai-page, .chat-scroll {
+    overflow: visible;
+}
+
+/* Let image taps reach the button inside ImageBubble */
+.img-card-toolbar,
+.image-overlay-toolbar {
+    pointer-events: none !important;
+}
+
+.img-card-toolbar>*,
+.image-overlay-toolbar>* {
+    pointer-events: auto !important;
+}
+
+/* Desktop-only chat scrolling */
+@media (min-width: 1024px) {
+    .app-main {
+        display: flex;
+        flex: 1;
+        min-height: 0;
+    }
+
+    /* allow child to actually shrink */
+    .chat-scroll {
+        overscroll-behavior: contain;
+        scroll-behavior: smooth;
+        height: auto;
+        /* we govern with max-height var */
+        max-height: var(--chat-max-h);
+    }
+
+    /* keep first/last bubbles fully visible near edges */
+    .chat-scroll>.mx-auto {
+        scroll-margin-top: var(--chat-pad-top, 56px);
+    }
+}
+
+/* Lock the page – only the chat list may scroll */
+html, body, #__next {
+    height: 100%;
+}
+
+html, body {
+    overflow: hidden !important;
+    overscroll-behavior: none;
+}
+
+/* The app shell already uses fixed/inset-0, make sure no extra scroll appears */
+.ai-shell {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* Let the main area flex and prevent its own scroll */
+.app-main {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+}
+
+/* The ONLY scrollable area */
+.chat-scroll {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
     scroll-behavior: smooth;
 }
 
-/* Black glass bubbles (works in light & dark) */
-.bubble {
-    border-radius: 18px;
-    padding: 10px 12px;
-    line-height: 1.45;
+/* Center the thread and give it equal left/right padding so it doesn’t hug the left */
+.chat-scroll>.mx-auto {
+    margin-inline: auto;
+    width: 100%;
+    max-width: 980px;
+    /* was 900; stretch a bit more on desktop */
+    padding-inline: 16px;
 }
 
-.glass-black {
-    background: rgba(8, 8, 8, .55);
-    color: #fff;
-    backdrop-filter: blur(14px) saturate(120%);
-    -webkit-backdrop-filter: blur(14px) saturate(120%);
-    border: 1px solid rgba(255, 255, 255, .08);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08), 0 8px 28px rgba(0, 0, 0, .35);
+/* Keep the list clear of header & composer using the vars your effect sets */
+.chat-scroll {
+    padding-top: var(--chat-pad-top, 56px);
+    padding-bottom: var(--chat-pad-bottom, 96px);
+    scroll-padding-top: var(--chat-pad-top, 56px);
+    scroll-padding-bottom: var(--chat-pad-bottom, 96px);
+    max-height: var(--chat-max-h, 100dvh);
 }
 
-/* Optional: make code/markdown blocks also float on glass */
-.bubble .th-card, .bubble pre, .bubble code {
-    background: rgba(0, 0, 0, .35) !important;
-    border-color: rgba(255, 255, 255, .08) !important;
+/* iOS “rubber band” prevention while still letting chat scroll */
+@supports (-webkit-touch-callout: none) {
+    body {
+        position: fixed;
+        width: 100%;
+    }
+}
+
+/* Remove any flex gaps / margins between header and main */
+.ai-shell {
+    gap: 0 !important;
+}
+
+.app-main {
+    margin-top: 0 !important;
+}
+
+/* Some builds give the header a bottom margin/padding — neutralize it */
+.app-header, [data-app-header] {
+    margin-bottom: 0 !important;
+    padding-bottom: 0 !important;
+}
+
+/* Chat is the ONLY scroll area; page itself doesn't scroll */
+html, body {
+    overflow: hidden !important;
+}
+
+.ai-shell, .app-main {
+    overflow: hidden;
+}
+
+/* Chat list sits flush under the header; padding is driven by JS vars */
+.chat-scroll {
+    overflow-y: auto;
+    overflow-x: hidden;
+    scroll-behavior: smooth;
+    padding-top: var(--chat-pad-top, 0px);
+    padding-bottom: var(--chat-pad-bottom, 96px);
+    scroll-padding-top: var(--chat-pad-top, 0px);
+    scroll-padding-bottom: var(--chat-pad-bottom, 96px);
+}
+
+/* === 6IX HOTFIX — put at the very end of 6ix.css === */
+
+/* Page never scrolls */
+html, body {
+    height: 100%;
+    overflow: hidden !important;
+    overscroll-behavior: none !important;
+    max-width: 100%;
+}
+
+/* App shell pinned to viewport (fix the stray "inset: 8") */
+#app-shell.app-shell,
+.ai-shell {
+    position: fixed !important;
+    inset: 0 !important;
+    overflow: hidden !important;
+}
+
+.ai-page {
+    overflow: hidden !important;
+}
+
+/* Header floats with NO seam/border/shadow */
+.app-header,
+.theme-dark .app-header,
+.theme-light .app-header {
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+}
+
+.app-header::before,
+.app-header::after {
+    content: none !important;
+}
+
+/* If you mount a "header-flow" bar anywhere, kill its border line */
+.header-flow {
+    border-top: 0 !important;
+}
+
+/* Main sits exactly under the header */
+.app-main {
+    position: absolute !important;
+    inset: var(--header-h, 56px) 0 0 0 !important;
+    overflow: hidden !important;
+}
+
+/* The ONLY scrollable area */
+.chat-scroll {
+    position: absolute !important;
+    inset: 0 !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    scroll-behavior: smooth;
+    padding-top: var(--chat-pad-top, 0px) !important;
+    padding-bottom: var(--chat-pad-bottom, 96px) !important;
+    scroll-padding-top: var(--chat-pad-top, 0px) !important;
+    scroll-padding-bottom: var(--chat-pad-bottom, 96px) !important;
+    scrollbar-gutter: stable both-edges;
+}
+
+/* Nuke the duplicate top pad that created the gap */
+.chat-list,
+[data-chat-root] {
+    padding-top: 0 !important;
+    margin-top: 0 !important;
+    border-top: 0 !important;
+    box-shadow: none !important;
+}
+
+/* Stretch the chat column on desktop and keep it centered */
+.chat-scroll>.mx-auto {
+    margin-inline: auto;
+    width: 100%;
+    max-width: 980px;
+    /* lets the right side stretch */
+    padding-inline: 16px;
+}
+
+/* Sticky generator toolbar should not reserve extra space */
+.gen-wrap {
+    position: sticky;
+    top: var(--chat-pad-top, var(--header-h, 56px)) !important;
+    /* remove +8px */
+    z-index: 1;
+}
+
+/* Guard: absolutely kill accidental horizontal scrollbars anywhere */
+:where(html, body, #__next, #app-shell, .app-main, .chat-scroll) {
+    max-width: 100% !important;
+    overflow-x: clip !important;
+}
+
+:where([style*="width: 100vw"], .w-screen) {
+    width: 100% !important;
+}
+
+/* iOS rubber-band fix while still allowing the chat to scroll */
+@supports (-webkit-touch-callout: none) {
+    body {
+        position: fixed;
+        width: 100%;
+    }
+}
+
+/* === 6IX FIX — single scroller, no seam under header (desktop+mobile) === */
+
+/* 0) Make the header height token consistent everywhere */
+:root {
+    --header-h: var(--hdr-h, 64px) !important;
+}
+
+/* 1) Page never scrolls; app shell fills viewport with zero inset */
+html, body {
+    overflow: hidden !important;
+    height: 100% !important;
+}
+
+#app-shell.app-shell, .ai-shell {
+    position: fixed !important;
+    inset: 0 !important;
+    overflow: hidden !important;
+}
+
+/* 2) Main area sits exactly under the fixed header */
+.app-header {
+    z-index: 120;
+}
+
+/* keep it above */
+.app-main {
+    position: fixed !important;
+    top: var(--header-h, 56px) !important;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    margin: 0 !important;
+    overflow: hidden !important;
+}
+
+/* 3) The ONLY scroller (flush to top, no extra top padding) */
+.chat-scroll {
+    position: absolute !important;
+    inset: 0 !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    padding-top: 0 !important;
+    /* ← kill extra gap */
+    padding-bottom: calc(var(--composer-h, 84px) + var(--mbnav-h, 0px) + env(safe-area-inset-bottom, 0px)) !important;
+    scroll-padding-top: 0 !important;
+    scroll-padding-bottom: calc(var(--composer-h, 84px) + var(--mbnav-h, 0px) + env(safe-area-inset-bottom, 0px)) !important;
+}
+
+/* 4) Remove any other top padding/borders that were adding a seam */
+.chat-list, [data-chat-root] {
+    padding-top: 0 !important;
+    margin-top: 0 !important;
+    border-top: 0 !important;
+    box-shadow: none !important;
+}
+
+.header-flow {
+    border-top: 0 !important;
+}
+
+/* ← kills the thin grey line */
+.app-header, .app-header * {
+    border-bottom: none !important;
+    box-shadow: none !important;
+}
+
+/* 5) Make sure the thread container spans correctly (no left bias) */
+.chat-scroll>.mx-auto {
+    margin-inline: auto !important;
+    width: 100% !important;
+    max-width: 980px;
+    /* tweak if you want wider */
+    padding-inline: 16px;
+}
+
+/* 6) Safety: no rogue 8px inset from older rule */
+#app-shell.app-shell {
+    inset: 0 !important;
+}
+
+/* overrides the earlier `inset: 8;` */
+/* ===== 6IX — header + chat alignment (final overrides) ===== */
+
+/* 1) One token for header height (player + plan pills included) */
+:root {
+    --header-h: 132px;
+    /* tune if your pills wrap */
+    --hdr-h: var(--header-h);
+    /* alias older token so both paths match */
+}
+
+@media (max-width: 480px) {
+    :root {
+        --header-h: 144px;
+    }
+
+    /* a touch taller on small phones */
+}
+
+/* 2) Header: fixed + extend its glass down to cover the pills */
+.app-header {
+    position: fixed !important;
+    inset: 0 0 auto 0;
+    height: var(--header-h) !important;
+    z-index: 120;
+    background: rgba(14, 14, 14, .82) !important;
+    -webkit-backdrop-filter: blur(14px) !important;
+    backdrop-filter: blur(14px) !important;
+    border: 0 !important;
+    box-shadow: none !important;
+}
+
+/* (optional safety) extend the glass a few pixels below in case of rounding */
+.app-header::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -12px;
+    height: 12px;
+    background: inherit;
+    -webkit-backdrop-filter: inherit;
+    backdrop-filter: inherit;
+    pointer-events: none;
+}
+
+/* Keep the pills inside the same padded band as the music pill */
+.app-header .header-pills {
+    padding-inline: 16px !important;
+    margin-top: 8px !important;
+}
+
+/* 3) Main area starts exactly under the header */
+.app-main {
+    position: absolute !important;
+    top: var(--header-h) !important;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    overflow: hidden !important;
+}
+
+/* 4) ONLY chat scrolls, and it sits flush under the header */
+.chat-scroll {
+    position: absolute;
+    inset: 0;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    padding-top: 8px !important;
+    /* tiny breathing room under header */
+    padding-bottom: calc(var(--composer-h, 84px) + var(--mbnav-h, 0px) + env(safe-area-inset-bottom, 0px)) !important;
+    scroll-padding-top: 8px !important;
+}
+
+/* nuke any extra top padding that was being added elsewhere */
+.chat-list, [data-chat-root] {
+    padding-top: 90px !important;
+    padding-bottom: -8px !important;
+}
+
+/* 5) Kill the faint gray line/divider under the header */
+.header-flow {
+    border-top: 8px !important;
+    box-shadow: none !important;
+}
+
+.app-header, .app-header * {
+    border-bottom: 8px !important;
+    box-shadow: none !important;
+}
+
+/* 6) No page scroll at all */
+html, body {
+    height: 100%;
+    overflow: hidden !important;
+    overscroll-behavior: none !important;
+}
+
+/* === 6IX “no bottom gap” patch (desktop + mobile) === */
+
+/* Composer sits on the bottom (no extra lift) */
+.floating-composer {
+    bottom: calc(env(safe-area-inset-bottom, 0px) + var(--mbnav-h, 0px)) !important;
+    margin: 0 !important;
+}
+
+/* Kill any spacing inside the composer stack */
+.floating-composer .composer-ticker {
+    margin-bottom: 0px !important;
+}
+
+/* The ONLY bottom padding for the chat is the composer height */
+:root {
+    --chat-pad-bottom: calc(var(--composer-h, 84px) + var(--mbnav-h, 0px) + env(safe-area-inset-bottom, 0px));
+}
+
+.chat-scroll {
+    padding-bottom: var(--chat-pad-bottom) !important;
+    scroll-padding-bottom: var(--chat-pad-bottom) !important;
+}
+
+/* Safety: if any other block set a fixed 96px or similar, zero it */
+:root {
+    --chat-max-h: 100dvh !important;
 }

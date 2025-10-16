@@ -218,6 +218,13 @@ export default function AppHeader({
 }: Props) {
     const [mini, setMini] = React.useState<{ avatarUrl?: string | null; displayName?: string | null; email?: string | null; wallet?: number | null; credits?: number | null } | null>(null);
     React.useEffect(() => { try { setMini(JSON.parse(localStorage.getItem('6ixai:profile') || 'null')); } catch { } }, []);
+    // inside AppHeader
+    React.useLayoutEffect(() => {
+        const el = (headerRef as any)?.current as HTMLDivElement | null;
+        if (!el) return;
+        const h = Math.ceil(el.getBoundingClientRect().height);
+        document.documentElement.style.setProperty('--header-h', `${h}px`);
+    }, [effPlan, model, speed]); // re-measure if pills change
 
     const name =
         (profile?.displayName ||
@@ -243,8 +250,21 @@ export default function AppHeader({
     };
 
     return (
-        <div ref={headerRef} className="app-header sticky top-0 z-30 bg-black/75 backdrop-blur-xl border-b border-white/10">
-            <div className="mx-auto px-3 pt-2 pb-2 max-w-[min(1100px,92vw)]">
+        <div
+            ref={headerRef}
+            className="app-header fixed inset-x-0 top-0 z-[120]"
+            style={{
+                paddingTop: 'max(env(safe-area-inset-top), 8px)',
+                background: 'rgba(8,8,8,.72)', // blurred black
+                borderBottom: '1px solid rgba(255,255,255,.08)', // subtle divider
+                boxShadow: '0 1px 0 rgba(0,0,0,.10) inset',
+                backdropFilter: 'blur(14px) saturate(120%)',
+                WebkitBackdropFilter: 'blur(14px) saturate(120%)',
+                isolation: 'isolate',
+                pointerEvents: 'auto',
+            }}
+        >
+            <div className="mx-auto px-3 pt-2 pb-0 max-w-[min(1100px,92vw)] relative z-[2]">
                 {/* Row 1 — mobile */}
                 <div className="md:hidden flex items-center gap-2">
                     <button onClick={() => scrollToBottom(false)} className="rounded-sm shrink-0" aria-label="Scroll to latest">
@@ -253,8 +273,19 @@ export default function AppHeader({
                     <div className="flex-1 min-w-0">
                         <MusicPill className="w-full" />
                     </div>
-                    <button ref={avatarBtnRef} onClick={onAvatarClick} className="relative h-9 w-9 rounded-full overflow-hidden border border-white/15 active:scale-95 shrink-0" aria-label="Account menu">
-                        <img src={avatarSrc} alt={name || 'avatar'} className="h-full w-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).src = AVATAR_FALLBACK; }} />
+
+                    <button
+                        ref={avatarBtnRef}
+                        onClick={onAvatarClick}
+                        className="relative h-9 w-9 rounded-full overflow-hidden border border-white/15 active:scale-95 shrink-0"
+                        aria-label="Account menu"
+                    >
+                        <img
+                            src={avatarSrc}
+                            alt={name || 'avatar'}
+                            className="h-full w-full object-cover"
+                            onError={(e) => { (e.currentTarget as HTMLImageElement).src = AVATAR_FALLBACK; }}
+                        />
                         <VerifiedBadge plan={effPlan} />
                     </button>
                 </div>
@@ -279,8 +310,18 @@ export default function AppHeader({
                         </div>
                         <ThemeMenu />
                         <div className="text-sm opacity-90 truncate max-w-[180px]"><span title={name}>{name}</span></div>
-                        <button ref={avatarBtnRef} onClick={onAvatarClick} className="relative h-9 w-9 rounded-full overflow-hidden border border-white/15 active:scale-95" aria-label="Account menu">
-                            <img src={avatarSrc} alt={name || 'avatar'} className="h-full w-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).src = AVATAR_FALLBACK; }} />
+                        <button
+                            ref={avatarBtnRef}
+                            onClick={onAvatarClick}
+                            className="relative h-9 w-9 rounded-full overflow-hidden border border-white/15 active:scale-95"
+                            aria-label="Account menu"
+                        >
+                            <img
+                                src={avatarSrc}
+                                alt={name || 'avatar'}
+                                className="h-full w-full object-cover"
+                                onError={(e) => { (e.currentTarget as HTMLImageElement).src = AVATAR_FALLBACK; }}
+                            />
                             <VerifiedBadge plan={effPlan} />
                         </button>
                     </div>
@@ -291,13 +332,43 @@ export default function AppHeader({
                     <BottomNav />
                 </div>
 
-                {/* Row 3 — mobile: static tiny pills (no chevrons, no selects) */}
+                {/* Row 3 — mobile: static tiny pills */}
                 <div className="md:hidden mt-2 grid grid-cols-3 gap-2">
                     <div className="h-7 px-3 rounded-full bg-white/5 border border-white/15 text-[12px] text-zinc-200 grid place-items-center">{effPlan}</div>
                     <div className="h-7 px-3 rounded-full bg-white/5 border border-white/15 text-[12px] text-zinc-200 grid place-items-center">{displayModel}</div>
                     <div className="h-7 px-3 rounded-full bg-white/5 border border-white/15 text-[12px] text-zinc-200 grid place-items-center">{speed}</div>
                 </div>
             </div>
+
+            {/* Seam guard: hides any top fade/black line from the chat list */}
+            <div
+                aria-hidden
+                className="absolute inset-x-0 -bottom-px h-0 pointer-events-none z-[1]"
+                style={{ background: 'linear-gradient(to bottom, var(--th-bg, #000) 0%, rgba(0,0,0,0) 100%)' }}
+            />
+
+            {/* Hard overrides: ensure no legacy header styling leaks in */}
+            <style jsx global>{`
+/* Always render the header as a blurred black bar */
+.app-header {
+background: rgba(8,8,8,.72) !important;
+-webkit-backdrop-filter: blur(14px) saturate(120%) !important;
+backdrop-filter: blur(14px) saturate(120%) !important;
+border-bottom: 1px solid rgba(255,255,255,.08) !important;
+box-shadow: 0 1px 0 rgba(0,0,0,.10) inset !important;
+}
+
+/* Fallback when backdrop-filter isn't supported */
+@supports not (backdrop-filter: blur(1px)) {
+.app-header { background: rgba(8,8,8,.88) !important; }
+}
+
+/* Slightly stronger on larger screens for contrast */
+@media (min-width: 768px) {
+.app-header { background: rgba(8,8,8,.78) !important; }
+}
+`}</style>
         </div>
     );
-}
+
+};

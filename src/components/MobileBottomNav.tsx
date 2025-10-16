@@ -35,10 +35,10 @@ export default function MobileBottomNav({
 
             <style jsx>{`
 .six-mnav-btn{
-height:34px;
+height:30px;
 border-radius:12px;
-font-size:13px;
-font-weight:600;
+font-size:11px;
+font-weight:400;
 letter-spacing:.06em;
 text-transform:uppercase;
 width:100%;
@@ -46,12 +46,12 @@ display:inline-flex; align-items:center; justify-content:center;
 transition:transform .06s ease, filter .12s ease, box-shadow .12s ease;
 color: var(--btn-fg, #fff);
 background:
-linear-gradient(180deg, rgba(255,255,255,.12), rgba(0,0,0,.12)),
+linear-gradient(180deg, rgba(65, 63, 63, 1), rgba(0, 0, 0, 1)),
 var(--btn-bg, #1c1c1c);
-border: 1px solid var(--th-border, rgba(255,255,255,.15));
+border: 1px solid var(--th-border, rgba(18, 18, 18, 1));
 box-shadow:
-inset 0 1px 0 rgba(255,255,255,.18),
-inset 0 -1px 0 rgba(0,0,0,.35),
+inset 0 1px 0 rgba(20, 20, 20, 0.18),
+inset 0 -1px 0 rgba(0, 0, 0, 1),
 0 6px 16px rgba(0,0,0,.25);
 }
 :root.light .six-mnav-btn,
@@ -64,7 +64,7 @@ border-color: rgba(0,0,0,.12);
 box-shadow:
 inset 0 1px 0 rgba(255,255,255,1),
 inset 0 -1px 0 rgba(0,0,0,.12),
-0 6px 14px rgba(0,0,0,.10);
+0 6px 14px rgba(62, 60, 60, 0.88);
 }
 .six-mnav-btn.is-active{
 box-shadow:

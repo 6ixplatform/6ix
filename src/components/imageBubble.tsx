@@ -5,11 +5,8 @@ import { type Plan } from '@/lib/imagePlan';
 type Props = {
     plan: Plan;
     prompt: string;
-    /** data URL from the API when ready; while falsy we show progress */
     url?: string | null;
-    /** visual hint for placeholder ratio */
     shape?: 'square' | 'portrait' | 'landscape';
-    /** actions */
     onRecreate: () => void;
     onOpenFullscreen: () => void;
     onShare?: (url: string) => Promise<void>;
@@ -33,37 +30,41 @@ const Btn = ({
 
 const Icon = {
     Volume: () => (
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8">
+        <svg className="ix-icon" viewBox="0 0 24 24" width="18" height="18">
             <path d="M4 10v4h4l5 4V6l-5 4H4z" />
             <path d="M16 9a5 5 0 0 1 0 6" />
             <path d="M18 7a8 8 0 0 1 0 10" />
         </svg>
     ),
     Refresh: () => (
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8">
+        <svg className="ix-icon" viewBox="0 0 24 24" width="18" height="18">
             <path d="M3 12a9 9 0 0 1 15.6-6.4M21 12a9 9 0 0 1-15.6 6.4" />
             <path d="M18 3v4h-4M6 21v-4h4" />
         </svg>
     ),
     Share: () => (
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8">
-            <path d="M12 3v14" /><path d="M7 8l5-5 5 5" /><path d="M5 21h14" />
+        <svg className="ix-icon" viewBox="0 0 24 24" width="18" height="18">
+            <path d="M12 3v14" />
+            <path d="M7 8l5-5 5 5" />
+            <path d="M5 21h14" />
         </svg>
     ),
     Download: () => (
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8">
-            <path d="M12 3v12" /><path d="M7 10l5 5 5-5" /><path d="M5 21h14" />
+        <svg className="ix-icon" viewBox="0 0 24 24" width="18" height="18">
+            <path d="M12 3v12" />
+            <path d="M7 10l5 5 5-5" />
+            <path d="M5 21h14" />
         </svg>
     ),
     Expand: () => (
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8">
+        <svg className="ix-icon" viewBox="0 0 24 24" width="18" height="18">
             <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />
         </svg>
     ),
     Spinner: () => (
         <svg viewBox="0 0 24 24" width="18" height="18" className="animate-spin">
-            <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" fill="none" opacity=".25" />
-            <path d="M21 12a9 9 0 0 1-9 9" stroke="currentColor" strokeWidth="2" fill="none" />
+            <circle cx="12" cy="12" r="9" opacity=".25" />
+            <path d="M21 12a9 9 0 0 1-9 9" />
         </svg>
     ),
 };
@@ -92,13 +93,10 @@ export default function ImageBubble({
             shape === 'landscape' ? 'aspect-landscape' :
                 'aspect-square';
 
-    // Rotate the status every 3s while waiting; reset on new prompt; stop when url arrives
     useEffect(() => {
-        if (url) return; // stop once image is ready
-        setIdx(0); // new placeholder = start from first label
-        const id = setInterval(() => {
-            setIdx(i => (i + 1) % STATUS.length);
-        }, 3000);
+        if (url) return;
+        setIdx(0);
+        const id = setInterval(() => setIdx(i => (i + 1) % STATUS.length), 3000);
         return () => clearInterval(id);
     }, [url, prompt]);
 
@@ -113,8 +111,7 @@ export default function ImageBubble({
             });
             const j = await r.json();
             const text = j?.text || 'This image shows a generated scene.';
-            if (onExplainTTS) onExplainTTS(text);
-            else alert(text);
+            if (onExplainTTS) onExplainTTS(text); else alert(text);
         } finally { setExplaining(false); }
     };
 
@@ -152,13 +149,7 @@ export default function ImageBubble({
                 )}
 
                 {url && (
-                    <button
-                        type="button"
-                        className="w-full h-full"
-                        title="Open full screen"
-                        onClick={onOpenFullscreen}
-                    >
-                        {/* blur-up reveal */}
+                    <button type="button" className="w-full h-full" title="Open full screen" onClick={onOpenFullscreen}>
                         <img
                             src={url}
                             alt={prompt}
@@ -174,7 +165,7 @@ export default function ImageBubble({
                 <Btn title="Explain" onClick={explain} disabled={!url || explaining}>
                     {explaining ? <Icon.Spinner /> : <Icon.Volume />}
                 </Btn>
-                <Btn title="Recreate" onClick={onRecreate} disabled={false}>
+                <Btn title="Recreate" onClick={onRecreate}>
                     <Icon.Refresh />
                 </Btn>
                 <Btn title="Open" onClick={onOpenFullscreen} disabled={!url}>
@@ -192,20 +183,42 @@ export default function ImageBubble({
                 </span>
             </div>
 
-            {/* Theme-aware icon styles */}
+            {/* Scoped icon reset */}
             <style jsx>{`
-/* icons follow palette token set in applyPalette() */
+/* icons inherit color from container */
 .image-bubble-actions { color: var(--icon-fg); }
 .icon-btn { color: inherit; background: transparent; }
 .icon-btn:hover { background: var(--th-surface); }
 
-/* optional: subtle motion for status text */
+/* HARD RESET: never allow fills on these SVGs */
+.image-bubble-actions .ix-icon,
+.image-bubble-actions .ix-icon * {
+fill: none !important;
+}
+.image-bubble-actions .ix-icon {
+stroke: currentColor !important;
+stroke-width: var(--ix-icon-stroke, 1.6) !important; /* slimmer */
+stroke-linecap: round;
+stroke-linejoin: round;
+vector-effect: non-scaling-stroke;
+shape-rendering: geometricPrecision;
+}
+
+/* spinner also outline-only */
+.image-bubble-actions svg.animate-spin,
+.image-bubble-actions svg.animate-spin * {
+fill: none !important;
+stroke: currentColor !important;
+}
+
+/* status wobble */
 .pendulum { animation: pendulum 1.8s ease-in-out infinite; transform-origin: left center; }
 @keyframes pendulum {
 0% { transform: translateX(0); }
 50% { transform: translateX(10px); }
 100% { transform: translateX(0); }
 }
+
 `}</style>
         </div>
     );

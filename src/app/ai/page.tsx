@@ -695,6 +695,45 @@ function AIPageInner() {
     const afterBootScrollTimersRef = React.useRef<number[]>([]);
     const [speakingFor, setSpeakingFor] = React.useState<string | null>(null);
     const mbnavRef = React.useRef<HTMLDivElement | null>(null);
+    const [lightbox, setLightbox] = useState<{ open: boolean; url: string; prompt: string }>({
+        open: false,
+        url: '',
+        prompt: ''
+    });
+    const safeUrl = useSafeImgUrl(lightbox.url);
+    // Converts data URLs to blob: URLs so they show on iOS Safari
+    function useSafeImgUrl(url?: string | null) {
+        const [safe, setSafe] = React.useState<string | undefined>(url || undefined);
+
+        React.useEffect(() => {
+            let revoked: string | null = null;
+
+            if (!url) { setSafe(undefined); return; }
+
+            if (url.startsWith('data:image/')) {
+                // Convert large data URL to a blob URL
+                (async () => {
+                    try {
+                        const res = await fetch(url);
+                        const blob = await res.blob();
+                        const obj = URL.createObjectURL(blob);
+                        revoked = obj;
+                        setSafe(obj);
+                    } catch {
+                        setSafe(url); // fall back
+                    }
+                })();
+            } else {
+                setSafe(url);
+            }
+
+            return () => { if (revoked) URL.revokeObjectURL(revoked); };
+        }, [url]);
+
+        return safe;
+    }
+
+
     // theme (mini-only)
 
     function clearAfterBootScrollTimers() {
@@ -1505,48 +1544,45 @@ function AIPageInner() {
 
 
     /* ——— header, composer & bottom-nav sizing (mobile-safe) ——— */
+    // ——— header, composer & bottom-nav sizing (mobile-safe) ———
     useIsoLayoutEffect(() => {
         if (typeof window === 'undefined') return;
 
-        const EXTRA = 100; // your existing extra bottom “breathing room”
         const update = () => {
-            const ch = compRef.current?.offsetHeight ?? 160; // composer height
-            const hh = headerRef.current?.offsetHeight ?? 120; // header height
-            const nh = mbnavRef.current?.offsetHeight ?? 0; // mobile bottom nav
+            const isDesktop = window.matchMedia('(min-width: 1024px)').matches;
 
-            document.documentElement.style.setProperty('--composer-h', `${ch}px`);
+            const hh = headerRef.current?.offsetHeight ?? 0; // header height
+            const ch = compRef.current?.offsetHeight ?? 64; // composer height
+            const nh = isDesktop ? 0 : (mbnavRef.current?.offsetHeight ?? 0); // no mobile nav on desktop
+            const EXTRA = isDesktop ? 24 : 150; // smaller breathing room on desktop
+
+            // expose sizes as CSS variables so React doesn't clobber them on re-render
             document.documentElement.style.setProperty('--header-h', `${hh}px`);
+            document.documentElement.style.setProperty('--composer-h', `${ch}px`);
             document.documentElement.style.setProperty('--mbnav-h', `${nh}px`);
 
-            const el = listRef.current;
-            if (el) {
-                // Reserve space for: composer + mobile nav + safe area + extra
-                const v = `calc(${ch}px + var(--mbnav-h,0px) + env(safe-area-inset-bottom,0px) + ${EXTRA}px)`;
-                el.style.paddingBottom = v;
-                el.style.scrollPaddingBottom = v;
-            }
+            const padT = `${hh}px`;
+            const padB = `calc(${ch}px + ${nh}px + env(safe-area-inset-bottom,0px) + ${EXTRA}px)`;
+            document.documentElement.style.setProperty('--chat-pad-top', padT);
+            document.documentElement.style.setProperty('--chat-pad-bottom', padB);
 
-            try {
-                localStorage.setItem('6ixai:ch', String(ch));
-                localStorage.setItem('6ixai:hh', String(hh));
-            } catch { }
+            // desktop max height so the list truly scrolls and never sits under header/composer
+            const maxH = `calc(var(--app-h, 100vh) - ${hh}px - ${ch}px)`;
+            document.documentElement.style.setProperty('--chat-max-h', maxH);
         };
 
-        update(); // before paint
-
+        update();
         const ro = new ResizeObserver(update);
-        const c = compRef.current, h = headerRef.current, n = mbnavRef.current;
-        if (c) ro.observe(c);
-        if (h) ro.observe(h);
-        if (n) ro.observe(n);
-
-        // also react to viewport-height changes (iOS URL bar / keyboard)
-        const onVV = () => update();
-        window.visualViewport?.addEventListener?.('resize', onVV);
+        headerRef.current && ro.observe(headerRef.current);
+        compRef.current && ro.observe(compRef.current);
+        mbnavRef.current && ro.observe(mbnavRef.current);
+        window.visualViewport?.addEventListener?.('resize', update);
+        window.addEventListener('orientationchange', update);
 
         return () => {
             ro.disconnect();
-            window.visualViewport?.removeEventListener?.('resize', onVV);
+            window.visualViewport?.removeEventListener?.('resize', update);
+            window.removeEventListener('orientationchange', update);
         };
     }, []);
 
@@ -1810,7 +1846,7 @@ function AIPageInner() {
     }
 
     const [sharingIndex, setSharingIndex] = useState<number | null>(null);
-    const [lightbox, setLightbox] = useState<{ open: boolean, url: string; prompt: string }>({ open: false, url: '', prompt: '' });
+
 
     function ensureMsgIdAt(i: number) {
         setMessages(ms => {
@@ -3427,239 +3463,235 @@ function AIPageInner() {
                 portalRoot
             )}
 
+            <div id="app-shell" className="app-shell">
 
-            {/* message LIST */}
-            <div
-                ref={listRef}
-                className="chat-list flex-1 min-h-0 px-3 md:px-4"
-                role="log"
-                aria-live="polite"
-                style={{ background: 'transparent' }}
-                suppressHydrationWarning
-            >
-
-                {messages.filter(m => m.role !== 'system').map((m, i) => {
-                    if (m.kind === 'image') {
-                        const msgKey = m.id ?? `${m.role}-${i}`;
-                        return (
-                            <div key={i} className="flex justify-start">
-                                <ImageMsg
-                                    plan={plan}
-                                    url={m.url}
-                                    prompt={m.prompt || ''}
-                                    overlay={m.meta?.overlay} // NEW
-                                    displayName={profile?.displayName}
-                                    busy={descAt === i || recreatingId === m.id}
-                                    onOpen={() => m.url && setLightbox({ open: true, url: m.url, prompt: m.prompt || '' })}
-                                    onShare={() => m.url && smartShare(m.url)}
-                                    onDescribe={async () => {
-                                        if (!m.url) return;
-                                        setDescAt(i);
-                                        try {
-                                            const text = await describeImage(m.prompt, m.url);
-                                            await handleSpeak(text);
-                                        } finally { setDescAt(null); }
-                                    }}
-                                    onRecreate={(e) => openRecreateMenu(i, m.prompt || '', e.currentTarget as HTMLElement)}
-
-                                />
-                            </div>
-                        );
-                    }
-
-                    const { visible, suggestions } = splitVisibleAndSuggestions(m.content);
-                    const isAssistant = m.role === 'assistant';
-                    const isLast = i === messages.length - 1;
-                    // compute the previous user prompt for this assistant message
-                    const prevUserPrompt = (() => {
-                        for (let j = i - 1; j >= 0; j--) {
-                            if (messages[j]?.role === 'user') return messages[j]?.content || '';
-                        }
-                        return '';
-                    })();
-
-                    return (
-                        <div key={i} className="space-y-1" data-kind="text" suppressHydrationWarning>
-                            <div className={`flex ${isAssistant ? 'justify-start' : 'justify-end'}`}>
-                                <div className="max-w-[85%] px-0 py-0">
-                                    {/* Attachments row (for user message) */}
-                                    {m.attachments && m.attachments.length > 0 && (
-                                        <div className="mb-2 flex flex-wrap gap-2">
-                                            {m.attachments.map(a => (
-                                                <UserFileMsg
-                                                    key={a.id}
-                                                    attachments={[a]}
-                                                    disabledUntilReplyDone={streaming || hasPendingUpload}
+                {/* MAIN: only the chat list scrolls */}
+                <main className="app-main">
+                    <div
+                        ref={listRef}
+                        className="chat-scroll chat-list overflow-y-auto overflow-x-hidden"
+                        role="log"
+                        aria-live="polite"
+                        style={{
+                            background: 'transparent',
+                            paddingTop: 'var(--chat-pad-top, 0px)',
+                            paddingBottom: 'var(--chat-pad-bottom, 96px)',
+                            scrollPaddingTop: 'var(--chat-pad-top, 0px)',
+                            scrollPaddingBottom: 'var(--chat-pad-bottom, 96px)',
+                            maxHeight: 'var(--chat-max-h, 100dvh)',
+                        }}
+                        suppressHydrationWarning
+                    >
+                        <div className="mx-auto w-full max-w-[980px] space-y-3 md:space-y-4 lg:space-y-5 py-2">
+                            {messages.filter(m => m.role !== 'system').map((m, i) => {
+                                if (m.kind === 'image') {
+                                    const msgKey = m.id ?? `${m.role}-${i}`;
+                                    return (
+                                        <div key={msgKey} className="flex justify-start">
+                                            <div className="chat-bubble w-full">
+                                                <ImageMsg
                                                     plan={plan}
-                                                    onDescribe={() => handleDescribeAttachment(a)}
-                                                    busyId={descBusyId}
+                                                    url={m.url}
+                                                    prompt={m.prompt || ''}
+                                                    overlay={m.meta?.overlay}
+                                                    displayName={profile?.displayName}
+                                                    busy={descAt === i || recreatingId === m.id}
+                                                    onOpen={() => m.url && setLightbox({ open: true, url: m.url, prompt: m.prompt || '' })}
+                                                    onShare={() => m.url && smartShare(m.url)}
+                                                    onDescribe={async () => {
+                                                        if (!m.url) return;
+                                                        setDescAt(i);
+                                                        try {
+                                                            const text = await describeImage(m.prompt, m.url);
+                                                            await handleSpeak(text);
+                                                        } finally { setDescAt(null); }
+                                                    }}
+                                                    onRecreate={(e) => openRecreateMenu(i, m.prompt || '', e.currentTarget as HTMLElement)}
                                                 />
-                                            ))}
+                                            </div>
                                         </div>
-                                    )}
-                                    <div
-                                        className={[
-                                            'inline-block px-3 py-[7px] text-[15px] leading-[1.35] border rounded-2xl',
-                                            'msg-body',
-                                            'bg-white/10 border-white/15',
-                                        ].join(' ')}
-                                        // NEW: tap the bubble to open the same menu (assistant only)
-                                        onClick={isAssistant ? (e) =>
-                                            openRecreateMenu(i, prevUserPrompt, e.currentTarget as HTMLElement, 'chat')
-                                            : undefined}
-                                        role={isAssistant ? 'button' : undefined}
-                                        title={isAssistant ? 'Options' : undefined}
-                                    >
-                                        {(() => {
-                                            // pull any control tags from top of the message
-                                            const paintControls = extractPaintControls(visible || '');
-                                            const bodyAfterControls = paintControls.rest || visible;
+                                    );
+                                }
 
-                                            return (
-                                                <>
-                                                    {isAssistant && paintControls.colorPicker && (
-                                                        <ColorPickerRow meta={paintControls.colorPicker} onPick={onPickColor} />
-                                                    )}
-                                                    {isAssistant && paintControls.swatchGrid && (
-                                                        <SwatchGrid meta={paintControls.swatchGrid} onPick={onPickSwatch} />
-                                                    )}
+                                const { visible, suggestions } = splitVisibleAndSuggestions(m.content);
+                                const isAssistant = m.role === 'assistant';
+                                const isLast = i === messages.length - 1;
+                                const prevUserPrompt = (() => {
+                                    for (let j = i - 1; j >= 0; j--) {
+                                        if (messages[j]?.role === 'user') return messages[j]?.content || '';
+                                    }
+                                    return '';
+                                })();
 
-                                                    {bodyAfterControls ? (
-                                                        <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
-                                                            {bodyAfterControls}
-                                                        </ReactMarkdown>
-                                                    ) : (
-                                                        Boolean(streaming && isAssistant) && (
-                                                            <span className="typing-line">
-                                                                <span>
-                                                                    {status ?? turnLabel ?? (plan === 'free' ? '6IX AI is typing' : 'Drafting an answer…')}
-                                                                </span>
-                                                                <i className="inline-flex gap-[2px] ml-1 align-middle">
-                                                                    <b className="dot" /><b className="dot" /><b className="dot" />
-                                                                </i>
-                                                            </span>
-                                                        )
-                                                    )}
-                                                </>
-                                            );
-                                        })()}
+                                const rowKey = m.id ?? `${m.role}-${i}`;
 
-                                    </div>
+                                return (
+                                    <div key={rowKey} className="space-y-1" data-kind="text" suppressHydrationWarning>
+                                        <div className={`flex ${isAssistant ? 'justify-start' : 'justify-end'}`}>
+                                            <div className="max-w-full">
+                                                {/* Attachments row (for user message) */}
+                                                {m.attachments && m.attachments.length > 0 && (
+                                                    <div className="mb-2 flex flex-wrap gap-2">
+                                                        {m.attachments.map(a => (
+                                                            <UserFileMsg
+                                                                key={a.id}
+                                                                attachments={[a]}
+                                                                disabledUntilReplyDone={streaming || hasPendingUpload}
+                                                                plan={plan}
+                                                                onDescribe={() => handleDescribeAttachment(a)}
+                                                                busyId={descBusyId}
+                                                            />
+                                                        ))}
+                                                    </div>
+                                                )}
 
-                                    {/* Quick follow-up chips */}
-                                    {isAssistant && isLast && allowFollowupPills(plan) && suggestions.length > 0 && (
-                                        <div className="mt-2 flex flex-wrap gap-2">
-                                            {suggestions.map((s, idx) => (
-                                                <button
-                                                    key={idx}
-                                                    className="btn btn-water text-[12px] px-2 py-1"
-                                                    onClick={() => setInput(s)}
-                                                    title="Use suggestion"
+                                                {/* CHAT BUBBLE (tiny-text fix: min width + normal word-breaks) */}
+                                                <div
+                                                    className={[
+                                                        'chat-bubble',
+                                                        'inline-block min-w-[44px] max-w-[min(92%,720px)]',
+                                                        'px-3 py-[7px] text-[15px] leading-[1.35] border rounded-2xl',
+                                                        'msg-body',
+                                                        // removed: 'bg-white/10 border-white/15',
+                                                    ].join(' ')}
+                                                    style={{
+                                                        background: 'rgba(8,8,8,.72)',
+                                                        borderColor: 'rgba(255,255,255,.10)',
+                                                        color: 'var(--th-text, #e5e7eb)',
+                                                        backdropFilter: 'blur(14px) saturate(120%)',
+                                                        WebkitBackdropFilter: 'blur(14px) saturate(120%)',
+                                                    }}
+                                                    onClick={isAssistant ? (e) =>
+                                                        openRecreateMenu(i, prevUserPrompt, e.currentTarget as HTMLElement, 'chat')
+                                                        : undefined}
+                                                    role={isAssistant ? 'button' : undefined}
+                                                    title={isAssistant ? 'Options' : undefined}
                                                 >
-                                                    {s}
-                                                </button>
-                                            ))}
+                                                    {(() => {
+                                                        const paintControls = extractPaintControls(visible || '');
+                                                        const bodyAfterControls = paintControls.rest || visible;
+
+                                                        return (
+                                                            <>
+                                                                {isAssistant && paintControls.colorPicker && (
+                                                                    <ColorPickerRow meta={paintControls.colorPicker} onPick={onPickColor} />
+                                                                )}
+                                                                {isAssistant && paintControls.swatchGrid && (
+                                                                    <SwatchGrid meta={paintControls.swatchGrid} onPick={onPickSwatch} />
+                                                                )}
+
+                                                                {bodyAfterControls ? (
+                                                                    <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
+                                                                        {bodyAfterControls}
+                                                                    </ReactMarkdown>
+                                                                ) : (
+                                                                    Boolean(streaming && isAssistant) && (
+                                                                        <span className="typing-line">
+                                                                            <span>
+                                                                                {status ?? turnLabel ?? (plan === 'free' ? '6IX AI is typing' : 'Drafting an answer…')}
+                                                                            </span>
+                                                                            <i className="inline-flex gap-[2px] ml-1 align-middle">
+                                                                                <b className="dot" /><b className="dot" /><b className="dot" />
+                                                                            </i>
+                                                                        </span>
+                                                                    )
+                                                                )}
+                                                            </>
+                                                        );
+                                                    })()}
+                                                </div>
+
+                                                {/* Quick follow-up chips */}
+                                                {isAssistant && isLast && allowFollowupPills(plan) && suggestions.length > 0 && (
+                                                    <div className="mt-2 flex flex-wrap gap-2">
+                                                        {suggestions.map((s, idx) => (
+                                                            <button
+                                                                key={idx}
+                                                                className="btn btn-water text-[12px] px-2 py-1"
+                                                                onClick={() => setInput(s)}
+                                                                title="Use suggestion"
+                                                            >
+                                                                {s}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                )}
+
+                                                {/* Actions row */}
+                                                {isAssistant && (!streaming || !isLast) && (
+                                                    <MsgActions
+                                                        textToCopy={visible}
+                                                        onSpeak={() => handleSpeak(visible, m.id)}
+                                                        speaking={speakingFor === m.id}
+                                                        speakDisabled={speakDisabled}
+                                                        liked={m.feedback === 1}
+                                                        disliked={m.feedback === -1}
+                                                        onLike={() => handleLikeAt(i)}
+                                                        onDislike={() => handleDislikeAt(i)}
+                                                        onRecreate={(e) => openRecreateMenu(i, prevUserPrompt, e.currentTarget as HTMLElement, 'chat')}
+                                                        onShare={() => handleShareAt(i, visible)}
+                                                        sharing={sharingIndex === i}
+                                                    />
+                                                )}
+                                            </div>
                                         </div>
-                                    )}
-                                    {/* Actions row — show for assistant messages.
-If a message is still streaming and it's the last one, hide until it finishes. */}
-                                    {isAssistant && (!streaming || !isLast) && (
-                                        <MsgActions
-                                            textToCopy={visible}
-                                            onSpeak={() => handleSpeak(visible, m.id)}
-                                            speaking={speakingFor === m.id}
-                                            speakDisabled={speakDisabled}
+                                    </div>
+                                );
+                            })}
 
-                                            liked={m.feedback === 1}
-                                            disliked={m.feedback === -1}
-                                            onLike={() => handleLikeAt(i)}
-                                            onDislike={() => handleDislikeAt(i)}
-
-                                            onRecreate={(e) => openRecreateMenu(i, prevUserPrompt, e.currentTarget as HTMLElement, 'chat')}
-                                            onShare={() => handleShareAt(i, visible)}
-                                            sharing={sharingIndex === i}
-                                        />
-                                    )}
-                                </div>
-                            </div>
+                            <div ref={endRef} />
                         </div>
-                    );
-                })}
+                    </div>
+                </main>
 
-                <div ref={endRef} />
+                {/* Mobile bottom nav (measured for padding) */}
+                <div ref={mbnavRef} className="mobile-bottom-nav">
+                    <MobileBottomNav />
+                </div>
+
+                {/* Floating composer (measured for padding) */}
+                <FloatingComposer
+                    input={input}
+                    setInput={setInput}
+                    send={send}
+                    handleStop={handleStop}
+                    streaming={streaming}
+                    isBusy={isSendingOrBusy}
+                    transcribing={transcribing}
+                    hasPendingUpload={hasPendingUpload}
+                    busyLabel={chooseTypingLabel({
+                        plan,
+                        text: input,
+                        hasPendingUpload,
+                        hasReadyFiles: attachments.some(a => a.status === 'ready' && a.remoteUrl),
+                    })}
+                    phase={phase}
+                    tickerMessages={tickerMessages}
+                    recState={recState}
+                    startRecording={startRecording}
+                    stopRecording={stopRecording}
+                    attachments={attachments}
+                    onOpenFiles={handleOpenFiles}
+                    onFilesChosen={(files) => { if (files?.length) addFiles(files); }}
+                    onRemoveAttachment={removeAttachment}
+                    compRef={compRef}
+                    textRef={textRef}
+                    fileInputRef={fileInputRef}
+                    pickerOpenRef={pickerOpenRef}
+                    focusLockRef={focusLockRef}
+                    plan={plan}
+                    hints={composerHints}
+                    hintTick={hintTick}
+                />
             </div>
 
-            {lightbox.open && portalRoot && createPortal(
-                <div className="fixed inset-0 z-50 bg-black/80 grid place-items-center"
-                    onClick={() => setLightbox({ open: false, url: '', prompt: '' })}>
-                    <Image
-                        src={lightbox.url}
-                        alt={lightbox.prompt || 'Image'}
-                        fill
-                        className="object-contain rounded-2xl"
-                        sizes="(max-width: 900px) 92vw, 900px"
-                        unoptimized
-                    />
-                </div>,
-                portalRoot
-            )}
-
-            {/* COMPOSER (Floating ChatGPT-style) */}
-            <FloatingComposer
-                input={input}
-                setInput={setInput}
-                send={send}
-                handleStop={handleStop}
-                streaming={streaming}
-                isBusy={isSendingOrBusy}
-                transcribing={transcribing}
-                hasPendingUpload={hasPendingUpload}
-                busyLabel={chooseTypingLabel({ // <- human-friendly status line
-                    plan,
-                    text: input,
-                    hasPendingUpload,
-                    hasReadyFiles: attachments.some(a => a.status === 'ready' && a.remoteUrl),
-                })}
-                phase={phase} // 'uploading' | 'analyzing' | 'ready'
-                tickerMessages={tickerMessages} // <- the rotating feedback you already built
-                recState={recState}
-                startRecording={startRecording}
-                stopRecording={stopRecording}
-                attachments={attachments}
-                onOpenFiles={handleOpenFiles}
-                onFilesChosen={(files) => { if (files?.length) addFiles(files) }}
-                onRemoveAttachment={removeAttachment}
-                compRef={compRef}
-                textRef={textRef}
-                fileInputRef={fileInputRef}
-                pickerOpenRef={pickerOpenRef}
-                focusLockRef={focusLockRef}
-                plan={plan} // NEW: so input can set accept="image/*" for free
-                hints={composerHints} // NEW: rotate in-composer hints
-                hintTick={hintTick} // NEW: which hint to show
-            />
-
-
-            {/* Mobile bottom nav — sits under the floating composer */}
-            <MobileBottomNav
-            // optional: pass your own items or handlers
-            // items={[
-            // { id: 'feed', label: '6FEED', onClick: () => router.push('/feed') },
-            // { id: 'ai', label: '6IXAI', active: true, onClick: () => router.push('/ai') },
-            // { id: 'game', label: '6GAME', onClick: () => router.push('/game') },
-            // ]}
-            />
-
-
-
+            {/* Modals */}
             <TTSLimitModal
                 open={ttsLimitOpen}
                 displayName={profile?.displayName ?? ''}
                 onClose={() => setTtsLimitOpen(false)}
                 onUpgrade={() => { setTtsLimitOpen(false); router.push('/premium'); }}
             />
-
-            {/* Premium modal */}
             <PremiumModal
                 open={premiumModal.open}
                 required={premiumModal.required}
@@ -3668,11 +3700,89 @@ If a message is still streaming and it's the last one, hide until it finishes. *
                 onGoPremium={() => { setPremiumModal({ ...premiumModal, open: false }); router.push('/premium'); }}
             />
 
+            {/* Image viewer (mobile friendly) */}
+            {lightbox?.open && (
+                <div
+                    role="dialog"
+                    aria-modal="true"
+                    className="fixed inset-0 z-[80] flex items-center justify-center p-3 sm:p-4"
+                    style={{ background: 'rgba(0,0,0,.65)', backdropFilter: 'blur(4px)' }}
+                    onClick={() => setLightbox({ open: false, url: '', prompt: '' })}
+                >
+                    <figure
+                        className="lb-frame relative w-screen h-[92vh] sm:h-[92vh] m-0"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* use absolute fill + object-contain so it always fits */}
+
+                        <img
+                            src={safeUrl}
+                            alt={lightbox.prompt || 'image'}
+                            decoding="async"
+                            fetchPriority="high"
+                            crossOrigin="anonymous"
+                            style={{
+                                maxWidth: 'min(96vw, 900px)',
+                                maxHeight: 'min(85dvh, 720px)',
+                                width: 'auto',
+                                height: 'auto',
+                                objectFit: 'contain',
+                                display: 'block',
+                                borderRadius: 12,
+                                background: 'rgba(0,0,0,.2)',
+                            }}
+                        />
+
+                        {/* caption */}
+                        {lightbox.prompt && (
+                            <figcaption
+                                className="absolute left-0 right-0 bottom-0 p-2 text-[12px] leading-tight"
+                                style={{ color: '#fff', background: 'linear-gradient(180deg,transparent,rgba(0,0,0,.65))' }}
+                            >
+                                {lightbox.prompt}
+                            </figcaption>
+                        )}
+
+                        {/* close */}
+                        <button
+                            type="button"
+                            className="absolute top-2 right-2 h-9 w-9 rounded-full grid place-items-center"
+                            aria-label="Close"
+                            title="Close"
+                            onClick={() => setLightbox({ open: false, url: '', prompt: '' })}
+                            style={{ background: 'rgba(0,0,0,.55)', color: '#fff' }}
+                        >
+                            <svg viewBox="0 0 24 24" width="16" height="16">
+                                <path d="M6 6L18 18M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                            </svg>
+                        </button>
+                    </figure>
+
+                    {/* iOS/Android address-bar safe height */}
+                    <style jsx global>{`
+/* Blurry black chat bubbles (text + image) */
+.chat-bubble {
+background: rgba(8,8,8,.72) !important;
+border-color: rgba(255,255,255,.10) !important;
+color: var(--th-text, #e5e7eb) !important;
+-webkit-backdrop-filter: blur(14px) saturate(120%) !important;
+backdrop-filter: blur(14px) saturate(120%) !important;
+}
+
+/* Fallback when blur isn't supported */
+@supports not (backdrop-filter: blur(1px)) {
+.chat-bubble { background: rgba(8,8,8,.88) !important; }
+}
+`}</style>
+
+                </div>
+            )}
 
         </div>
 
-    );
 
+
+    )
 }
 
 // keep your signature

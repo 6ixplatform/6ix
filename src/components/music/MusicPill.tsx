@@ -7,7 +7,7 @@ import '@/styles/music.css';
 import { fetchSongs, fetchLRC, getPlayer, getAudioGraph, subscribeSongs, supabase } from '@/lib/music';
 import type { Song } from '@/lib/musicTypes';
 import { fetchTotals, recordPlay } from '@/lib/musicStats';
-import { AD_PILL_ART, ADS } from '@/lib/ads';
+import { AD_PILL_ART, ADS, AdUnit } from '@/lib/ads';
 
 
 type Props = { category?: string; className?: string };
@@ -31,6 +31,29 @@ const IcnShare = (p: any) => (<svg viewBox="0 0 24 24" width="14" height="14" {.
 /* shorts */
 const fmt = (n: number) => n >= 1e6 ? `${(n / 1e6).toFixed(n % 1e6 ? 1 : 0)}m` : n >= 1e3 ? `${(n / 1e3).toFixed(n % 1e3 ? 1 : 0)}k` : `${n}`;
 
+const domainOnly = (raw?: string) => {
+    if (!raw) return '';
+    try {
+        const u = new URL(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`);
+        return u.host.replace(/^www\./, '');
+    } catch {
+        return raw.replace(/^mailto:/, '').replace(/^https?:\/\//i, '');
+    }
+};
+
+// make href clickable even if you stored "6ixapp.com"
+const normalizeHref = (raw: string) =>
+    /^mailto:|^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+
+// choose art for pill/metadata from any ad
+const getAdArtwork = (ad?: AdUnit | null) =>
+    ad?.kind === 'video' ? (ad.poster || AD_PILL_ART) :
+        (ad && 'artwork' in ad ? ad.artwork : AD_PILL_ART);
+
+// light MIME guesser; you can also just omit 'type' in MediaSession artwork
+const mimeFrom = (src?: string) =>
+    (src || '').toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg';
+
 export default function MusicPill({ category, className = '' }: Props) {
     const [songs, setSongs] = React.useState<Song[]>([]);
     const [idx, setIdx] = React.useState(0);
@@ -42,7 +65,7 @@ export default function MusicPill({ category, className = '' }: Props) {
     const [shuffle, setShuffle] = React.useState(false);
     const [lyrics, setLyrics] = React.useState<{ t: number; text: string }[]>([]);
     const [isDesktop, setIsDesktop] = React.useState(false);
-    
+    const [pendingIdx, setPendingIdx] = React.useState<number | null>(null);
 
 
     function pulse(e?: React.SyntheticEvent) {
@@ -54,14 +77,58 @@ export default function MusicPill({ category, className = '' }: Props) {
         el.classList.add('pulse');
     }
     // Ads – add this just under your existing ad state
-    const [activeAd, setActiveAd] = React.useState<{ audio: string; artwork: string } | null>(null);
+    const [activeAd, setActiveAd] = React.useState<AdUnit | null>(null);
+    const videoRef = React.useRef<HTMLVideoElement | null>(null);
+    const SHUFFLE_ADS = false; // set to true when you want shuffle 🔀
 
-    // Tiny toast for “will play after this ad”
+    const AD_ORDER_KEY = 'six:adOrder';
+    const AD_PTR_KEY = 'six:adPtr';
+
+    const [adOrder, setAdOrder] = React.useState<number[]>(() => {
+        try { const s = localStorage.getItem(AD_ORDER_KEY); if (s) return JSON.parse(s); } catch { }
+        return Array.from({ length: ADS.length }, (_, i) => i);
+    });
+    const [adPtr, setAdPtr] = React.useState<number>(() => {
+        const p = Number(localStorage.getItem(AD_PTR_KEY) || 0);
+        return Number.isFinite(p) ? p : 0;
+    });
+
+    const rebuildOrder = React.useCallback(() => {
+        const base = Array.from({ length: ADS.length }, (_, i) => i);
+        if (SHUFFLE_ADS) base.sort(() => Math.random() - 0.5);
+        setAdOrder(base);
+        localStorage.setItem(AD_ORDER_KEY, JSON.stringify(base));
+        setAdPtr(0);
+        localStorage.setItem(AD_PTR_KEY, '0');
+    }, []);
+
+    const pickNextAd = React.useCallback(() => {
+        if (!adOrder.length) rebuildOrder();
+        const i = adOrder[adPtr % adOrder.length] ?? 0;
+        const nextPtr = (adPtr + 1) % (adOrder.length || 1);
+        setAdPtr(nextPtr);
+        localStorage.setItem(AD_PTR_KEY, String(nextPtr));
+        return ADS[i];
+    }, [adOrder, adPtr, rebuildOrder]);
+
+
+    // Tiny toast (3s by default)
     const [toast, setToast] = React.useState('');
-    const ping = (msg: string) => {
+    const ping = (msg: string, ms = 3000) => {
         setToast(msg);
         window.clearTimeout((ping as any)._t);
-        (ping as any)._t = window.setTimeout(() => setToast(''), 1600);
+        (ping as any)._t = window.setTimeout(() => setToast(''), ms);
+    };
+
+    // NEW: choose a track; if an ad is running, queue it to play next
+    const selectTrack = (i: number) => {
+        if (adActive) {
+            setPendingIdx(i);
+            ping('Song you selected will play automatically after this ad. Upgrade to stop seeing ads.', 3000);
+            return;
+        }
+        autoPlayOnChange.current = true;
+        setIdx(i);
     };
 
     // Guard any control while an ad is active (UI buttons)
@@ -70,7 +137,7 @@ export default function MusicPill({ category, className = '' }: Props) {
         fn(...a);
     };
     // Ads
-    const [isFreeUser, setIsFreeUser] = React.useState<boolean>(true); // default true for guests
+    const [isFreeUser, setIsFreeUser] = React.useState<boolean | null>(null); // default true for guests
 
     // Resolve actual plan once on mount
     React.useEffect(() => {
@@ -96,14 +163,16 @@ export default function MusicPill({ category, className = '' }: Props) {
     const [adDue, setAdDue] = React.useState(false); // a break is due
     const [adActive, setAdActive] = React.useState(false);
     const [adUiOpen, setAdUiOpen] = React.useState(false);
-    const [adIdx, setAdIdx] = React.useState(0); // rotate 0..3
+
 
     // stats cache keyed by song id
     const [stats, setStats] = React.useState<Record<string, { plays: number; likes: number; shares: number; liked?: boolean; played?: boolean; shared?: boolean }>>({});
 
     const player = getPlayer();
     const current = songs[idx];
-    const pillArtwork = adActive ? AD_PILL_ART : current?.artwork_url;
+    const pillArtwork = adActive ? (getAdArtwork(activeAd) || AD_PILL_ART) : current?.artwork_url;
+
+
     // marquee (continuous)
     const wrapRef = React.useRef<HTMLDivElement | null>(null);
     const textRef = React.useRef<HTMLSpanElement | null>(null);
@@ -118,20 +187,17 @@ export default function MusicPill({ category, className = '' }: Props) {
         setMarquee(need > avail + 2);
         setChunk(need + GAP);
         setSpeed(Math.min(28, Math.max(12, Math.round((need + GAP) / 22))));
-    }, []);
-    // Every 30 min mark an ad as due (free users only)
+    }, [])
+
     // Persist last ad timestamp so users can't bypass by reloading
     const LAST_AD_KEY = 'six:lastAdAt';
     React.useEffect(() => {
-        if (!isFreeUser) return;
-
+        if (isFreeUser !== true) return;
         const now = Date.now();
         const last = Number(localStorage.getItem(LAST_AD_KEY) || 0);
-        const GAP = 30 * 60 * 1000; // 30min
+        const GAP = 30 * 60 * 1000; // 30 min
         const dueIn = Math.max(0, GAP - Math.max(0, now - last));
-
         if (dueIn === 0) setAdDue(true);
-
         const t = window.setTimeout(() => setAdDue(true), dueIn || 0);
         return () => window.clearTimeout(t);
     }, [isFreeUser]);
@@ -171,6 +237,68 @@ export default function MusicPill({ category, className = '' }: Props) {
         });
     }, [category, player]);
 
+
+    // When a video ad is active, drive playback + background audio fallback
+    // Video-ad playback & teardown (runs only while a video ad is active)
+    React.useEffect(() => {
+        if (activeAd?.kind !== 'video') return;
+        const v = videoRef.current; if (!v) return;
+
+        let lastT = 0;
+        const onLoaded = async () => {
+            try { await getAudioGraph().ctx.resume(); } catch { }
+            try { await v.play(); } catch { }
+        };
+        const onTime = () => { lastT = v.currentTime; };
+        const onSeeking = () => { v.currentTime = lastT; }; // snap back
+        const onPause = async () => { if (adActive) { try { await v.play(); } catch { } } };
+
+        const onEnded = () => {
+            setAdActive(false);
+            setTimeout(() => setAdUiOpen(false), 2000);
+            setActiveAd(null);
+            try { localStorage.setItem(LAST_AD_KEY, String(Date.now())); } catch { }
+            setAdDue(false);
+
+            if (pendingIdx !== null) {
+                autoPlayOnChange.current = true;
+                setIdx(pendingIdx);
+                setPendingIdx(null);
+            } else {
+                // advance like you already do
+                if (repeat === 'one') { player.currentTime = 0; void player.play(); return; }
+                const nextIndex = shuffle ? Math.floor(Math.random() * songs.length) : idx + 1;
+                if (nextIndex < songs.length) { autoPlayOnChange.current = true; setIdx(nextIndex); }
+                else if (repeat === 'all' && songs.length) { autoPlayOnChange.current = true; setIdx(0); }
+            }
+        };
+
+        v.addEventListener('loadedmetadata', onLoaded);
+        v.addEventListener('timeupdate', onTime);
+        v.addEventListener('seeking', onSeeking);
+        v.addEventListener('pause', onPause);
+        v.addEventListener('ended', onEnded);
+
+        // background audio swap (your existing code) ...
+        const onVisibility = async () => {
+            if (document.visibilityState === 'hidden') {
+                try { player.src = activeAd!.video; player.currentTime = v.currentTime; await player.play(); v.pause(); } catch { }
+            } else {
+                try { v.currentTime = player.currentTime; await v.play(); player.pause(); } catch { }
+            }
+        };
+        document.addEventListener('visibilitychange', onVisibility);
+
+        return () => {
+            v.removeEventListener('loadedmetadata', onLoaded);
+            v.removeEventListener('timeupdate', onTime);
+            v.removeEventListener('seeking', onSeeking);
+            v.removeEventListener('pause', onPause);
+            v.removeEventListener('ended', onEnded);
+            document.removeEventListener('visibilitychange', onVisibility);
+        };
+    }, [activeAd, adActive, idx, songs.length, repeat, shuffle, player, pendingIdx]);
+
     // live updates for list
     React.useEffect(() => {
         let off = () => { };
@@ -201,20 +329,17 @@ export default function MusicPill({ category, className = '' }: Props) {
 
     // when track changes OR ad state toggles
     React.useEffect(() => {
-        // --- DURING AD: set metadata + hard-block controls, do NOT touch player.src ---
+        // --- DURING AD: set metadata + hard-block controls; DO NOT touch player.src ---
         if (adActive) {
-            if ('mediaSession' in navigator) {
-                try {
+            try {
+                if ('mediaSession' in navigator) {
+                    const art = getAdArtwork(activeAd);
                     navigator.mediaSession.metadata = new window.MediaMetadata({
                         title: 'Advertisement',
                         artist: '6IX Ads',
-                        artwork: (activeAd?.artwork || AD_PILL_ART)
-                            ? [{ src: activeAd?.artwork || AD_PILL_ART, sizes: '512x512', type: 'image/jpeg' }]
-                            : undefined,
+                        artwork: art ? [{ src: art, sizes: '512x512', type: mimeFrom(art) }] : undefined,
                     });
-
-                    const deny = () => { ping('Your selection will play after this ad.'); };
-
+                    const deny = () => ping('Your selection will play after this ad.');
                     navigator.mediaSession.setActionHandler('play', deny);
                     navigator.mediaSession.setActionHandler('pause', deny);
                     navigator.mediaSession.setActionHandler('previoustrack', deny);
@@ -223,9 +348,9 @@ export default function MusicPill({ category, className = '' }: Props) {
                     navigator.mediaSession.setActionHandler('seekbackward', deny);
                     navigator.mediaSession.setActionHandler('seekforward', deny);
                     navigator.mediaSession.setActionHandler('stop', deny);
-                } catch { }
-            }
-            return; // <-- critical: do not reset src while an ad is playing
+                }
+            } catch { }
+            return; // only exits THIS EFFECT while an ad is running
         }
 
         // --- NORMAL TRACK FLOW (no ad) ---
@@ -234,18 +359,17 @@ export default function MusicPill({ category, className = '' }: Props) {
 
         player.src = s.audio_url;
         player.load();
-        (async () => {
-            try { setLyrics(await fetchLRC(s.lyrics_url)); } catch { }
-        })();
+        (async () => { try { setLyrics(await fetchLRC(s.lyrics_url)); } catch { } })();
         measureMarquee();
 
-        if ('mediaSession' in navigator && s) {
-            try {
+        try {
+            if ('mediaSession' in navigator && s) {
+                const art = s.artwork_url;
                 navigator.mediaSession.metadata = new window.MediaMetadata({
                     title: s.title,
                     artist: s.artist,
                     album: s.album ?? undefined,
-                    artwork: s.artwork_url ? [{ src: s.artwork_url, sizes: '512x512', type: 'image/jpeg' }] : undefined,
+                    artwork: art ? [{ src: art, sizes: '512x512', type: mimeFrom(art) }] : undefined,
                 });
                 navigator.mediaSession.setActionHandler('play', () => play());
                 navigator.mediaSession.setActionHandler('pause', () => pause());
@@ -255,8 +379,8 @@ export default function MusicPill({ category, className = '' }: Props) {
                 navigator.mediaSession.setActionHandler('seekbackward', null);
                 navigator.mediaSession.setActionHandler('seekforward', null);
                 navigator.mediaSession.setActionHandler('stop', null);
-            } catch { }
-        }
+            }
+        } catch { }
 
         if (autoPlayOnChange.current) {
             autoPlayOnChange.current = false;
@@ -297,7 +421,14 @@ export default function MusicPill({ category, className = '' }: Props) {
                 setActiveAd(null);
                 try { localStorage.setItem('six:lastAdAt', String(Date.now())); } catch { }
                 setAdDue(false);
-                advanceToNextTrack();
+
+                if (pendingIdx !== null) {
+                    autoPlayOnChange.current = true;
+                    setIdx(pendingIdx);
+                    setPendingIdx(null);
+                } else {
+                    advanceToNextTrack();
+                }
                 return;
             }
 
@@ -349,27 +480,52 @@ export default function MusicPill({ category, className = '' }: Props) {
         if (!songs.length && !loading) await loadSongs();
     };
 
-   
+
 
 
     async function startAd() {
-        if (!isFreeUser || adActive) return;
+        if (isFreeUser !== true || adActive) return;
+
         setAdDue(false);
         setAdActive(true);
         setAdUiOpen(true);
 
-        const ad = ADS[adIdx % ADS.length];
-        setActiveAd(ad); // <— remember the artwork for pill/metadata
-        setAdIdx(i => (i + 1) % ADS.length);
+        const ad = pickNextAd();
+        setActiveAd(ad);
+
+        // MediaSession
+        try {
+            if ('mediaSession' in navigator) {
+                const art = getAdArtwork(ad);
+                navigator.mediaSession.metadata = new window.MediaMetadata({
+                    title: ad.title || 'Advertisement',
+                    artist: '6IX Ads',
+                    artwork: art ? [{ src: art, sizes: '512x512', type: mimeFrom(art) }] : undefined
+                });
+                const deny = () => ping('Your selection will play after this ad.');
+                navigator.mediaSession.setActionHandler('play', deny);
+                navigator.mediaSession.setActionHandler('pause', deny);
+                navigator.mediaSession.setActionHandler('previoustrack', deny);
+                navigator.mediaSession.setActionHandler('nexttrack', deny);
+                navigator.mediaSession.setActionHandler('seekto', deny);
+                navigator.mediaSession.setActionHandler('seekbackward', deny);
+                navigator.mediaSession.setActionHandler('seekforward', deny);
+                navigator.mediaSession.setActionHandler('stop', deny);
+            }
+        } catch { }
+
+        // videos autoplay inside the portal; audio/image uses <audio>
+        if (ad.kind === 'video') return;
 
         try {
-            player.src = ad.audio;
-            player.load();
-            try { await getAudioGraph().ctx.resume(); } catch { }
-            await player.play();
+            if (ad.kind === 'audio' && ad.audio) {
+                player.src = ad.audio;
+                player.load();
+                try { await getAudioGraph().ctx.resume(); } catch { }
+                await player.play();
+            }
         } catch { }
     }
-
 
     return (
         <>
@@ -432,28 +588,89 @@ export default function MusicPill({ category, className = '' }: Props) {
                 <div className="fixed inset-0 z-[1200]" role="dialog" aria-modal="true">
                     <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
                     <div className="absolute inset-0 flex items-center justify-center p-4">
-                        <div className="rounded-2xl bg-[rgba(20,20,20,.85)] border border-white/10 shadow-2xl max-w-[520px] w-[92vw] p-18 relative">
+                        <div className="rounded-2xl bg-[rgba(20,20,20,.85)] border border-white/10 shadow-2xl max-w-[560px] w-[92vw] p-4 relative">
                             <div className="text-center text-[12px] tracking-[.35em] opacity-80 mb-3">ADVERTISEMENT</div>
-                            {/* Artwork */}
-                            <img
-                                src={ADS[(adIdx + ADS.length - 1) % ADS.length].artwork}
-                                alt="Advertisement"
-                                className="w-full rounded-xl object-cover max-h-[70vh]"
-                                style={{ aspectRatio: '1 / 1' }}
-                            />
-                            {/* Dismiss: closes UI, audio keeps playing */}
-                            <button
-                                className="absolute top-3 right-3 text-white/80 hover:text-white text-[13px]"
-                                onClick={() => setAdUiOpen(false)}
-                                aria-label="Dismiss"
-                                title="Dismiss"
-                            >✕</button>
+
+                            {/* MEDIA */}
+                            {activeAd?.kind === 'video' ? (
+                                <div className="rounded-xl overflow-hidden bg-black">
+                                    <video
+                                        ref={videoRef}
+                                        src={activeAd.video}
+                                        poster={activeAd.poster}
+                                        controls={false}
+                                        playsInline
+                                        className="w-full h-auto"
+                                        onClick={(e) => {
+                                            const el = e.currentTarget;
+                                            if (!document.fullscreenElement) el.requestFullscreen?.().catch(() => { });
+                                        }}
+                                    />
+                                </div>
+                            ) : (
+                                // Artwork (contain, no crop)
+                                <div className="rounded-xl bg-black/30 grid place-items-center"
+                                    style={{ aspectRatio: '1 / 1', maxHeight: '70vh' }}>
+                                    {'artwork' in (activeAd || {}) && (activeAd as any).artwork && (
+                                        <img
+                                            src={(activeAd as any).artwork}
+                                            alt="Advertisement"
+                                            className="max-w-full max-h-full object-contain rounded-[12px]"
+                                            draggable={false}
+                                        />
+                                    )}
+                                </div>
+                            )}
+
+
+
+                            {/* TEXT BLOCK (title/caption/description/link) */}
+                            {(activeAd?.title || activeAd?.caption || activeAd?.description || activeAd?.link) && (
+                                <div className="mt-3 text-left space-y-1.5">
+                                    {activeAd?.title && (
+                                        <h3 className="text-[18px] sm:text-[20px] font-semibold leading-tight">{activeAd.title}</h3>
+                                    )}
+                                    {activeAd?.caption && (
+                                        <div className="text-[14px] font-medium leading-tight">{activeAd.caption}</div>
+                                    )}
+                                    {activeAd?.description && (
+                                        <p className="text-[13px] text-white/70 leading-snug">{activeAd.description}</p>
+                                    )}
+                                    {/* LINK — always show your custom text if provided */}
+                                    {activeAd?.link && (
+                                        <a
+                                            href={normalizeHref(activeAd.link)} // already in your file
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="underline decoration-white/30 hover:decoration-white"
+                                        >
+                                            {(activeAd.linkText && activeAd.linkText.trim())
+                                                || (activeAd.caption && activeAd.caption.trim())
+                                                || domainOnly(activeAd.link)} // fallback to domain only
+                                        </a>
+                                    )}
+                                </div>
+                            )}
+
+
+
+                            {/* DISMISS */}
+                            {/* DISMISS — hidden during an active VIDEO ad; reappears after onEnded */}
+                            {!(activeAd?.kind === 'video' && adActive) && (
+                                <button
+                                    className="absolute top-3 right-3 text-white/80 hover:text-white text-[13px]"
+                                    onClick={() => setAdUiOpen(false)}
+                                    aria-label="Dismiss"
+                                    title="Dismiss"
+                                >✕</button>
+                            )}
                         </div>
                     </div>
                 </div>,
+
                 document.body
             )}
-            
+
             {/* OVERLAY */}
             {open && mounted && createPortal(
                 <div className="fixed inset-0 z-[1000]" role="dialog" aria-modal="true">
@@ -496,8 +713,17 @@ export default function MusicPill({ category, className = '' }: Props) {
                                         ].join(' ')}>
                                             {s?.id
                                                 ? (s.artwork_url
-                                                    ? <button onClick={() => { autoPlayOnChange.current = true; setIdx(i); }} className="block w-full">
-                                                        <NextImage src={s.artwork_url} alt="" width={640} height={640} className="w-full h-[180px] sm:h-[220px] object-cover rounded-t-xl" />
+                                                    ? <button
+                                                        onClick={() => selectTrack(i)}
+                                                        className="block w-full"
+                                                    >
+                                                        <NextImage
+                                                            src={s.artwork_url}
+                                                            alt=""
+                                                            width={640}
+                                                            height={640}
+                                                            className="w-full h-[180px] sm:h-[220px] object-cover rounded-t-xl"
+                                                        />
                                                     </button>
                                                     : <div className="w-full h-[180px] sm:h-[220px] rounded-t-xl bg-white/10" />)
                                                 : <div className="w-full h-[180px] sm:h-[220px] rounded-t-xl bg-white/10" />
