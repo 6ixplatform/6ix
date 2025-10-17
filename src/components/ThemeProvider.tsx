@@ -7,10 +7,10 @@ export default function ThemeProvider({ children }: { children: React.ReactNode 
     return (
         <NextThemes
             attribute="class" // <— IMPORTANT: match your CSS selectors
-            storageKey="six:theme"
+            storageKey="6ix:theme"
             defaultTheme="system"
             enableSystem
-            disableTransitionOnChange
+            enableColorScheme
         >
             {children}
         </NextThemes>

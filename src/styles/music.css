@@ -479,3 +479,81 @@
         animation: none !important;
     }
 }
+
+/* --- FORCE MUSIC MODAL ON TOP (iOS/Android/Desktop) --- */
+:root {
+    /* near-max z so nothing in the app can cover it */
+    --six-modal-z: 2147483000;
+}
+
+/* any portal modal with role+aria flags */
+[role="dialog"][aria-modal="true"] {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: var(--six-modal-z) !important;
+    pointer-events: auto !important;
+}
+
+/* dim/blur backdrop inside the modal root */
+[role="dialog"][aria-modal="true"]>.modal-backdrop,
+[role="dialog"][aria-modal="true"]>.absolute.inset-0 {
+    position: absolute !important;
+    inset: 0 !important;
+    background: rgba(0, 0, 0, .58) !important;
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+    z-index: 0;
+}
+
+/* the panel section (your <section>…) */
+[role="dialog"][aria-modal="true"] section {
+    position: absolute !important;
+    left: 0;
+    right: 0;
+    top: max(env(safe-area-inset-top), 8px);
+    margin-left: .5rem;
+    /* mx-2 */
+    margin-right: .5rem;
+    border-radius: 16px;
+    background: rgba(20, 20, 20, .92) !important;
+    border: 1px solid rgba(255, 255, 255, .12);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, .6);
+    max-height: 88vh;
+    /* <-- replaces max-h-[88vh] */
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    z-index: 1;
+    /* above backdrop */
+}
+
+/* scrollable body inside the panel */
+[role="dialog"][aria-modal="true"] section .overflow-y-auto,
+[role="dialog"][aria-modal="true"] section .six-music-body {
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* lock background page while modal is open */
+html:has([role="dialog"][aria-modal="true"]),
+body:has([role="dialog"][aria-modal="true"]) {
+    overflow: hidden !important;
+}
+
+/* just in case anything else had a huge z-index */
+.floating-composer, .mobile-bottom-nav, .app-topbar, .ai-ticker {
+    z-index: 400 !important;
+    /* lower than the modal */
+}
+
+/* solid typing line (no glass) */
+.typing-line {
+    background: #0b0b0b !important;
+    color: #fff !important;
+    border: 1px solid rgba(255, 255, 255, .12) !important;
+}
+
+.typing-line .dot {
+    background: #fff !important;
+    opacity: 1 !important;
+}

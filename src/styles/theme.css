@@ -126,3 +126,18 @@ html[data-theme="dark"] {
 .modal-overlay {
     background: var(--overlay-bg);
 }
+
+/* styles/theme.css (or theme-tokens.css) */
+html.light {
+    --th-bg: #ffffff;
+    --th-text: #000000;
+    --th-border: rgba(0, 0, 0, .12);
+    /* ...other tokens... */
+}
+
+html.dark {
+    --th-bg: #0b0b0c;
+    --th-text: #000000;
+    --th-border: rgba(255, 255, 255, .14);
+    /* ...other tokens... */
+}

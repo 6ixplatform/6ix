@@ -1,11 +1,11 @@
 // src/components/UserMenuPortal.tsx
 'use client';
 
-import React, { useLayoutEffect, useState, MutableRefObject } from 'react';
+import React, { useLayoutEffect, useRef, useState, MutableRefObject } from 'react';
 import { createPortal } from 'react-dom';
 import type { Plan } from '@/lib/planRules';
+import ThemeMenu from './ThemeMenu';
 
-/* Local fallback avatar (same look as the header one) */
 const AVATAR_FALLBACK =
     'data:image/svg+xml;utf8,' +
     encodeURIComponent(`
@@ -16,6 +16,39 @@ const AVATAR_FALLBACK =
 <rect x="18" y="50" width="44" height="16" rx="8" fill="#ffffff" opacity="0.85"/>
 </svg>`);
 
+// SMALL inline badge — we’ll render this before the display name, not on the avatar
+function VerifiedBadgeInline({ plan }: { plan: Plan }) {
+    if (plan !== 'max') return null; // ✅ only ProMax gets the blue tick
+    return (
+        <svg
+            aria-label="Verified"
+            viewBox="0 0 24 24"
+            width="14"
+            height="14"
+            className="inline-block align-[2px] mr-[6px] shrink-0"
+            fill="#1DA1F2"
+            stroke="#fff"
+            strokeWidth="2"
+            style={{ borderRadius: 999 }}
+        >
+            <circle cx="12" cy="12" r="10" />
+            <path d="M7 12l3 3 7-7" />
+        </svg>
+    );
+}
+function useIsMobile(bp = 1024) {
+    const [isMobile, set] = React.useState(false);
+    React.useEffect(() => {
+        const mq = window.matchMedia(`(max-width:${bp - 1}px)`);
+        const on = () => set(mq.matches);
+        on();
+        mq.addEventListener ? mq.addEventListener('change', on) : mq.addListener(on);
+        return () =>
+            mq.removeEventListener ? mq.removeEventListener('change', on) : mq.removeListener(on);
+    }, [bp]);
+    return isMobile;
+}
+
 type ProfileMini = {
     displayName?: string | null;
     username?: string | null;
@@ -24,6 +57,31 @@ type ProfileMini = {
     wallet?: number | null;
     credits?: number | null;
 };
+
+type ThemeMode = 'system' | 'light' | 'dark';
+
+// tiny helper so this file can control the same theme as the page
+function useMiniTheme() {
+    const read = (): ThemeMode => {
+        try { return (localStorage.getItem('6ix:theme') as ThemeMode) || 'system'; } catch { return 'system'; }
+    };
+    const [theme, setTheme] = useState<ThemeMode>(read);
+
+    const apply = (t: ThemeMode) => {
+        try { localStorage.setItem('6ix:theme', t); } catch { }
+        // allow your page to react if it listens
+        try { window.dispatchEvent(new CustomEvent('six:theme', { detail: { theme: t } })); } catch { }
+        // common fallback: set data-theme for CSS variables if you rely on it
+        const prefersDark = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const resolved = t === 'dark' || (t === 'system' && prefersDark) ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', resolved);
+    };
+
+    // apply once on mount and whenever it changes
+    React.useEffect(() => { apply(theme); }, [theme]);
+
+    return { theme, setTheme };
+}
 
 export default function UserMenuPortal({
     open,
@@ -52,19 +110,17 @@ export default function UserMenuPortal({
     onChangePhoto: () => void;
     savingAvatar?: boolean;
 }) {
-    const [pos, setPos] = useState<{ top: number; left: number; width: number }>({
-        top: 0,
-        left: 0,
-        width: 260,
-    });
+    const [pos, setPos] = useState<{ top: number; left: number; width: number }>({ top: 0, left: 0, width: 240 });
 
-    // quick avatar fallback so it appears immediately like the header
+    // local avatar seed so the image appears instantly
     const [mini, setMini] = React.useState<{ avatarUrl?: string | null } | null>(null);
-    React.useEffect(() => {
-        try {
-            setMini(JSON.parse(localStorage.getItem('6ixai:profile') || 'null'));
-        } catch { }
-    }, []);
+    React.useEffect(() => { try { setMini(JSON.parse(localStorage.getItem('6ixai:profile') || 'null')); } catch { } }, []);
+
+    // THEME menu state
+    const { theme, setTheme } = useMiniTheme();
+    const [themeOpen, setThemeOpen] = useState(false);
+    const themeBtnRef = useRef<HTMLButtonElement | null>(null);
+    const isMobile = useIsMobile();
 
     useLayoutEffect(() => {
         if (!open) return;
@@ -73,19 +129,17 @@ export default function UserMenuPortal({
 
         const recalc = () => {
             const r = el.getBoundingClientRect();
-            const isMobile = window.innerWidth <= 640;
-            const W = Math.min(isMobile ? 320 : 260, window.innerWidth - 16);
+            const isMobile = window.innerWidth < 640; // sm breakpoint
+            const W = Math.min(260, window.innerWidth - 16);
 
-            // Mobile: open directly under avatar, aligned to its LEFT edge
-            // Desktop: align so the sheet's right edge meets the avatar's right (as before)
+            // ✅ Desktop: align to right edge; ✅ Mobile: open directly under avatar (left-aligned)
             const left = isMobile
-                ? Math.max(8, Math.min(r.left, window.innerWidth - W - 8))
+                ? Math.max(8, r.left)
                 : Math.min(Math.max(8, r.right - W), window.innerWidth - W - 8);
 
             const top = Math.max(r.bottom + 8, 56 + 8);
             setPos({ top, left, width: W });
         };
-
         recalc();
         window.addEventListener('resize', recalc);
         window.addEventListener('scroll', recalc, true);
@@ -98,52 +152,83 @@ export default function UserMenuPortal({
     if (!open) return null;
 
     const name =
-        (profile.displayName ||
-            profile.username ||
-            (profile.email?.split('@')[0] ?? '')).trim() || '—';
-
+        (profile.displayName || profile.username || (profile.email?.split('@')[0] ?? '')).trim() || '—';
     const avatarSrc = (profile.avatarUrl?.trim() || mini?.avatarUrl || AVATAR_FALLBACK) as string;
 
-    // Blue tick ONLY for ProMax (automatic once plan resolves)
-    const isProMax = String(plan).toLowerCase() === 'promax';
+    const ThemeMiniMenu = () => {
+        if (!themeOpen) return null;
+
+        const width = 220;
+        // On mobile anchor to the avatar (anchorRef) and center horizontally;
+        // on desktop (where we shouldn't render the item anyway) this path won’t run.
+        const anchorEl = isMobile ? anchorRef.current : themeBtnRef.current;
+        const rect = anchorEl?.getBoundingClientRect();
+
+        const top = (rect?.bottom ?? pos.top) + 8;
+        const left = isMobile
+            ? Math.max(8, Math.round((window.innerWidth - width) / 2)) // centered
+            : Math.min(Math.max(8, (rect?.right ?? pos.left + width) - width), // (desktop fallback)
+                window.innerWidth - width - 8);
+
+        const Item = ({ t, label }: { t: ThemeMode; label: string }) => (
+            <button
+                className="w-full text-left px-3 py-2 text-[14px] flex items-center gap-2"
+                style={{ borderRadius: 8 }}
+                onClick={() => { setTheme(t); setThemeOpen(false); }}
+                aria-pressed={theme === t}
+            >
+                <span className="inline-block h-[10px] w-[10px] rounded-full border" />
+                {label}
+            </button>
+        );
+
+        return createPortal(
+            <>
+                <div className="fixed inset-0 z-[199]" onClick={() => setThemeOpen(false)} />
+                <div
+                    className="z-[200] rounded-2xl border th-card shadow-2xl"
+                    style={{ position: 'fixed', top, left, minWidth: width }}
+                    role="menu" aria-label="Appearance"
+                >
+                    <div className="px-3 pt-2 pb-1 text-[11px]" style={{ opacity: 0.7 }}>Appearance</div>
+                    <Item t="system" label="System" />
+                    <Item t="light" label="Light" />
+                    <Item t="dark" label="Dark" />
+                </div>
+            </>,
+            document.body
+        );
+    };
 
     return createPortal(
         <>
             <div className="fixed inset-0 z-[90]" onClick={onClose} />
 
             <div
-                className="user-menu" /* removed negative top shift */
+                className="-mt-4 ml-34 user-menu"
                 style={{ top: pos.top, left: pos.left, width: pos.width, position: 'fixed', zIndex: 99 }}
                 role="menu"
                 aria-label="Account menu"
                 onClick={(e) => e.stopPropagation()}
             >
-                <div className="sheet-head">
-                    <div className="avatar">
+                {/* Header */}
+                <div className="sheet-head flex items-center gap-3">
+                    <div className="avatar relative">
                         <img
                             src={avatarSrc}
                             alt={name || 'avatar'}
                             className="h-10 w-10 rounded-full object-cover"
-                            onError={(e) => {
-                                (e.currentTarget as HTMLImageElement).src = AVATAR_FALLBACK;
-                            }}
+                            onError={(e) => { (e.currentTarget as HTMLImageElement).src = AVATAR_FALLBACK; }}
                         />
                     </div>
 
-                    <div className="who">
-                        <div className="name">
-                            {isProMax && (
-                                <span className="tick" aria-label="Verified">
-                                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                                        <path d="M5 13l4 4L19 7" />
-                                    </svg>
-                                </span>
-                            )}
-                            <span className="truncate">{name}</span>
+                    {/* name + numbers, tucked left toward avatar */}
+                    <div className="who min-w-0">
+                        <div className="name text-[14px] font-semibold truncate">
+                            <VerifiedBadgeInline plan={plan} />
+                            {name}
                         </div>
-
-                        {/* Wallet/coins — kept left, close to avatar */}
-                        <div className="sub">
+                        <div className="sub block md:hidden">
                             <span className="text-[12px] opacity-80">
                                 Wallet ${Number(profile.wallet ?? 0).toLocaleString()} · Coins {Number(profile.credits ?? 0).toLocaleString()}
                             </span>
@@ -151,117 +236,49 @@ export default function UserMenuPortal({
                     </div>
                 </div>
 
+                {/* Items */}
                 <ul className="sheet-list" role="none">
                     <li>
                         <button type="button" role="menuitem" className="sheet-item" onClick={() => { onStartNew(); onClose(); }}>
                             Start new chat
                         </button>
                     </li>
-
                     <li>
                         <button type="button" role="menuitem" className="sheet-item" onClick={() => { onChangePhoto(); onClose(); }} disabled={!!savingAvatar}>
                             {savingAvatar ? 'Updating photo…' : 'Change photo…'}
                         </button>
                     </li>
 
+                    {/* NEW: Theme */}
+                    {isMobile && (
+                        <ThemeMenu />
+                    )}
+
                     <li>
                         <button type="button" role="menuitem" className="sheet-item" onClick={() => { onHistory(); onClose(); }}>
                             History
                         </button>
                     </li>
-
-                    {/* NEW: Submit buttons */}
-                    <li>
-                        <button
-                            type="button"
-                            role="menuitem"
-                            className="sheet-item"
-                            onClick={() => { window.location.href = '/ads/submit'; onClose(); }}
-                        >
-                            Submit an ad
-                        </button>
-                    </li>
-                    <li>
-                        <button
-                            type="button"
-                            role="menuitem"
-                            className="sheet-item"
-                            onClick={() => { window.location.href = '/music/submit'; onClose(); }}
-                        >
-                            Submit a song
-                        </button>
-                    </li>
-
                     <li>
                         <button type="button" role="menuitem" className="sheet-item" onClick={() => { onPremium(); onClose(); }}>
-                            Get Premium
+                            Get Premium + Verified
                         </button>
                     </li>
-
                     <li>
                         <button type="button" role="menuitem" className="sheet-item" onClick={() => { onHelp(); onClose(); }}>
                             Need help?
                         </button>
                     </li>
-
                     <li>
-                        <button
-                            type="button"
-                            role="menuitem"
-                            className="sheet-item sheet-item--destructive"
-                            onClick={() => { onSignout(); onClose(); }}
-                        >
+                        <button type="button" role="menuitem" className="sheet-item sheet-item--destructive" onClick={() => { onSignout(); onClose(); }}>
                             Sign out
                         </button>
                     </li>
                 </ul>
             </div>
 
-            <style jsx>{`
-.user-menu {
-background: rgba(18,18,18,.98);
-color: #e5e7eb;
-border: 1px solid rgba(255,255,255,.12);
-border-radius: 16px;
-box-shadow: 0 16px 60px rgba(0,0,0,.35);
-overflow: hidden;
-}
-.sheet-head {
-display: flex;
-align-items: center;
-gap: 10px; /* pull name closer to avatar */
-padding: 10px 12px 8px;
-border-bottom: 1px solid rgba(255,255,255,.08);
-}
-.avatar { position: relative; flex: 0 0 auto; }
-.who { min-width: 0; text-align: left; } /* ensure left alignment */
-.name { display: flex; align-items: center; gap: 6px; font-weight: 700; }
-.tick {
-display: inline-grid; place-items: center;
-width: 16px; height: 16px; border-radius: 999px;
-background: #1DA1F2; /* blue */
-border: 1px solid rgba(0,0,0,.35);
-box-shadow: 0 1px 0 rgba(255,255,255,.15) inset, 0 1px 4px rgba(0,0,0,.25);
-flex: 0 0 auto;
-}
-.sub { margin-top: 2px; }
-.sheet-list { list-style: none; margin: 0; padding: 6px; }
-.sheet-item {
-width: 100%;
-text-align: left;
-padding: 10px 10px;
-border-radius: 10px;
-background: transparent;
-color: inherit;
-font-size: 14px;
-}
-.sheet-item:hover { background: rgba(255,255,255,.06); }
-.sheet-item--destructive { color: #fca5a5; }
-@media (max-width: 640px) {
-.sheet-head { padding: 10px 10px 8px; }
-.sheet-item { padding: 10px 8px; }
-}
-`}</style>
+            {/* popover portal */}
+            <ThemeMiniMenu />
         </>,
         document.body
     );

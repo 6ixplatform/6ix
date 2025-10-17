@@ -6,10 +6,9 @@ import { createPortal } from 'react-dom';
 import type { MutableRefObject } from 'react';
 const useIsoLayoutEffect =
     typeof window !== 'undefined' ? useLayoutEffect : useEffect;
-import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
-import '@/styles/6ix.css';
 import '@/styles/music.css';
+import '@/styles/6ix.css';
 import { build6IXSystem, ProfileHints } from '@/prompts/6ixai-prompts';
 import BackStopper from '@/components/BackStopper';
 import { supabaseBrowser } from '@/lib/supabaseBrowser';
@@ -60,6 +59,7 @@ import { sniffImageRequest } from '@/lib/imageSniffer';
 import UserFileMsg from '@/components/UserFileMsg';
 import { analyzeFiles } from '@/lib/analyzer';
 import MobileBottomNav from '@/components/MobileBottomNav';
+import { useStickyScroll } from '@/hooks/useStickyScroll';
 const HelpOverlay = NextDynamic(() => import('@/components/HelpOverlay'), { ssr: false });
 
 // --- Control tag parsers (COLOR_PICKER / SWATCH_GRID) ---
@@ -149,6 +149,75 @@ function SwatchGrid({
             </div>
         </div>
     );
+}
+// ===== History helpers (local + cloud) =====
+type HistoryItem = {
+    id: string;
+    title: string;
+    preview: string;
+    createdAt: string;
+    count: number;
+    messages: HistMsg[]; // from '@/lib/history'
+};
+
+function firstUserText(ms: ChatMessage[]) {
+    return (ms.find(m => m.role === 'user')?.content || '').trim();
+}
+function firstAssistantText(ms: ChatMessage[]) {
+    return (ms.find(m => m.role === 'assistant')?.content || '').trim();
+}
+function slugTitle(s: string) {
+    const t = s.replace(/\s+/g, ' ').trim();
+    if (!t) return 'New chat';
+    return t.length > 60 ? t.slice(0, 57) + '…' : t;
+}
+
+// Convert our runtime messages into the HistMsg shape we already use
+function toHistMsgs(ms: ChatMessage[]): HistMsg[] {
+    return ms.map(m => ({
+        role: m.role,
+        content: m.content,
+        kind: m.kind || 'text',
+        url: m.url,
+        prompt: m.prompt,
+        attachments: (m.attachments || []).map(a => ({
+            id: a.id, name: a.name, mime: a.mime, size: a.size, kind: a.kind, url: a.url
+        }))
+    })) as unknown as HistMsg[];
+}
+
+async function saveChatToHistory(raw: ChatMessage[], plan: Plan) {
+    // need at least a user + an assistant message
+    const ms = raw.filter(m => m.role !== 'system');
+    const hasUser = ms.some(m => m.role === 'user');
+    const hasAssistant = ms.some(m => m.role === 'assistant');
+    if (!(hasUser && hasAssistant)) return;
+
+    // If free plan is "out of room" (your 60/60), don't save new items.
+    if (plan === 'free' && chatUsed() >= CHAT_LIMITS.free) return;
+
+    const title = slugTitle(firstUserText(ms));
+    const preview = (firstAssistantText(ms) || '').replace(/\s+/g, ' ').slice(0, 140);
+    const item: HistoryItem = {
+        id: safeUUID(),
+        title,
+        preview,
+        createdAt: new Date().toISOString(),
+        count: ms.length,
+        messages: toHistMsgs(ms),
+    };
+
+    // 1) local history list (fast)
+    try {
+        const KEY = '6ix:history:v1';
+        const arr = JSON.parse(localStorage.getItem(KEY) || '[]');
+        const max = plan === 'free' ? 60 : 1000;
+        arr.unshift(item);
+        localStorage.setItem(KEY, JSON.stringify(arr.slice(0, max)));
+    } catch { }
+
+    // 2) cloud (survives browser clear)
+    try { await upsertCloudItem(item as any); } catch { }
 }
 
 
@@ -679,6 +748,42 @@ function useMiniTheme(prefersDark: boolean) {
     return { theme, setTheme, resolvedDark };
 }
 
+function contrastFG(hex: string): '#000' | '#fff' {
+    const n = hex.replace('#', '');
+    const r = parseInt(n.slice(0, 2), 16) / 255;
+    const g = parseInt(n.slice(2, 4), 16) / 255;
+    const b = parseInt(n.slice(4, 6), 16) / 255;
+    const L = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    return L > 0.6 ? '#000' : '#fff';
+}
+
+function ensureLiveVideo(src: string | null) {
+    const html = document.documentElement;
+    const id = 'six-live-wallpaper';
+    let el = document.getElementById(id) as HTMLVideoElement | null;
+
+    if (!src) {
+        if (el) { try { el.pause(); } catch { } el.remove(); }
+        html.removeAttribute('data-live');
+        return;
+    }
+    if (!el) {
+        el = document.createElement('video');
+        el.id = id;
+        Object.assign(el.style, {
+            position: 'fixed', inset: '0', width: '100vw', height: '100vh',
+            objectFit: 'cover', zIndex: '0', pointerEvents: 'none', opacity: '1',
+            transition: 'opacity .3s ease'
+        } as CSSStyleDeclaration);
+        el.muted = true; el.loop = true; (el as any).playsInline = true;
+        document.body.prepend(el);
+    }
+    if (el.src !== src) el.src = src;
+    el.currentTime = 0; el.play().catch(() => { });
+    html.setAttribute('data-live', '1');
+}
+
+
 /* ---------- PAGE ---------- */
 function AIPageInner() {
     const router = useRouter();
@@ -700,6 +805,9 @@ function AIPageInner() {
         url: '',
         prompt: ''
     });
+
+
+
     const safeUrl = useSafeImgUrl(lightbox.url);
     // Converts data URLs to blob: URLs so they show on iOS Safari
     function useSafeImgUrl(url?: string | null) {
@@ -732,7 +840,24 @@ function AIPageInner() {
 
         return safe;
     }
+    useEffect(() => {
+        try {
+            const hex = localStorage.getItem('6ix:accent');
+            const scope = document.querySelector<HTMLElement>('.th-scope');
+            if (hex && scope) {
+                scope.style.setProperty('--accent', hex);
+                scope.style.setProperty('--accent-fg', contrastFG(hex));
+                scope.style.setProperty('--accent-link', hex);
 
+            }
+        } catch { }
+
+        // Restore live wallpaper if any
+        try {
+            const live = localStorage.getItem('6ix:live:src');
+            ensureLiveVideo(live);
+        } catch { }
+    }, []);
 
     // theme (mini-only)
 
@@ -965,7 +1090,22 @@ function AIPageInner() {
         return () => { alive = false; clearAfterBootScrollTimers(); };
     }, []); // run ONCE
 
+    // Save on page hide/unload too (best-effort, local is instant; cloud may fire in time)
+    const lastMessagesRef = React.useRef<ChatMessage[]>([]);
+    React.useEffect(() => { lastMessagesRef.current = messages; }, [messages]);
 
+    React.useEffect(() => {
+        const onHide = () => {
+            const ms = (lastMessagesRef.current || []).filter(m => m.role !== 'system');
+            if (ms.length >= 2) { try { saveChatToHistory(ms, plan); } catch { } }
+        };
+        document.addEventListener('visibilitychange', onHide);
+        window.addEventListener('pagehide', onHide);
+        return () => {
+            document.removeEventListener('visibilitychange', onHide);
+            window.removeEventListener('pagehide', onHide);
+        };
+    }, [plan]);
 
     const [descAt, setDescAt] = React.useState<number | null>(null);
 
@@ -1179,10 +1319,18 @@ function AIPageInner() {
 
 
     /* ui layout + streaming control */
-    const listRef = useRef<HTMLDivElement | null>(null);
+    const {
+        scrollRef: listRef,
+        endRef,
+        scrollToBottom: snapToBottom, // <- mode-based: 'smooth' | 'instant'
+    } = useStickyScroll(messages.length);
+
+    // Legacy boolean wrapper for components like <AppHeader>
+    const scrollToBottom = React.useCallback((smooth?: boolean) => {
+        snapToBottom(smooth ? 'smooth' : 'instant');
+    }, [snapToBottom]);
     const compRef = useRef<HTMLDivElement | null>(null);
     const headerRef = useRef<HTMLDivElement | null>(null);
-    const endRef = useRef<HTMLDivElement | null>(null);
     const abortRef = useRef<AbortController | null>(null);
     const imgAbortRef = useRef<AbortController | null>(null);
     const imgInFlightRef = useRef(false);
@@ -1228,6 +1376,37 @@ function AIPageInner() {
     }
     function getNudges() { try { return Number(localStorage.getItem(nudgeKey()) || '0'); } catch { return 0; } }
     function bumpNudges() { try { localStorage.setItem(nudgeKey(), String(getNudges() + 1)); } catch { } }
+
+    React.useEffect(() => {
+        const el = listRef.current;
+        if (!el) return;
+
+        // mark when the user has scrolled away from bottom so we don't yank them
+        const onScroll = () => {
+            const delta = el.scrollHeight - el.scrollTop - el.clientHeight;
+            // >220px from bottom → lock auto-scroll
+            el.dataset.lockScroll = delta > 220 ? '1' : '0';
+        };
+        el.addEventListener('scroll', onScroll);
+        onScroll(); // init
+        return () => el.removeEventListener('scroll', onScroll);
+    }, [listRef]);
+
+    // auto-scroll when a new message arrives, but only if we're near the bottom
+    React.useEffect(() => {
+        const el = listRef.current;
+        if (!el) return;
+
+        const locked = el.dataset.lockScroll === '1';
+        const nearBottom =
+            el.scrollHeight - el.scrollTop - el.clientHeight < 200;
+
+        if (!locked && nearBottom) {
+            // use the sentinel to respect padding & safe areas
+            endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+        }
+    }, [messages.length, streaming, listRef, endRef]);
+
 
     // Open the modal and count one impression
     function pingExpiredModalOnce() {
@@ -1587,31 +1766,6 @@ function AIPageInner() {
     }, []);
 
 
-    const scrollToBottom = (smooth = false) => {
-        const el = listRef.current; if (!el) return;
-
-        // force bottom (works even if images/fonts resize later)
-        if (smooth) {
-            el.scrollTo({ top: el.scrollHeight + 1_000_000, behavior: 'smooth' });
-        } else {
-            el.scrollTop = el.scrollHeight + 1_000_000;
-        }
-        // sentinel as a second nudge for mobile/safari
-        endRef.current?.scrollIntoView({ block: 'end' });
-    };
-
-    // after boot, ensure we’re at bottom once UI is ready
-    React.useEffect(() => {
-        if (!booted || didInitialScrollRef.current) return;
-        // one extra safety scroll after boot
-        requestAnimationFrame(() => scrollToBottom(false));
-        didInitialScrollRef.current = true;
-    }, [booted]);
-
-    // whenever a new message is added (send/receive), glide to bottom
-    React.useEffect(() => {
-        requestAnimationFrame(() => scrollToBottom(true));
-    }, [messages.length]);
 
     // persist whenever messages change (small debounce to avoid thrashing)
     useEffect(() => {
@@ -2571,6 +2725,10 @@ function AIPageInner() {
                 setMessages(m => [...m, userMsg, imgGhost]);
                 setInput('');
 
+                requestAnimationFrame(() => {
+                    endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+                });
+
                 // run the HUD while we call the image API
                 imgInFlightRef.current = true;
                 const controller = new AbortController();
@@ -2689,8 +2847,9 @@ function AIPageInner() {
             // Fast "ghost" like ChatGPT, then optional tip
             setMessages(m => tip ? [...m, userMsg, ghost, tip] : [...m, userMsg, ghost]);
             if (tip) markSpeakerTipShown();
-            requestAnimationFrame(() => scrollToBottom(true));
-
+            requestAnimationFrame(() => {
+                endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+            });
             setInput('');
             setTurnLabel(wantsImageDescription ? 'Analyzing image…' : '');
             setStatus(wantsImageDescription ? 'Analyzing image…' : null);
@@ -3007,8 +3166,10 @@ function AIPageInner() {
                 ? [...m, userMsg, { id: safeUUID(), role: 'assistant', content: ackText }, ghost]
                 : [...m, userMsg, ghost]
         );
-
         setInput('');
+        requestAnimationFrame(() => {
+            endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+        });
         setStatus(getTypingLabel(text, plan));
         setStreaming(true);
         setError(null);
@@ -3298,11 +3459,11 @@ function AIPageInner() {
     /* ---------- RENDER 1st return ---------- */
     return (
         <div
-            className="ai-shell fixed inset-0 flex flex-col overflow-hidden"
+            className="th-scope ai-shell fixed inset-0 flex flex-col overflow-hidden"
             style={{
                 height: 'var(--app-h, 100dvh)',
                 color: 'var(--th-text)',
-                background: 'transparent',
+                background: 'var(--page-bg, transparent)',
                 touchAction: 'pan-y',
                 overscrollBehavior: 'none'
             }}
@@ -3487,35 +3648,44 @@ function AIPageInner() {
                                 if (m.kind === 'image') {
                                     const msgKey = m.id ?? `${m.role}-${i}`;
                                     return (
-                                        <div key={msgKey} className="flex justify-start">
-                                            <div className="chat-bubble w-full">
-                                                <ImageMsg
-                                                    plan={plan}
-                                                    url={m.url}
-                                                    prompt={m.prompt || ''}
-                                                    overlay={m.meta?.overlay}
-                                                    displayName={profile?.displayName}
-                                                    busy={descAt === i || recreatingId === m.id}
-                                                    onOpen={() => m.url && setLightbox({ open: true, url: m.url, prompt: m.prompt || '' })}
-                                                    onShare={() => m.url && smartShare(m.url)}
-                                                    onDescribe={async () => {
-                                                        if (!m.url) return;
-                                                        setDescAt(i);
-                                                        try {
-                                                            const text = await describeImage(m.prompt, m.url);
-                                                            await handleSpeak(text);
-                                                        } finally { setDescAt(null); }
-                                                    }}
-                                                    onRecreate={(e) => openRecreateMenu(i, m.prompt || '', e.currentTarget as HTMLElement)}
-                                                />
-                                            </div>
+                                        <div
+                                            key={msgKey}
+                                            className={`msg-bubble ${m.role === 'user' ? '--out' : '--in'} th-card p-0`}
+                                        >
+                                            <ImageMsg
+                                                plan={plan}
+                                                url={m.url}
+                                                prompt={m.prompt || ''}
+                                                overlay={m.meta?.overlay}
+                                                displayName={profile?.displayName}
+                                                busy={descAt === i || recreatingId === m.id}
+                                                onOpen={() => m.url && setLightbox({ open: true, url: m.url, prompt: m.prompt || '' })}
+                                                onShare={() => m.url && smartShare(m.url)}
+                                                onDescribe={async () => {
+                                                    if (!m.url) return;
+                                                    setDescAt(i);
+                                                    try {
+                                                        const text = await describeImage(m.prompt, m.url);
+                                                        await handleSpeak(text);
+                                                    } finally { setDescAt(null); }
+                                                }}
+                                                onRecreate={(e) => openRecreateMenu(i, m.prompt || '', e.currentTarget as HTMLElement)}
+                                            />
                                         </div>
                                     );
+
                                 }
 
                                 const { visible, suggestions } = splitVisibleAndSuggestions(m.content);
                                 const isAssistant = m.role === 'assistant';
                                 const isLast = i === messages.length - 1;
+                                // bodyAfterControls is what you already computed a few lines above
+                                const isTyping =
+                                    isAssistant &&
+                                    isLast &&
+                                    streaming &&
+                                    !(visible && visible.trim()); // empty content → typing state
+
                                 const prevUserPrompt = (() => {
                                     for (let j = i - 1; j >= 0; j--) {
                                         if (messages[j]?.role === 'user') return messages[j]?.content || '';
@@ -3548,11 +3718,11 @@ function AIPageInner() {
                                                 {/* CHAT BUBBLE (tiny-text fix: min width + normal word-breaks) */}
                                                 <div
                                                     className={[
-                                                        'chat-bubble',
-                                                        'inline-block min-w-[44px] max-w-[min(92%,720px)]',
+                                                        'msg-bubble', (isAssistant ? '--in' : '--out'),
+                                                        isTyping ? 'typing-bubble' : 'chat-bubble', // ⬅️ solid typing bubble
+                                                        'inline-block min-w-[44px]',
                                                         'px-3 py-[7px] text-[15px] leading-[1.35] border rounded-2xl',
                                                         'msg-body',
-                                                        // removed: 'bg-white/10 border-white/15',
                                                     ].join(' ')}
                                                     style={{
                                                         background: 'rgba(8,8,8,.72)',
@@ -3639,7 +3809,7 @@ function AIPageInner() {
                                 );
                             })}
 
-                            <div ref={endRef} />
+                            <div ref={endRef} aria-hidden />
                         </div>
                     </div>
                 </main>
@@ -3683,6 +3853,7 @@ function AIPageInner() {
                     hints={composerHints}
                     hintTick={hintTick}
                 />
+                
             </div>
 
             {/* Modals */}
@@ -3774,6 +3945,64 @@ backdrop-filter: blur(14px) saturate(120%) !important;
 .chat-bubble { background: rgba(8,8,8,.88) !important; }
 }
 `}</style>
+                    <style jsx global>{`
+/* Default blurred chat bubble (leave as-is if you like) */
+.chat-bubble{
+background: rgba(8,8,8,.72) !important;
+border-color: rgba(255,255,255,.10) !important;
+color: var(--th-text, #e5e7eb) !important;
+-webkit-backdrop-filter: blur(14px) saturate(120%) !important;
+backdrop-filter: blur(14px) saturate(120%) !important;
+}
+@supports not (backdrop-filter: blur(1px)) {
+.chat-bubble{ background: rgba(8,8,8,.88) !important; }
+}
+
+/* ⬇️ Solid typing bubble – no glass, white text, darker pill */
+.typing-bubble{
+background: #0E0F11 !important;
+color: #fff !important;
+border-color: rgba(255,255,255,.14) !important;
+-webkit-backdrop-filter: none !important;
+backdrop-filter: none !important;
+box-shadow: 0 2px 14px rgba(0,0,0,.25);
+}
+
+/* Make "6IX AI is typing" line look crisp */
+.typing-line{
+display: inline-flex;
+align-items: center;
+gap: 6px;
+font-weight: 500;
+color: inherit !important; /* inherits white above */
+}
+.typing-line .dot{
+width: 6px; height: 6px; border-radius: 50%;
+background: currentColor; opacity:.9;
+display:inline-block;
+animation: sixBlink 1.2s infinite ease-in-out;
+}
+.typing-line .dot:nth-child(2){ animation-delay: .15s; }
+.typing-line .dot:nth-child(3){ animation-delay: .30s; }
+
+@keyframes sixBlink{
+0%, 80%, 100% { transform: translateY(0); opacity:.35; }
+40% { transform: translateY(-2px); opacity:1; }
+}
+
+/* Sensible max width + wrapping */
+.chat-list .msg-bubble{
+max-width: min(92vw, 740px);
+overflow-wrap: anywhere;
+word-break: normal;
+}
+
+/* Keep some breathing room when iOS/Android bounce hits bottom */
+.chat-scroll{
+overscroll-behavior-y: contain;
+}
+`}</style>
+
 
                 </div>
             )}
@@ -3785,13 +4014,3 @@ backdrop-filter: blur(14px) saturate(120%) !important;
     )
 }
 
-// keep your signature
-function saveChatToHistory(nonSystem: ChatMessage[], plan: Plan) {
-    if (!nonSystem || nonSystem.length < 2) return;
-
-    // annotate to help TS and cast only for the param type
-    const { item } =
-        saveFromMessages(nonSystem as unknown as HistMsg[], plan);
-
-    if (item) void upsertCloudItem(item);
-}

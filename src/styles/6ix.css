@@ -209,30 +209,6 @@ html.theme-light .upload-btn:hover {
     }
 }
 
-/* ======================== MENU / HISTORY ======================= */
-
-html.theme-light .user-menu {
-    color: #000 !important;
-    background: #fff !important;
-    border-color: rgba(0, 0, 0, .12) !important;
-}
-
-html.theme-light .user-menu .sheet-item,
-html.theme-light .user-menu .menu-link {
-    color: #000 !important;
-}
-
-html.theme-light .user-menu select {
-    color: #000 !important;
-    border-color: rgba(0, 0, 0, .18) !important;
-    background: rgba(0, 0, 0, .03) !important;
-}
-
-/* tiny copy note row */
-html.theme-light .user-menu .text-\[12px\] {
-    color: #111 !important;
-}
-
 /* History card */
 .history-card .history-open {
     -webkit-appearance: none;
@@ -337,11 +313,6 @@ html.theme-light .history-card .action-btn svg {
     background: rgba(255, 255, 255, .04);
     contain: paint;
     will-change: contents;
-}
-
-html.theme-light .img-card {
-    border-color: rgba(0, 0, 0, .10);
-    background: rgba(0, 0, 0, .03);
 }
 
 .img-shadow {
@@ -527,14 +498,6 @@ html.theme-light .img-card {
     animation: typingPan 2.2s linear infinite;
 }
 
-html.theme-dark .gen-stage {
-    background-image: linear-gradient(90deg, #000 0%, #fff 35%, #bdbdbd 65%, #000 100%);
-}
-
-html.theme-light .gen-stage {
-    background-image: linear-gradient(90deg, #cfcfcf 0%, #ffffff 35%, #9e9e9e 65%, #1a1a1a 100%);
-}
-
 .img-stop-btn {
     font-size: 13px;
     line-height: 1;
@@ -542,11 +505,6 @@ html.theme-light .gen-stage {
     border-radius: 10px;
     border: 1px solid rgba(255, 255, 255, .22);
     background: rgba(255, 255, 255, .06);
-}
-
-html.theme-light .img-stop-btn {
-    border-color: rgba(0, 0, 0, .18);
-    background: rgba(0, 0, 0, .06);
 }
 
 .img-label {
@@ -564,14 +522,6 @@ html.theme-light .img-stop-btn {
     color: transparent;
     animation: taglinePan 3.2s linear infinite;
     text-shadow: 0 1px 0 rgba(255, 255, 255, 0.10), 0 -1px 0 rgba(0, 0, 0, .25), 0 0 1px rgba(0, 0, 0, .15);
-}
-
-html.theme-dark .typing-anim {
-    background-image: linear-gradient(90deg, #000 0%, #fff 35%, #bdbdbd 65%, #000 100%);
-}
-
-html.theme-light .typing-anim {
-    background-image: linear-gradient(90deg, #cfcfcf 0%, #ffffff 35%, #9e9e9e 65%, #1a1a1a 100%);
 }
 
 .typing-line {
@@ -1367,23 +1317,6 @@ html.theme-light .sr-ring::after {
     background: transparent
 }
 
-/* ===== GLOBAL THEME TOKENS ===== */
-:root {
-    --th-bg: #000;
-    /* updated by JS */
-    --th-text: #fff;
-    --th-btn-bg: rgba(255, 255, 255, .06);
-    --th-btn-bd: rgba(255, 255, 255, .16);
-}
-
-.theme-dark {
-    color-scheme: dark;
-}
-
-.theme-light {
-    color-scheme: light;
-}
-
 .btn {
     color: var(--th-text);
     transition: transform .06s ease, box-shadow .2s ease;
@@ -1397,21 +1330,6 @@ html.theme-light .sr-ring::after {
 
 .btn:active {
     transform: translateY(0.5px) scale(.99);
-}
-
-/* header & composer tint (no pure black) */
-.app-header, .composer-root {
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
-    border-color: rgba(255, 255, 255, .1);
-}
-
-.theme-dark .app-header, .theme-dark .composer-root {
-    background: rgba(14, 14, 14, .82);
-}
-
-.theme-light .app-header, .theme-light .composer-root {
-    background: rgba(255, 255, 255, .82);
 }
 
 .swatch:active::after {
@@ -1469,15 +1387,6 @@ html.theme-light .sr-ring::after {
     pointer-events: none;
     opacity: .9;
     background: #000;
-}
-
-.theme-light .anim-tile {
-    border-color: rgba(0, 0, 0, .15);
-    background: rgba(0, 0, 0, .06);
-}
-
-.theme-light .anim-tile.is-active {
-    outline-color: #000;
 }
 
 /* ===== GLOBAL LIVE ANIMATIONS (applies everywhere) ===== */
@@ -1783,9 +1692,6 @@ body[data-anim="camo-digital"]::before {
 }
 
 /* ========= CORE PAGE BACKDROP & TRANSITIONS ========= */
-html, body {
-    background: var(--th-bg, #000);
-}
 
 :root[data-anim] body {
     background-attachment: fixed;
@@ -3241,11 +3147,6 @@ html.theme-light .orb-name-ink {
     z-index: 35;
 }
 
-/* When you hide the bottom nav, make its height zero so we don't reserve space */
-.mobile-bottom-nav[aria-hidden="true"] {
-    height: 0 !important;
-}
-
 /* Media inside bubbles never forces sideways scroll */
 .chat-bubble img,
 .chat-bubble video,
@@ -3536,21 +3437,6 @@ html, body, #app-shell, .app-main, .chat-scroll, .chat-list {
     width: 100% !important;
 }
 
-/* --- Nuke the header tint/blur everywhere (mobile + desktop) --- */
-.app-header {
-    background: transparent !important;
-    border: 0 !important;
-    -webkit-backdrop-filter: none !important;
-    backdrop-filter: none !important;
-    box-shadow: none !important;
-}
-
-/* wipe theme variants too */
-.theme-dark .app-header,
-.theme-light .app-header {
-    background: transparent !important;
-    border-color: transparent !important;
-}
 
 /* just in case any pseudo paints were added */
 .app-header::before,
@@ -3569,20 +3455,6 @@ input, textarea, select, button,
 
 html {
     -webkit-text-size-adjust: 100% !important;
-}
-
-/* 2) Make the header 100% clear (no tint, no blur, no border) */
-.app-header {
-    background: transparent !important;
-    border: 0 !important;
-    -webkit-backdrop-filter: none !important;
-    backdrop-filter: none !important;
-    box-shadow: none !important;
-}
-
-.app-header::before,
-.app-header::after {
-    content: none !important;
 }
 
 /* nuke any stray borders/tints added by inner header rows/components */
@@ -3828,20 +3700,6 @@ html, body {
     overflow: hidden !important;
 }
 
-/* Header floats with NO seam/border/shadow */
-.app-header,
-.theme-dark .app-header,
-.theme-light .app-header {
-    background: transparent !important;
-    border: 0 !important;
-    box-shadow: none !important;
-}
-
-.app-header::before,
-.app-header::after {
-    content: none !important;
-}
-
 /* If you mount a "header-flow" bar anywhere, kill its border line */
 .header-flow {
     border-top: 0 !important;
@@ -3993,7 +3851,6 @@ html, body {
 }
 
 /* overrides the earlier `inset: 8;` */
-/* ===== 6IX — header + chat alignment (final overrides) ===== */
 
 /* 1) One token for header height (player + plan pills included) */
 :root {
@@ -4116,4 +3973,632 @@ html, body {
 /* Safety: if any other block set a fixed 96px or similar, zero it */
 :root {
     --chat-max-h: 100dvh !important;
+}
+
+/* Edge + middle gap — tuned for phones, safe-area aware */
+:root {
+    --chat-edge: clamp(6px, 2.5vw, 12px);
+    /* space to the outer screen edge */
+    --chat-middle: 24%;
+    /* space toward the middle column */
+}
+
+/* iOS notches (safe areas) get priority if bigger than our --chat-edge */
+@supports (padding-left: env(safe-area-inset-left)) {
+    :root {
+        --chat-edge-left: max(env(safe-area-inset-left), var(--chat-edge));
+        --chat-edge-right: max(env(safe-area-inset-right), var(--chat-edge));
+    }
+}
+
+:root {
+    --chat-edge-left: var(--chat-edge);
+    --chat-edge-right: var(--chat-edge);
+}
+
+/* Base bubble layout */
+.msg-bubble {
+    max-width: calc(100% - var(--chat-middle) - var(--chat-edge));
+    border-radius: 16px;
+}
+
+/* Incoming (left) — closer to left edge, bigger gap to center */
+.msg-bubble.--in {
+    margin-inline: var(--chat-edge-left) var(--chat-middle);
+    align-self: flex-start;
+}
+
+/* Outgoing (right) — closer to right edge, bigger gap to center */
+.msg-bubble.--out {
+    margin-inline: var(--chat-middle) var(--chat-edge-right);
+    align-self: flex-end;
+}
+
+/* Keep desktop as-is (don’t change your current desktop spacing) */
+@media (min-width: 768px) {
+
+    .msg-bubble.--in,
+    .msg-bubble.--out {
+        margin-inline: initial;
+        /* use your existing desktop styles */
+    }
+
+    .msg-bubble {
+        max-width: initial;
+    }
+}
+
+/* Use a plain color when no live video is active */
+.ai-page {
+    background: var(--solid-bg, var(--th-bg));
+    /* falls back to theme bg */
+    min-height: var(--app-h, 100vh);
+}
+
+/* If a live wallpaper is on, keep content transparent over the video */
+html[data-live="1"] .ai-page {
+    background: transparent;
+}
+
+/* --- mobile chat-edge spacing --- */
+:root {
+    --chat-edge: clamp(-12px, -3.8vw, 8px);
+    /* space from screen edges */
+    --chat-middle: 29%;
+    /* space toward the center */
+}
+
+@supports (padding-left: env(safe-area-inset-left)) {
+    :root {
+        --chat-edge-left: max(env(safe-area-inset-left), var(--chat-edge));
+        --chat-edge-right: max(env(safe-area-inset-right), var(--chat-edge));
+    }
+}
+
+:root {
+    --chat-edge-left: var(--chat-edge);
+    --chat-edge-right: var(--chat-edge);
+}
+
+.msg-bubble {
+    max-width: calc(100% - var(--chat-middle) - var(--chat-edge));
+    border-radius: 16px;
+}
+
+.msg-bubble.--in {
+    /* assistant (left side) */
+    margin-inline: var(--chat-edge-left) var(--chat-middle);
+    align-self: flex-start;
+}
+
+.msg-bubble.--out {
+    /* user (right side) */
+    margin-inline: var(--chat-middle) var(--chat-edge-right);
+    align-self: flex-end;
+}
+
+/* Desktop: keep your current layout */
+@media (min-width: 768px) {
+    .msg-bubble {
+        max-width: initial;
+    }
+
+    .msg-bubble.--in,
+    .msg-bubble.--out {
+        margin-inline: initial;
+    }
+}
+
+/* === Landing orb position helpers === */
+.landing-orb-wrap {
+    /* Defaults so nothing breaks if props not passed */
+    --orb-desktop-shift: 120px;
+    --orb-mobile-shift: 160px;
+    --orb-name-desktop-shift: 0px;
+    --orb-name-mobile-shift: 30px;
+
+    /* Center the block and then shift it */
+    position: relative;
+    display: grid;
+    place-items: center;
+    min-height: clamp(320px, 52vh, 600px);
+    transform: translateY(var(--orb-desktop-shift));
+}
+
+.orb-name-marquee {
+    /* Nudge the name independently from the orb */
+    transform: translateY(var(--orb-name-desktop-shift));
+    will-change: transform;
+}
+
+/* Phones / small screens */
+@media (max-width: 768px) {
+    .landing-orb-wrap {
+        transform: translateY(var(--orb-mobile-shift));
+    }
+
+    .orb-name-marquee {
+        transform: translateY(var(--orb-name-mobile-shift));
+    }
+}
+
+.dark {
+    --th-bg: #0b0b0b;
+    --th-text: #e5e7eb;
+    --th-border: rgba(255, 255, 255, .14);
+    --surface-1: rgba(255, 255, 255, .06);
+    --surface-2: rgba(255, 255, 255, .08);
+}
+
+/* Helpful utilities so buttons/links automatically pick up accent */
+a {
+    color: var(--accent-link);
+}
+
+.btn.th-chip {
+    border-color: var(--th-border);
+}
+
+.btn.btn-water {
+    background: var(--accent);
+    color: var(--accent-fg);
+    border: none;
+}
+
+.th-card {
+    background: var(--surface-1);
+    color: var(--th-text);
+    border-color: var(--th-border);
+}
+
+/* ================= LIVE THEME – VIDEO HOST + LAYERING ================ */
+
+/* Hidden by default; ThemeMenu will insert <video id="six-live-wallpaper"> */
+#six-live-wallpaper {
+    display: none;
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    object-fit: cover;
+    pointer-events: none;
+    z-index: 0;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+}
+
+/* Show the video only when live is enabled */
+html[data-live="1"] #six-live-wallpaper {
+    display: block;
+}
+
+/* Keep the app above the video */
+html[data-live="1"] .ai-shell,
+html[data-live="1"] #app-shell,
+html[data-live="1"] .app-header,
+html[data-live="1"] .app-main,
+html[data-live="1"] .chat-scroll,
+html[data-live="1"] .composer-root {
+    position: relative;
+    z-index: 1;
+}
+
+/* Let the video show through the page when live is on */
+html[data-live="1"] body,
+html[data-live="1"] .themed-page,
+html[data-live="1"] .ai-page {
+    background: transparent !important;
+}
+
+/* -------- Optional: tasteful glass while live is on -------- */
+
+/* Cards/modals/dropdowns go glassy */
+html[data-live="1"] .th-card,
+html[data-live="1"] .panel,
+html[data-live="1"] .dropdown,
+html[data-live="1"] .modal-surface {
+    background: color-mix(in oklab, var(--th-bg) 18%, transparent);
+    border: 1px solid color-mix(in oklab, var(--th-text) 14%, transparent);
+    -webkit-backdrop-filter: blur(14px) saturate(130%);
+    backdrop-filter: blur(14px) saturate(130%);
+}
+
+/* Header & composer get light/dark glass from tokens */
+html[data-live="1"] .app-header,
+html[data-live="1"] .composer-root {
+    background: color-mix(in oklab, var(--th-bg) 22%, transparent);
+    border-color: var(--th-border);
+    -webkit-backdrop-filter: blur(14px) saturate(130%);
+    backdrop-filter: blur(14px) saturate(130%);
+}
+
+/* Ensure UI still interactive over the video */
+html[data-live="1"] .chat-scroll,
+html[data-live="1"] .composer-root,
+html[data-live="1"] .app-header {
+    pointer-events: auto;
+}
+
+/* Normal light tokens */
+html[data-theme="light"],
+.light {
+    --th-bg: #ffffff;
+    --th-bg-soft: #fafafa;
+    --th-text: #0a0a0a;
+    --th-border: rgba(0, 0, 0, .12);
+    --surface: var(--th-bg-soft);
+    --surface-text: var(--th-text);
+}
+
+/* Light + live wallpaper = light glass, not dark glass */
+html[data-theme="light"][data-live="1"],
+.light[data-live="1"] {
+    --th-bg: rgba(255, 255, 255, .90);
+    --th-bg-soft: rgba(255, 255, 255, .96);
+    --th-border: rgba(0, 0, 0, .12);
+    --backdrop: blur(14px) saturate(130%);
+}
+
+/* ==== 6IX chat bubbles — patch (drop at END of styles/6ix.css) ==== */
+
+/* Sensible max width for all bubbles */
+:root {
+    --chat-gutter: 16px;
+}
+
+@media (max-width: 480px) {
+    :root {
+        --chat-gutter: 18px;
+    }
+}
+
+.chat-list .msg-bubble,
+.chat-list .chat-bubble {
+    display: inline-block;
+    width: fit-content;
+    /* grow to content */
+    max-width: min(680px, calc(100vw - (var(--chat-gutter) * 2))) !important;
+    padding: 10px 14px;
+    border-radius: 16px;
+    line-height: 1.35;
+    white-space: normal;
+    /* allow wrapping when needed */
+    word-break: normal;
+    /* no mid-word breaks by default */
+    overflow-wrap: break-word;
+    /* wrap long words/URLs only */
+}
+
+/* Assistant (incoming / left) — black glass with white text */
+:root, html[data-theme="light"] {
+    --assist-bg: rgba(0, 0, 0, .82);
+    --assist-fg: #fff;
+    --user-bg: #111;
+    --user-fg: #fff;
+}
+
+html[data-theme="dark"] {
+    --assist-bg: rgba(255, 255, 255, .06);
+    --assist-fg: #fff;
+    --user-bg: #2a2a2a;
+    --user-fg: #f2f2f2;
+}
+
+/* Use whichever classes your app sets; both are included */
+.msg-bubble.--in,
+.chat-bubble.--in,
+.chat-bubble.is-assistant {
+    background: var(--assist-bg);
+    color: var(--assist-fg);
+    -webkit-backdrop-filter: blur(8px) saturate(120%);
+    backdrop-filter: blur(8px) saturate(120%);
+    border: 1px solid rgba(255, 255, 255, .12);
+}
+
+/* User (outgoing / right) */
+.msg-bubble.--out,
+.chat-bubble.--out,
+.chat-bubble.is-user {
+    background: var(--user-bg);
+    color: var(--user-fg);
+    border: 1px solid rgba(0, 0, 0, .12);
+}
+
+/* Keep short user messages on a single line (but still wrap if long) */
+.msg-bubble.--out,
+.chat-bubble.--out,
+.chat-bubble.is-user {
+    white-space: nowrap;
+    /* single line for short text */
+}
+
+.msg-bubble.--out>*,
+.chat-bubble.--out>*,
+.chat-bubble.is-user>* {
+    white-space: inherit;
+}
+
+/* If something earlier forced extremely narrow bubbles, neutralize it */
+.msg-bubble,
+.chat-bubble {
+    min-width: max-content;
+    /* let “hi”, “alot”, etc. stay on one line */
+}
+
+/* Safety: media inside bubbles should never blow out width */
+.chat-bubble img,
+.chat-bubble video,
+.chat-bubble canvas,
+.chat-bubble iframe {
+    max-width: 100%;
+    height: auto;
+    display: block;
+}
+
+/* Typing pill should always be readable */
+.typing-pill,
+.typing-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--th-border, rgba(0, 0, 0, .12));
+    -webkit-backdrop-filter: blur(8px) saturate(120%);
+    backdrop-filter: blur(8px) saturate(120%);
+}
+
+/* Dark: black glass + white text */
+html[data-theme="dark"] .typing-pill,
+html[data-theme="dark"] .typing-label {
+    background: rgba(255, 255, 255, 0.82);
+    color: #fff;
+}
+
+/* Light: white glass + black text */
+html[data-theme="light"] .typing-pill,
+html[data-theme="light"] .typing-label {
+    background: rgba(255, 255, 255, .88);
+    color: #000;
+}
+
+/* If you render the 3-dot loader inside, keep it visible */
+.typing-pill .dot,
+.typing-label .dot {
+    background: currentColor !important;
+}
+
+/* ===== LIVE WALLPAPER BASE ===== */
+#six-live-wallpaper {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    object-fit: cover;
+    pointer-events: none;
+    opacity: 0;
+    /* fade in only when enabled */
+    transition: opacity .25s ease;
+    z-index: 0;
+    /* wallpaper sits at the back */
+}
+
+/* Enable / show when html has data-live="1" */
+html[data-live="1"] #six-live-wallpaper {
+    opacity: 1;
+}
+
+/* Make the page transparent so the video is actually visible */
+html[data-live="1"], html[data-live="1"] body {
+    background: transparent !important;
+}
+
+/* ===== PUT YOUR APP ABOVE THE VIDEO ===== */
+/* Use whichever root wrappers you have; keep them above z-index:0 */
+#__next, main, .ai-page, .th-scope, .app-root {
+    position: relative;
+    z-index: 1;
+}
+
+/* ===== GLASS TINTS SO CONTENT IS READABLE OVER VIDEO ===== */
+html[data-live="1"][data-theme="dark"] .app-header,
+html[data-live="1"][data-theme="dark"] .composer-root,
+html[data-live="1"][data-theme="dark"] .th-card {
+    background: rgba(12, 12, 12, .70);
+    -webkit-backdrop-filter: blur(16px) saturate(120%);
+    backdrop-filter: blur(16px) saturate(120%);
+    border-color: rgba(255, 255, 255, .08);
+}
+
+html[data-live="1"][data-theme="light"] .app-header,
+html[data-live="1"][data-theme="light"] .composer-root,
+html[data-live="1"][data-theme="light"] .th-card {
+    background: rgba(255, 255, 255, .78);
+    -webkit-backdrop-filter: blur(16px) saturate(120%);
+    backdrop-filter: blur(16px) saturate(120%);
+    border-color: rgba(0, 0, 0, .12);
+}
+
+/* If any big wrapper still paints a solid background, make it see-through */
+html[data-live="1"] .chat-list,
+html[data-live="1"] .page-surface,
+html[data-live="1"] .surface-1 {
+    background: transparent !important;
+}
+
+/* Optional: hide the video when a modal wants a solid backdrop */
+.modal-open #six-live-wallpaper {
+    opacity: .35;
+}
+
+/* ================================
+FORCE LIVE WALLPAPER OVERRIDES
+================================ */
+
+/* the video itself */
+video#six-live-wallpaper {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    object-fit: cover !important;
+    pointer-events: none !important;
+    z-index: 0 !important;
+    opacity: 0 !important;
+    /* fades in when active */
+    transition: opacity .25s ease !important;
+}
+
+/* show the video when live is on (attr + safety :has fallback) */
+html[data-live="1"] video#six-live-wallpaper,
+body:has(> video#six-live-wallpaper) video#six-live-wallpaper {
+    opacity: 1 !important;
+}
+
+/* make the page actually see-through so the video is visible */
+html[data-live="1"],
+html[data-live="1"] body {
+    background: transparent !important;
+}
+
+/* keep app chrome ABOVE the video and transparent */
+html[data-live="1"] #__next,
+html[data-live="1"] main,
+html[data-live="1"] .ai-page,
+html[data-live="1"] .app-root,
+html[data-live="1"] .th-scope,
+html[data-live="1"] .page,
+html[data-live="1"] .page-surface,
+html[data-live="1"] .content-root,
+html[data-live="1"] .chat-list {
+    position: relative !important;
+    z-index: 1 !important;
+    background: transparent !important;
+}
+
+/* glass tints for readability over video */
+html[data-live="1"][data-theme="dark"] .app-header,
+html[data-live="1"][data-theme="dark"] .composer-root,
+html[data-live="1"][data-theme="dark"] .th-card,
+html[data-live="1"][data-theme="dark"] .modal,
+html[data-live="1"][data-theme="dark"] .sheet {
+    background: rgba(12, 12, 12, .70) !important;
+    -webkit-backdrop-filter: blur(16px) saturate(120%) !important;
+    backdrop-filter: blur(16px) saturate(120%) !important;
+    border-color: rgba(255, 255, 255, .08) !important;
+}
+
+html[data-live="1"][data-theme="light"] .app-header,
+html[data-live="1"][data-theme="light"] .composer-root,
+html[data-live="1"][data-theme="light"] .th-card,
+html[data-live="1"][data-theme="light"] .modal,
+html[data-live="1"][data-theme="light"] .sheet {
+    background: rgba(255, 255, 255, .78) !important;
+    -webkit-backdrop-filter: blur(16px) saturate(120%) !important;
+    backdrop-filter: blur(16px) saturate(120%) !important;
+    border-color: rgba(0, 0, 0, .12) !important;
+}
+
+/* catch-all: kill stubborn solid surfaces when live is on */
+html[data-live="1"] .force-transparent,
+html[data-live="1"] [data-surface],
+html[data-live="1"] [class*="surface"],
+html[data-live="1"] [class*="bg-"],
+html[data-live="1"] .card,
+html[data-live="1"] .panel {
+    background: transparent !important;
+}
+
+/* keep modals above wallpaper */
+.modal,
+.sheet,
+[role="dialog"] {
+    position: relative;
+    z-index: 1000 !important;
+}
+
+/* optional: dim wallpaper when modal is open */
+html[data-live="1"].modal-open video#six-live-wallpaper {
+    opacity: .35 !important;
+}
+
+/* --- Chat layout & autoscroll helpers --- */
+:root {
+    --header-h: 56px;
+    --composer-h: 64px;
+    --mbnav-h: 0px;
+    --chat-pad-top: var(--header-h);
+    --chat-pad-bottom: calc(var(--composer-h) + var(--mbnav-h) + env(safe-area-inset-bottom, 0px) + 24px);
+    --chat-max-h: calc(var(--app-h, 100vh) - var(--header-h) - var(--composer-h));
+}
+
+/* wrapper ensures we never render under header/composer */
+.chat-wrap {
+    position: relative;
+    min-height: var(--app-h, 100vh);
+    padding-top: var(--chat-pad-top);
+}
+
+/* the actual scroll area for messages */
+.chat-scroll {
+    position: relative;
+    height: var(--chat-max-h);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable both-edges;
+    padding: 12px 12px 0;
+}
+
+/* spacer keeps bubbles clear of the composer */
+.chat-bottom-spacer {
+    height: var(--chat-pad-bottom);
+    flex: 0 0 auto;
+}
+
+/* make sure the composer is fixed so it doesn’t shift the page */
+.composer-root {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1000;
+}
+
+/* optional: smooth scroll */
+.chat-scroll {
+    scroll-behavior: smooth;
+}
+
+/* ==== FORCE CHAT BOTTOM CUSHION (tweakable) ==== */
+
+:root {
+    /* Adjust this to push the conversation up more/less */
+    --chat-cushion: 160px;
+    /* try 120–240px */
+}
+
+/* Add real space at the very end of the list */
+.chat-scroll .mx-auto::after {
+    content: "";
+    display: block;
+    height: var(--chat-cushion);
+}
+
+/* Make the scroll container respect the cushion */
+.chat-scroll,
+.chat-list {
+    padding-bottom: calc(var(--chat-pad-bottom, 96px) + var(--chat-cushion)) !important;
+    scroll-padding-bottom: calc(var(--chat-pad-bottom, 96px) + var(--chat-cushion)) !important;
+}
+
+/* If something else is capping height, override it so the list can sit above the composer */
+.app-main .chat-scroll {
+    max-height: none !important;
+    height: calc(100dvh - var(--header-h, 56px) - var(--composer-h, 84px) - var(--mbnav-h, 0px)) !important;
+}
+
+/* Keep the typing label readable on the dark/glassy bubble */
+.msg-bubble.--in .typing-line,
+.msg-bubble.--in .typing-line span {
+    color: #fff !important;
 }
