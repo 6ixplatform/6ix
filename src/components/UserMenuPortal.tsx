@@ -5,6 +5,7 @@ import React, { useLayoutEffect, useRef, useState, MutableRefObject } from 'reac
 import { createPortal } from 'react-dom';
 import type { Plan } from '@/lib/planRules';
 import ThemeMenu from './ThemeMenu';
+import { useRouter } from 'next/navigation';
 
 const AVATAR_FALLBACK =
     'data:image/svg+xml;utf8,' +
@@ -110,6 +111,7 @@ export default function UserMenuPortal({
     onChangePhoto: () => void;
     savingAvatar?: boolean;
 }) {
+    const router = useRouter();
     const [pos, setPos] = useState<{ top: number; left: number; width: number }>({ top: 0, left: 0, width: 240 });
 
     // local avatar seed so the image appears instantly
@@ -238,43 +240,119 @@ export default function UserMenuPortal({
 
                 {/* Items */}
                 <ul className="sheet-list" role="none">
+                    {/* 6chat */}
                     <li>
-                        <button type="button" role="menuitem" className="sheet-item" onClick={() => { onStartNew(); onClose(); }}>
-                            Start new chat
+                        <button
+                            type="button"
+                            role="menuitem"
+                            className="sheet-item"
+                            onClick={() => { router.push('/6chat'); onClose(); }}
+                        >
+                            6chat
                         </button>
                     </li>
+
+                    {/* Change photo… */}
                     <li>
-                        <button type="button" role="menuitem" className="sheet-item" onClick={() => { onChangePhoto(); onClose(); }} disabled={!!savingAvatar}>
+                        <button
+                            type="button"
+                            role="menuitem"
+                            className="sheet-item"
+                            onClick={() => { onChangePhoto(); onClose(); }}
+                            disabled={!!savingAvatar}
+                        >
                             {savingAvatar ? 'Updating photo…' : 'Change photo…'}
                         </button>
                     </li>
 
-                    {/* NEW: Theme */}
-                    {isMobile && (
-                        <ThemeMenu />
-                    )}
-
+                    {/* Get Premium + Verified */}
                     <li>
-                        <button type="button" role="menuitem" className="sheet-item" onClick={() => { onHistory(); onClose(); }}>
-                            History
-                        </button>
-                    </li>
-                    <li>
-                        <button type="button" role="menuitem" className="sheet-item" onClick={() => { onPremium(); onClose(); }}>
+                        <button
+                            type="button"
+                            role="menuitem"
+                            className="sheet-item"
+                            onClick={() => { onPremium(); onClose(); }}
+                        >
                             Get Premium + Verified
                         </button>
                     </li>
+
+                    {/* History */}
                     <li>
-                        <button type="button" role="menuitem" className="sheet-item" onClick={() => { onHelp(); onClose(); }}>
+                        <button
+                            type="button"
+                            role="menuitem"
+                            className="sheet-item"
+                            onClick={() => { onHistory(); onClose(); }}
+                        >
+                            History
+                        </button>
+                    </li>
+
+                    {/* Need help? */}
+                    <li>
+                        <button
+                            type="button"
+                            role="menuitem"
+                            className="sheet-item"
+                            onClick={() => { onHelp(); onClose(); }}
+                        >
                             Need help?
                         </button>
                     </li>
+
+                    {/* Start new chat */}
                     <li>
-                        <button type="button" role="menuitem" className="sheet-item sheet-item--destructive" onClick={() => { onSignout(); onClose(); }}>
+                        <button
+                            type="button"
+                            role="menuitem"
+                            className="sheet-item"
+                            onClick={() => { onStartNew(); onClose(); }}
+                        >
+                            Start new chat
+                        </button>
+                    </li>
+
+                    {/* Submit ad */}
+                    <li>
+                        <button
+                            type="button"
+                            role="menuitem"
+                            className="sheet-item"
+                            onClick={() => { router.push('/submit/ad'); onClose(); }}
+                        >
+                            Submit ad
+                        </button>
+                    </li>
+
+                    {/* Submit song */}
+                    <li>
+                        <button
+                            type="button"
+                            role="menuitem"
+                            className="sheet-item"
+                            onClick={() => { router.push('/submit/song'); onClose(); }}
+                        >
+                            Submit song
+                        </button>
+                    </li>
+
+                    {/* (Mobile-only) Theme stays where it was, not part of alpha sort */}
+                    {isMobile && <ThemeMenu />}
+
+                    {/* Sign out (kept at bottom, destructive) */}
+                    <li>
+                        <button
+                            type="button"
+                            role="menuitem"
+                            className="sheet-item sheet-item--destructive"
+                            onClick={() => { onSignout(); onClose(); }}
+                        >
                             Sign out
                         </button>
                     </li>
                 </ul>
+
             </div>
 
             {/* popover portal */}

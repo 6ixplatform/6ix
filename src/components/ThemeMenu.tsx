@@ -51,6 +51,19 @@ const UNIVERSAL_THEMES: LiveTheme[] = [
 ];
 
 const MOBILE_VERTICAL_THEMES: LiveTheme[] = [
+    { key: 'dollar', name: 'Dollar', src: '/live/dollar.mp4', mobileOnly: true, orientation: 'vertical' },
+    { key: 'speed', name: 'Speed', src: '/live/speed.mp4', mobileOnly: true, orientation: 'vertical' },
+    { key: 'yatch', name: 'Yatch', src: '/live/yatch.mp4', mobileOnly: true, orientation: 'vertical' },
+    { key: 'straybunny', name: 'StrayBunny', src: '/live/straybunny.mp4', mobileOnly: true, orientation: 'vertical' },
+    { key: 'ship', name: 'Ship', src: '/live/ship.mp4', mobileOnly: true, orientation: 'vertical' },
+    { key: 'soldier', name: 'Soldier', src: '/live/soldier.mp4', mobileOnly: true, orientation: 'vertical' },
+    { key: 'rainbow', name: 'Rainbow', src: '/live/rainbow.mp4', mobileOnly: true, orientation: 'vertical' },
+    { key: 'pinkdragon', name: 'PinkDragon', src: '/live/pinkdragon.mp4', mobileOnly: true, orientation: 'vertical' },
+    { key: 'keepgoing', name: 'KeepGoing', src: '/live/keepgoing.mp4', mobileOnly: true, orientation: 'vertical' },
+    { key: 'grasshopper', name: 'GrassHopper', src: '/live/grasshopper.mp4', mobileOnly: true, orientation: 'vertical' },
+    { key: 'pinkbutterfly', name: 'PinkButterfly', src: '/live/pinkbutterfly.mp4', mobileOnly: true, orientation: 'vertical' },
+    { key: 'pinktree', name: 'PinkTree', src: '/live/pinktree.mp4', mobileOnly: true, orientation: 'vertical' },
+
     { key: 'owl', name: 'Owl', src: '/live/owl.mp4', mobileOnly: true, orientation: 'vertical' },
     { key: 'party', name: 'Party', src: '/live/party.mp4', mobileOnly: true, orientation: 'vertical' },
     { key: 'bitcoinrain', name: 'Bitcoin', src: '/live/bitcoinrain.mp4', mobileOnly: true, orientation: 'vertical' },

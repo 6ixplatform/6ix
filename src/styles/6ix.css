@@ -4602,3 +4602,75 @@ html[data-live="1"].modal-open video#six-live-wallpaper {
 .msg-bubble.--in .typing-line span {
     color: #fff !important;
 }
+
+/* 6ix.css — hard overrides for chat bubbles and typing chip */
+
+/* Tunables */
+:root {
+    /* ~16 words per line on average (adjust to taste):
+1 word ≈ 5–6ch ⇒ 16 words ≈ 80–96ch. Start tighter for shorter lines. */
+    --bubble-max-ch: 66ch;
+    /* cap per-line text width (≈14–16 words) */
+    --bubble-edge-gap: 10px;
+    /* inset from the viewport edge */
+}
+
+/* ===== Chat bubble sizing & alignment ===== */
+.chat-list .msg-bubble {
+    display: inline-block !important;
+    max-inline-size: min(92vw, var(--bubble-max-ch)) !important;
+    /* hard cap */
+    width: -moz-fit-content !important;
+    width: fit-content !important;
+    /* shrink to content */
+    white-space: normal !important;
+    word-break: normal !important;
+    overflow-wrap: anywhere !important;
+    /* wrap long URLs/tokens */
+    line-height: 1.35 !important;
+}
+
+/* Push each side toward its edge */
+.chat-list .msg-bubble.--in {
+    /* assistant (left) */
+    margin-inline: var(--bubble-edge-gap) auto !important;
+}
+
+.chat-list .msg-bubble.--out {
+    /* user (right) */
+    margin-inline: auto var(--bubble-edge-gap) !important;
+}
+
+/* Let inner blocks honor the cap, too */
+.chat-list .msg-bubble>* {
+    max-inline-size: inherit !important;
+}
+
+/* ===== Remove black fill for the typing bubble ===== */
+.chat-list .msg-bubble.typing-bubble {
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    padding: 0 !important;
+}
+
+/* The “6IXAI is typing …” line itself */
+.chat-list .typing-line {
+    background: transparent !important;
+    padding: 0 !important;
+    border: 0 !important;
+}
+
+/* Optional: keep tiny bubbles from stretching full width */
+.chat-list .msg-bubble {
+    min-inline-size: 44px !important;
+}
+
+/* If something still forces full width on very small screens, clamp again */
+@media (max-width: 420px) {
+    .chat-list .msg-bubble {
+        max-inline-size: min(88vw, 58ch) !important;
+    }
+}

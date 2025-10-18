@@ -3853,7 +3853,7 @@ function AIPageInner() {
                     hints={composerHints}
                     hintTick={hintTick}
                 />
-                
+
             </div>
 
             {/* Modals */}
@@ -3958,15 +3958,6 @@ backdrop-filter: blur(14px) saturate(120%) !important;
 .chat-bubble{ background: rgba(8,8,8,.88) !important; }
 }
 
-/* ⬇️ Solid typing bubble – no glass, white text, darker pill */
-.typing-bubble{
-background: #0E0F11 !important;
-color: #fff !important;
-border-color: rgba(255,255,255,.14) !important;
--webkit-backdrop-filter: none !important;
-backdrop-filter: none !important;
-box-shadow: 0 2px 14px rgba(0,0,0,.25);
-}
 
 /* Make "6IX AI is typing" line look crisp */
 .typing-line{
@@ -4002,7 +3993,42 @@ word-break: normal;
 overscroll-behavior-y: contain;
 }
 `}</style>
+                    <style jsx global>{`
+/* ---- Chat bubble sizing & edge pinning ---- */
+.chat-list .msg-bubble{
+/* cap absolute width AND percentage (wins whichever is smaller) */
+max-width: min(640px, 70%);
+}
+@media (min-width: 1024px){
+.chat-list .msg-bubble{
+/* a little tighter on wide screens */
+max-width: min(660px, 62%);
+}
+}
 
+/* pin to the correct side with a tiny side gap so it doesn't touch the rail */
+.chat-list .msg-bubble.--in{ /* assistant (left) */
+margin-right: auto;
+margin-left: 8px;
+}
+.chat-list .msg-bubble.--out{ /* user (right) */
+margin-left: auto;
+margin-right: 8px;
+}
+
+/* ensure inner content never overflow past the bubble cap */
+.chat-list .msg-bubble > *{
+max-width: 100%;
+}
+`}</style>
+<style jsx global>{`
+.chat-list .typing-bubble{
+background: transparent !important;
+backdrop-filter: none !important;
+-webkit-backdrop-filter: none !important;
+border-color: rgba(255,255,255,.16) !important;
+}
+`}</style>
 
                 </div>
             )}
