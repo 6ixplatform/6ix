@@ -1,3 +1,4 @@
+// components/voice/VoiceCallModal.tsx
 'use client';
 
 import * as React from 'react';
@@ -5,48 +6,58 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import VoiceCatalogPicker from './VoiceCatalogPicker';
 
 /* ----------------------------- Voice Mapping ----------------------------- */
-
 const OPENAI_VOICES = new Set([
     'alloy', 'ash', 'ballad', 'coral', 'echo', 'sage', 'shimmer', 'verse', 'marin', 'cedar'
 ]);
-
 function mapToOpenAIVoice(input?: string | null): string | undefined {
     if (!input) return undefined;
     const k = String(input).toLowerCase().trim().replace(/^tts[_-]/, '');
     const ALIASES: Record<string, string> = { kai: 'verse', lola: 'alloy', nina: 'coral', felix: 'ash', amber: 'sage' };
-    const candidate = (ALIASES[k] ?? k);
+    const candidate = ALIASES[k] ?? k;
     return OPENAI_VOICES.has(candidate) ? candidate : 'verse';
 }
 
-/* ------------------------------- Types ----------------------------------- */
-
+/* -------------------------------- Types ---------------------------------- */
 type Plan = 'free' | 'pro' | 'max';
-
-export type VoiceRow = {
-    id: string;
-    code: string;
-    name: string;
-    tts_voice_key: string;
-    tier: Plan;
-};
-
+export type VoiceRow = { id: string; code: string; name: string; tts_voice_key: string; tier: Plan; };
 type ProfileRow = {
-    id: string;
-    username?: string | null;
-    first_name?: string | null;
-    middle_name?: string | null;
-    last_name?: string | null;
-    display_name?: string | null;
-    nickname?: string | null;
-    city?: string | null;
-    state?: string | null;
-    country_code?: string | null;
-    language?: string | null;
-    languages?: any; // string or array depending on schema
-    locale?: string | null;
+    id: string; username?: string | null; first_name?: string | null; display_name?: string | null; nickname?: string | null;
+    city?: string | null; state?: string | null; country_code?: string | null; language?: string | null; languages?: any; locale?: string | null;
 };
 
-/* --------------------------- Behavior Prompts ---------------------------- */
+/* -------------------------- Helpers & defaults --------------------------- */
+const COUNTRY_LANGUAGE_DEFAULT: Record<string, string> = {
+    US: 'en-US', GB: 'en-GB', CA: 'en-CA', AU: 'en-AU',
+    NG: 'en-NG', GH: 'en-GH', ZA: 'en-ZA',
+    FR: 'fr-FR', CI: 'fr-CI', SN: 'fr-SN',
+    ES: 'es-ES', MX: 'es-MX', CO: 'es-CO', AR: 'es-AR',
+    BR: 'pt-BR', PT: 'pt-PT', IT: 'it-IT', DE: 'de-DE', NL: 'nl-NL',
+    IN: 'en-IN', KE: 'en-KE', UG: 'en-UG', TZ: 'sw-TZ', JP: 'ja-JP', KR: 'ko-KR',
+    CN: 'zh-CN', TW: 'zh-TW',
+};
+function dcSend(dc: RTCDataChannel | null | undefined, payload: any) {
+    try { if (dc?.readyState === 'open') dc.send(JSON.stringify(payload)); } catch { }
+}
+function first<T>(...vals: (T | undefined | null)[]) { for (const v of vals) { if (v != null && String(v).trim() !== '') return v as T; } }
+function pickDisplayName(p?: ProfileRow | null) { return first(p?.display_name, p?.nickname, p?.first_name, p?.username) ?? 'there'; }
+function pickLanguageFromProfile(p?: ProfileRow | null) {
+    if (!p) return;
+    if (p.language?.trim()) return p.language.trim();
+    if (p.languages) {
+        try {
+            if (Array.isArray(p.languages) && p.languages.length) return String(p.languages[0]).trim();
+            if (typeof p.languages === 'string') {
+                const s = p.languages.trim();
+                if (s.startsWith('[')) { const a = JSON.parse(s); if (Array.isArray(a) && a.length) return String(a[0]).trim(); }
+                else { const f = s.split(',')[0]; if (f?.trim()) return f.trim(); }
+            }
+        } catch { }
+    }
+    if (p.locale?.trim()) return p.locale.trim();
+    if (p.country_code && COUNTRY_LANGUAGE_DEFAULT[p.country_code]) return COUNTRY_LANGUAGE_DEFAULT[p.country_code];
+    if (typeof navigator !== 'undefined' && navigator.language) return navigator.language;
+}
+
 
 const BASE_BEHAVIOR_INSTRUCTIONS = `
 You are 6IXAI, a warm, emotionally intelligent real-time voice companion.
@@ -78,91 +89,11 @@ Voice & delivery:
 - Speak gently (not overly loud), with natural cadence and subtle intonation.
 `;
 
-/* ------------------------ Minimal country→language map ------------------- */
-/* Extend as you like. Used only when profile.language/languages/locale are empty. */
-const COUNTRY_LANGUAGE_DEFAULT: Record<string, string> = {
-    US: 'en-US', GB: 'en-GB', CA: 'en-CA', AU: 'en-AU',
-    NG: 'en-NG', GH: 'en-GH', ZA: 'en-ZA',
-    FR: 'fr-FR', CI: 'fr-CI', SN: 'fr-SN',
-    ES: 'es-ES', MX: 'es-MX', CO: 'es-CO', AR: 'es-AR',
-    BR: 'pt-BR', PT: 'pt-PT',
-    IT: 'it-IT', DE: 'de-DE', NL: 'nl-NL',
-    IN: 'en-IN', KE: 'en-KE', UG: 'en-UG', TZ: 'sw-TZ',
-    JP: 'ja-JP', KR: 'ko-KR', CN: 'zh-CN', TW: 'zh-TW',
-};
-
-/* ----------------------------- Small helpers ----------------------------- */
-
-function dcSend(dc: RTCDataChannel | null | undefined, payload: any) {
-    try { if (dc && dc.readyState === 'open') dc.send(JSON.stringify(payload)); } catch { }
-}
-
-function firstDefined<T>(...vals: (T | undefined | null)[]) {
-    for (const v of vals) if (v != null && String(v).trim() !== '') return v as T;
-    return undefined;
-}
-
-function pickDisplayName(p?: ProfileRow | null): string | undefined {
-    if (!p) return undefined;
-    return firstDefined(
-        p.display_name, p.nickname, p.first_name, p.username
-    );
-}
-
-/** Try to pick a BCP-47 language code from the profile; fallback to country; last fallback = navigator.language */
-function pickLanguageFromProfile(p?: ProfileRow | null): string | undefined {
-    if (!p) return undefined;
-
-    // 1) explicit single language
-    if (p.language && String(p.language).trim()) return String(p.language).trim();
-
-    // 2) languages array/string
-    if (p.languages) {
-        try {
-            if (Array.isArray(p.languages) && p.languages.length) return String(p.languages[0]).trim();
-            if (typeof p.languages === 'string') {
-                // CSV or JSON
-                const s = p.languages.trim();
-                if (s.startsWith('[')) {
-                    const arr = JSON.parse(s);
-                    if (Array.isArray(arr) && arr.length) return String(arr[0]).trim();
-                } else {
-                    const first = s.split(',')[0];
-                    if (first && first.trim()) return first.trim();
-                }
-            }
-        } catch { }
-    }
-
-    // 3) locale (e.g., "en-NG")
-    if (p.locale && String(p.locale).trim()) return String(p.locale).trim();
-
-    // 4) country default
-    if (p.country_code && COUNTRY_LANGUAGE_DEFAULT[p.country_code]) {
-        return COUNTRY_LANGUAGE_DEFAULT[p.country_code];
-    }
-
-    // 5) browser hint
-    if (typeof navigator !== 'undefined' && navigator.language) return navigator.language;
-
-    return undefined;
-}
-
-/* --------------------------- Component ----------------------------------- */
-
+/* -------------------------------- Component ------------------------------ */
 export default function VoiceCallModal({
-    open,
-    onClose,
-    voice,
-    plan,
-    displayName: fallbackName = 'there',
-}: {
-    open: boolean;
-    onClose: () => void;
-    voice: VoiceRow | null;
-    plan: Plan;
-    displayName?: string;
-}) {
+    open, onClose, voice, plan, displayName: fallbackName = 'there',
+}: { open: boolean; onClose: () => void; voice: VoiceRow | null; plan: Plan; displayName?: string; }) {
+
     const supabase = createClientComponentClient();
 
     const [status, setStatus] = React.useState<'idle' | 'connecting' | 'live' | 'reconnecting' | 'ending' | 'error'>('idle');
@@ -170,18 +101,18 @@ export default function VoiceCallModal({
     const [callId, setCallId] = React.useState<string | undefined>();
     const [secondsLeft, setSecondsLeft] = React.useState<number | undefined>();
     const [catalogOpen, setCatalogOpen] = React.useState(false);
-    const [isSpeaking, setIsSpeaking] = React.useState(false);
 
-    // profile-derived personalization
-    const [nameHint, setNameHint] = React.useState<string>(fallbackName);
-    const [langHint, setLangHint] = React.useState<string | undefined>(undefined);
-    const [cityHint, setCityHint] = React.useState<string | undefined>(undefined);
-    const [stateHint, setStateHint] = React.useState<string | undefined>(undefined);
-    const [countryHint, setCountryHint] = React.useState<string | undefined>(undefined);
-    const [localeHint, setLocaleHint] = React.useState<string | undefined>(undefined);
+    // personalization
+    const [nameHint, setNameHint] = React.useState(fallbackName);
+    const [langHint, setLangHint] = React.useState<string | undefined>();
+    const [cityHint, setCityHint] = React.useState<string | undefined>();
+    const [stateHint, setStateHint] = React.useState<string | undefined>();
+    const [countryHint, setCountryHint] = React.useState<string | undefined>();
+    const [localeHint, setLocaleHint] = React.useState<string | undefined>();
 
-    // wave canvas
-    const waveCanvasRef = React.useRef<HTMLCanvasElement | null>(null);
+    // visuals
+    const [assistantSpeaking, setAssistantSpeaking] = React.useState(false); // orb glow (assistant audio)
+    const waveCanvasRef = React.useRef<HTMLCanvasElement | null>(null); // horizontal wave (user mic)
 
     // WebRTC & audio
     const pcRef = React.useRef<RTCPeerConnection | null>(null);
@@ -189,32 +120,32 @@ export default function VoiceCallModal({
     const localStreamRef = React.useRef<MediaStream | null>(null);
     const remoteAudioRef = React.useRef<HTMLAudioElement | null>(null);
 
-    // timers/raf
+    // timers / raf
     const countdownRef = React.useRef<number | null>(null);
-    const reconnectTimerRef = React.useRef<number | null>(null);
-    const reconnectBackoffRef = React.useRef(800);
     const pingTimerRef = React.useRef<number | null>(null);
+    const reconnectTimerRef = React.useRef<number | null>(null);
+    const reconnectIndicatorTimerRef = React.useRef<number | null>(null);
     const rafRef = React.useRef<number | null>(null);
 
-    // analyser
-    const remoteAudioCtxRef = React.useRef<AudioContext | null>(null);
+    // analysers
+    const remoteCtxRef = React.useRef<AudioContext | null>(null);
     const remoteAnalyserRef = React.useRef<AnalyserNode | null>(null);
     const remoteBufRef = React.useRef<Uint8Array>(new Uint8Array(0));
+    const localCtxRef = React.useRef<AudioContext | null>(null);
+    const localAnalyserRef = React.useRef<AnalyserNode | null>(null);
+    const localBufRef = React.useRef<Uint8Array>(new Uint8Array(0));
 
-    // session continuity
+    // continuity
     const greetedOnceRef = React.useRef(false);
-    const resumeHintRef = React.useRef('');
 
-    /* ----------------------- profile bootstrap ----------------------- */
+    /* ------------------------- profile personalization ---------------------- */
     React.useEffect(() => {
         if (!open) return;
-
         (async () => {
             try {
                 const { data: auth } = await supabase.auth.getUser();
                 const uid = auth?.user?.id;
                 if (!uid) {
-                    // unauthenticated: still personalize from browser locale
                     setNameHint(fallbackName);
                     setLangHint(typeof navigator !== 'undefined' ? navigator.language : undefined);
                     return;
@@ -225,7 +156,7 @@ export default function VoiceCallModal({
                     .eq('id', uid)
                     .single();
 
-                const nm = pickDisplayName(p as ProfileRow) || fallbackName;
+                const nm = pickDisplayName(p as ProfileRow) ?? fallbackName;
                 const lg = pickLanguageFromProfile(p as ProfileRow);
                 setNameHint(nm);
                 setLangHint(lg);
@@ -241,54 +172,30 @@ export default function VoiceCallModal({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open]);
 
-    /* ----------------------------- utils ----------------------------- */
-
-    const clearCountdown = () => { if (countdownRef.current) { window.clearInterval(countdownRef.current); countdownRef.current = null; } };
-    const clearReconnectTimer = () => { if (reconnectTimerRef.current) { window.clearTimeout(reconnectTimerRef.current); reconnectTimerRef.current = null; } };
-    const clearPing = () => { if (pingTimerRef.current) { window.clearInterval(pingTimerRef.current); pingTimerRef.current = null; } };
-
-    const stopRemoteVu = React.useCallback(() => {
+    /* -------------------------------- cleanup ------------------------------- */
+    const clear = {
+        countdown: () => { if (countdownRef.current) { window.clearInterval(countdownRef.current); countdownRef.current = null; } },
+        ping: () => { if (pingTimerRef.current) { window.clearInterval(pingTimerRef.current); pingTimerRef.current = null; } },
+        reconnect: () => { if (reconnectTimerRef.current) { window.clearTimeout(reconnectTimerRef.current); reconnectTimerRef.current = null; } },
+        reconnectIndicator: () => { if (reconnectIndicatorTimerRef.current) { window.clearTimeout(reconnectIndicatorTimerRef.current); reconnectIndicatorTimerRef.current = null; } },
+    };
+    const stopAnalysers = React.useCallback(() => {
         if (rafRef.current) cancelAnimationFrame(rafRef.current);
         rafRef.current = null;
-        try { remoteAudioCtxRef.current?.close(); } catch { }
-        remoteAudioCtxRef.current = null;
-        remoteAnalyserRef.current = null;
-        remoteBufRef.current = new Uint8Array(0);
-        setIsSpeaking(false);
+        try { remoteCtxRef.current?.close(); } catch { }
+        try { localCtxRef.current?.close(); } catch { }
+        remoteCtxRef.current = null; localCtxRef.current = null;
+        remoteAnalyserRef.current = null; localAnalyserRef.current = null;
+        remoteBufRef.current = new Uint8Array(0); localBufRef.current = new Uint8Array(0);
+        setAssistantSpeaking(false);
     }, []);
 
-    const sendSessionUpdate = React.useCallback((patch: any) => {
-        dcSend(dcRef.current, { type: 'session.update', session: patch });
-    }, []);
-
-    const switchVoice = React.useCallback((v: VoiceRow) => {
-        const mapped = mapToOpenAIVoice(v.tts_voice_key);
-        if (mapped) sendSessionUpdate({ voice: mapped });
-        setCatalogOpen(false);
-    }, [sendSessionUpdate]);
-
-    const teardown = React.useCallback(async (reason: 'hangup' | 'limit' | 'assistant_end' | 'error') => {
-        try {
-            setStatus('ending');
-            clearCountdown(); clearReconnectTimer(); clearPing(); stopRemoteVu();
-            try { localStreamRef.current?.getTracks().forEach(t => t.stop()); } catch { }
-            try { pcRef.current?.getSenders().forEach(s => s.track?.stop()); } catch { }
-            try { pcRef.current?.close(); } catch { }
-        } finally {
-            pcRef.current = null;
-            dcRef.current = null;
-            localStreamRef.current = null;
-        }
-        try { if (callId) await supabase.rpc('end_voice_call', { p_call_id: callId, p_reason: reason }); } catch { }
-        setStatus('idle'); setCallId(undefined); onClose();
-    }, [callId, onClose, supabase, stopRemoteVu]);
-
+    /* ----------------------------- tool handlers --------------------------- */
     const handleServerEvent = React.useCallback(async (evt: any) => {
         try {
             const data = typeof evt === 'string' ? JSON.parse(evt) : evt;
             const toolName = data?.type === 'tool_call' ? data?.name : (data?.tool?.name ?? data?.data?.name);
-
-            if (toolName === 'end_call') { teardown('assistant_end'); return; }
+            if (toolName === 'end_call') { await teardown('assistant_end'); return; }
 
             const toolCallId = data?.id || data?.tool_call_id;
             const argsRaw = data?.arguments || data?.args || '{}';
@@ -296,95 +203,65 @@ export default function VoiceCallModal({
 
             if (toolName === 'save_progress') {
                 await supabase.rpc('save_lesson_progress', {
-                    p_topic: args.topic,
-                    p_summary: args.summary ?? null,
-                    p_cursor: args.cursor ?? {},
+                    p_topic: args.topic, p_summary: args.summary ?? null, p_cursor: args.cursor ?? {},
                 });
-                resumeHintRef.current = args?.summary || resumeHintRef.current;
                 dcSend(dcRef.current, { type: 'tool.output', tool_call_id: toolCallId, output: JSON.stringify({ ok: true }) });
                 return;
             }
-
             if (toolName === 'get_progress') {
                 const { data: prog } = await supabase.rpc('get_lesson_progress', { p_topic: args.topic });
                 dcSend(dcRef.current, { type: 'tool.output', tool_call_id: toolCallId, output: JSON.stringify({ progress: prog ?? null }) });
                 return;
             }
+
+            // Your web tools
             if (toolName === 'web_search') {
-                const q = (args?.query ?? '').toString();
-                const n = Math.min(Math.max(Number(args?.n || 6), 1), 10);
+                const q = (args?.query ?? '').toString(); const n = Math.min(Math.max(Number(args?.n || 6), 1), 10);
                 try {
                     const res = await fetch(`/api/search?q=${encodeURIComponent(q)}&n=${n}`, { cache: 'no-store' });
                     const hits = await res.json();
-                    dcRef.current?.send(JSON.stringify({
-                        type: 'tool.output',
-                        tool_call_id: toolCallId,
-                        output: JSON.stringify({ results: hits }),
-                    }));
+                    dcSend(dcRef.current, { type: 'tool.output', tool_call_id: toolCallId, output: JSON.stringify({ results: hits }) });
                 } catch (e: any) {
-                    dcRef.current?.send(JSON.stringify({
-                        type: 'tool.output',
-                        tool_call_id: toolCallId,
-                        output: JSON.stringify({ results: [], error: e?.message || 'search failed' }),
-                    }));
+                    dcSend(dcRef.current, { type: 'tool.output', tool_call_id: toolCallId, output: JSON.stringify({ results: [], error: e?.message || 'search failed' }) });
                 }
                 return;
             }
-
             if (toolName === 'stock_quotes') {
                 const symbols = (args?.symbols ?? '').toString();
                 try {
                     const res = await fetch(`/api/stocks?s=${encodeURIComponent(symbols)}`, { cache: 'no-store' });
                     const rows = await res.json();
-                    dcRef.current?.send(JSON.stringify({
-                        type: 'tool.output',
-                        tool_call_id: toolCallId,
-                        output: JSON.stringify({ quotes: rows }),
-                    }));
+                    dcSend(dcRef.current, { type: 'tool.output', tool_call_id: toolCallId, output: JSON.stringify({ quotes: rows }) });
                 } catch (e: any) {
-                    dcRef.current?.send(JSON.stringify({
-                        type: 'tool.output',
-                        tool_call_id: toolCallId,
-                        output: JSON.stringify({ quotes: [], error: e?.message || 'stocks failed' }),
-                    }));
+                    dcSend(dcRef.current, { type: 'tool.output', tool_call_id: toolCallId, output: JSON.stringify({ quotes: [], error: e?.message || 'stocks failed' }) });
                 }
                 return;
             }
-
             if (toolName === 'weather_forecast') {
                 const lat = args?.lat, lon = args?.lon;
                 try {
-                    const url = `/api/weather?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`;
-                    const res = await fetch(url, { cache: 'no-store' });
+                    const res = await fetch(`/api/weather?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`, { cache: 'no-store' });
                     const j = await res.json();
-                    dcRef.current?.send(JSON.stringify({
-                        type: 'tool.output',
-                        tool_call_id: toolCallId,
-                        output: JSON.stringify({ weather: j }),
-                    }));
+                    dcSend(dcRef.current, { type: 'tool.output', tool_call_id: toolCallId, output: JSON.stringify({ weather: j }) });
                 } catch (e: any) {
-                    dcRef.current?.send(JSON.stringify({
-                        type: 'tool.output',
-                        tool_call_id: toolCallId,
-                        output: JSON.stringify({ weather: null, error: e?.message || 'weather failed' }),
-                    }));
+                    dcSend(dcRef.current, { type: 'tool.output', tool_call_id: toolCallId, output: JSON.stringify({ weather: null, error: e?.message || 'weather failed' }) });
                 }
                 return;
             }
-
         } catch { }
-    }, [supabase, teardown]);
+    }, [supabase]);
 
-    const drawWave = React.useCallback(() => {
-        const analyser = remoteAnalyserRef.current;
+    /* --------------------------- user wave drawing -------------------------- */
+    const drawUserWave = React.useCallback(() => {
+        const analyser = localAnalyserRef.current;
         const canvas = waveCanvasRef.current;
-        if (!analyser || !canvas) { rafRef.current = requestAnimationFrame(drawWave); return; }
+        if (!analyser || !canvas) { rafRef.current = requestAnimationFrame(drawUserWave); return; }
 
-        const base = remoteBufRef.current;
-        if (base.length === 0) { rafRef.current = requestAnimationFrame(drawWave); return; }
+        const base = localBufRef.current;
+        if (base.length === 0) { rafRef.current = requestAnimationFrame(drawUserWave); return; }
 
         const ctx = canvas.getContext('2d');
-        if (!ctx) { rafRef.current = requestAnimationFrame(drawWave); return; }
+        if (!ctx) { rafRef.current = requestAnimationFrame(drawUserWave); return; }
 
         const dpr = Math.min(2, window.devicePixelRatio || 1);
         const width = canvas.clientWidth;
@@ -411,132 +288,181 @@ export default function VoiceCallModal({
         }
         ctx.stroke();
 
+        rafRef.current = requestAnimationFrame(drawUserWave);
+    }, []);
+
+    /* ----------------------- assistant speaking monitor --------------------- */
+    const monitorAssistantAudio = React.useCallback(() => {
+        const analyser = remoteAnalyserRef.current;
+        if (!analyser) { rafRef.current = requestAnimationFrame(monitorAssistantAudio); return; }
+
+        const base = remoteBufRef.current;
+        if (base.length === 0) { rafRef.current = requestAnimationFrame(monitorAssistantAudio); return; }
+
+        const view = new Uint8Array(base.buffer as ArrayBuffer, base.byteOffset, base.byteLength);
+        analyser.getByteTimeDomainData(view);
+
         let sum = 0;
         for (let i = 0; i < view.length; i++) { const v = (view[i] - 128) / 128; sum += v * v; }
         const rms = Math.sqrt(sum / view.length);
-        setIsSpeaking(rms > 0.03);
+        setAssistantSpeaking(rms > 0.03);
 
-        rafRef.current = requestAnimationFrame(drawWave);
+        rafRef.current = requestAnimationFrame(monitorAssistantAudio);
     }, []);
 
-    /* -------------------------- Connection core -------------------------- */
-
-    const startPings = React.useCallback(() => {
-        if (pingTimerRef.current) window.clearInterval(pingTimerRef.current);
-        pingTimerRef.current = window.setInterval(() => {
-            dcSend(dcRef.current, { type: 'ping', ts: Date.now() });
-        }, 15000);
-    }, []);
-    const stopPings = React.useCallback(() => { if (pingTimerRef.current) window.clearInterval(pingTimerRef.current); }, []);
-
-    const scheduleReconnect = React.useCallback((hard: boolean) => {
-        if (reconnectTimerRef.current) return;
-        setStatus(prev => (prev === 'live' ? 'reconnecting' : prev));
-        reconnectTimerRef.current = window.setTimeout(async () => {
-            reconnectTimerRef.current = null;
-            try {
-                if (!hard && pcRef.current) {
-                    const pc = pcRef.current;
-                    const offer = await pc.createOffer({ iceRestart: true });
-                    await pc.setLocalDescription(offer);
-                }
-            } catch { }
-            await connect(true);
-            reconnectBackoffRef.current = Math.min(reconnectBackoffRef.current * 1.6, 5000);
-        }, reconnectBackoffRef.current);
-    }, []);
+    /* ---------------------------- connection logic -------------------------- */
+    const teardown = React.useCallback(async (reason: 'hangup' | 'limit' | 'assistant_end' | 'error') => {
+        try {
+            setStatus('ending');
+            clear.countdown(); clear.ping(); clear.reconnect(); clear.reconnectIndicator(); stopAnalysers();
+            try { localStreamRef.current?.getTracks().forEach(t => t.stop()); } catch { }
+            try { pcRef.current?.getSenders().forEach(s => s.track?.stop()); } catch { }
+            try { pcRef.current?.close(); } catch { }
+        } finally {
+            pcRef.current = null; dcRef.current = null; localStreamRef.current = null;
+        }
+        try { if (callId) await supabase.rpc('end_voice_call', { p_call_id: callId, p_reason: reason }); } catch { }
+        setStatus('idle'); setCallId(undefined); onClose();
+    }, [callId, onClose, supabase, stopAnalysers]);
 
     const connect = React.useCallback(async (isReconnect = false) => {
         setErr(undefined);
-        setStatus(prev => (prev === 'idle' ? 'connecting' : prev === 'error' ? 'reconnecting' : prev));
-        if (reconnectTimerRef.current) { window.clearTimeout(reconnectTimerRef.current); reconnectTimerRef.current = null; }
-        if (pingTimerRef.current) { window.clearInterval(pingTimerRef.current); pingTimerRef.current = null; }
+        if (!isReconnect) setStatus('connecting');
 
-        let mic = localStreamRef.current;
-        if (!mic) {
-            async function getMic(): Promise<MediaStream> {
-                const md = (navigator as any).mediaDevices;
-                if (md?.getUserMedia) return md.getUserMedia({ audio: true });
-                const legacy = (navigator as any).webkitGetUserMedia || (navigator as any).mozGetUserMedia;
-                if (legacy) return new Promise((resolve, reject) => legacy.call(navigator, { audio: true }, resolve, reject));
-                throw new Error('Microphone not available. Use HTTPS, start from a user gesture, and allow mic access.');
+        // --- MIC: always resolve to a non-null MediaStream -------------------------
+        async function ensureMic(): Promise<MediaStream> {
+            // Reuse if we already have a stream
+            if (localStreamRef.current instanceof MediaStream) return localStreamRef.current;
+
+            const md = (navigator as any).mediaDevices;
+            if (md?.getUserMedia) {
+                const stream: MediaStream = await md.getUserMedia({
+                    audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: false },
+                });
+                localStreamRef.current = stream;
+                return stream;
             }
-            mic = await getMic();
-            localStreamRef.current = mic;
+
+            // Legacy fallback (older Safari/Firefox)
+            const legacy = (navigator as any).webkitGetUserMedia || (navigator as any).mozGetUserMedia;
+            if (legacy) {
+                const stream: MediaStream = await new Promise((resolve, reject) =>
+                    legacy.call(navigator, { audio: true }, resolve, reject)
+                );
+                localStreamRef.current = stream;
+                return stream;
+            }
+
+            throw new Error('Microphone not available. Use HTTPS, start from a user gesture, and allow mic access.');
         }
 
+        // Resolve a strongly-typed mic stream
+        const mic: MediaStream = await ensureMic();
+
+        // (Re)create the LOCAL analyser that drives the USER horizontal wave
         try {
-            const Ctx = (window.AudioContext || (window as any).webkitAudioContext) as typeof AudioContext;
-            const ctx = new Ctx(); await ctx.resume().catch(() => { });
+            const LCtx = (window.AudioContext || (window as any).webkitAudioContext) as typeof AudioContext;
+            const lctx = new LCtx(); await lctx.resume().catch(() => { });
+            const analyser = lctx.createAnalyser(); analyser.fftSize = 1024;
+            const src = lctx.createMediaStreamSource(mic);
+            src.connect(analyser);
+
+            localCtxRef.current = lctx;
+            localAnalyserRef.current = analyser;
+            localBufRef.current = new Uint8Array(analyser.fftSize);
+
+            drawUserWave();
         } catch { }
 
-        // pass personalization hints to the token route
-        const r = await fetch('/api/voice/rt-token', {
+        // token (include personalization hints)
+        const rt = await fetch('/api/voice/rt-token', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 voiceKey: voice?.tts_voice_key,
-                name: nameHint,
-                language: langHint,
-                locale: localeHint,
-                city: cityHint,
-                state: stateHint,
-                countryCode: countryHint,
+                name: nameHint, language: langHint, locale: localeHint,
+                city: cityHint, state: stateHint, countryCode: countryHint,
             }),
             credentials: 'include',
             cache: 'no-store',
         });
-        const { client_secret, error } = await r.json();
+        const { client_secret, error } = await rt.json();
         if (error) throw new Error(error);
         const token: string | undefined = typeof client_secret === 'string' ? client_secret : client_secret?.value;
-        if (!token) throw new Error('Missing realtime token from server');
+        if (!token) throw new Error('Missing realtime token');
 
+        // fresh peer
+        try { pcRef.current?.close(); } catch { }
         const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
         pcRef.current = pc;
 
         pc.onconnectionstatechange = () => {
             const s = pc.connectionState;
-            if (s === 'disconnected') setStatus(prev => (prev === 'live' ? 'reconnecting' : prev));
-            if (s === 'failed' || s === 'closed') { setStatus(prev => (prev === 'live' ? 'reconnecting' : 'error')); scheduleReconnect(true); }
-        };
-        pc.oniceconnectionstatechange = () => { if (pc.iceConnectionState === 'failed') scheduleReconnect(true); };
 
+            // show "Reconnecting…" only if >1500ms not connected
+            if (s !== 'connected' && !reconnectIndicatorTimerRef.current) {
+                reconnectIndicatorTimerRef.current = window.setTimeout(() => {
+                    if (pc.connectionState !== 'connected') setStatus('reconnecting');
+                    reconnectIndicatorTimerRef.current = null;
+                }, 1500);
+            }
+            if (s === 'connected') {
+                clear.reconnectIndicator();
+                setStatus('live');
+            }
+            if (s === 'failed' || s === 'closed') {
+                // hard reconnect
+                if (!reconnectTimerRef.current) {
+                    reconnectTimerRef.current = window.setTimeout(() => {
+                        reconnectTimerRef.current = null;
+                        connect(true).catch(() => setStatus('error'));
+                    }, 600);
+                }
+            }
+        };
+        pc.oniceconnectionstatechange = () => {
+            if (pc.iceConnectionState === 'failed' && !reconnectTimerRef.current) {
+                reconnectTimerRef.current = window.setTimeout(() => {
+                    reconnectTimerRef.current = null;
+                    connect(true).catch(() => setStatus('error'));
+                }, 600);
+            }
+        };
+
+        // remote audio
         const audioEl = remoteAudioRef.current ?? document.createElement('audio');
         if (!remoteAudioRef.current) remoteAudioRef.current = audioEl;
         audioEl.autoplay = true; audioEl.setAttribute('playsinline', 'true'); audioEl.setAttribute('webkit-playsinline', 'true');
-        audioEl.onerror = () => setErr('Audio playback failed (blocked or no track yet).');
+        audioEl.onerror = () => setErr('Audio playback failed.');
 
         pc.ontrack = (e: RTCTrackEvent) => {
             const [stream] = e.streams;
             audioEl.srcObject = stream;
             audioEl.play().catch(() => { });
-            // analyser for wave
-            stopRemoteVu();
+
+            // remote analyser (assistant glow)
+            stopAnalysers(); // stop previous remote loop (not the local one)
             try {
-                const Ctx = (window.AudioContext || (window as any).webkitAudioContext) as typeof AudioContext;
-                const ctx = new Ctx();
-                const analyser = ctx.createAnalyser();
-                analyser.fftSize = 1024;
-                const source = ctx.createMediaStreamSource(stream);
-                source.connect(analyser);
-                remoteAudioCtxRef.current = ctx;
-                remoteAnalyserRef.current = analyser;
-                remoteBufRef.current = new Uint8Array(analyser.fftSize);
-                drawWave();
+                const RCtx = (window.AudioContext || (window as any).webkitAudioContext) as typeof AudioContext;
+                const rctx = new RCtx(); const analyser = rctx.createAnalyser(); analyser.fftSize = 512;
+                const src = rctx.createMediaStreamSource(stream); src.connect(analyser);
+                remoteCtxRef.current = rctx; remoteAnalyserRef.current = analyser; remoteBufRef.current = new Uint8Array(analyser.fftSize);
+                monitorAssistantAudio();
             } catch { }
         };
 
+        // add mic tracks
         mic.getTracks().forEach(t => pc.addTrack(t, mic));
 
+        // data channel
         const dc = pc.createDataChannel('oai-events');
         dcRef.current = dc;
         dc.onmessage = (m) => handleServerEvent(m.data);
         dc.onopen = () => {
-            // Keepalive
-            if (pingTimerRef.current) window.clearInterval(pingTimerRef.current);
+            // keep-alive pings
+            clear.ping();
             pingTimerRef.current = window.setInterval(() => dcSend(dc, { type: 'ping', ts: Date.now() }), 15000);
 
-            // Voice + session
             const mappedVoice = mapToOpenAIVoice(voice?.tts_voice_key);
             const sessionPatch: any = {
                 ...(mappedVoice ? { voice: mappedVoice } : {}),
@@ -544,9 +470,9 @@ export default function VoiceCallModal({
                 input_audio_transcription: langHint ? { model: 'whisper-1', language: langHint } : { model: 'whisper-1' },
                 instructions:
                     BASE_BEHAVIOR_INSTRUCTIONS +
-                    `\nAddress the user as ${nameHint}. Use their name naturally from time to time (about every 30–60 seconds).` +
-                    (langHint ? `\nDefault to ${langHint} unless the user switches languages. When the user says "thanks", reply with a short courtesy in ${langHint}.` : `\nMirror the user's language.`) +
-                    (countryHint ? `\nAdapt examples and pronunciations for ${countryHint}${stateHint ? ', ' + stateHint : ''}${cityHint ? ' (' + cityHint + ')' : ''}.` : ''),
+                    `\nAddress the user as ${nameHint}. Use their name naturally from time to time.` +
+                    (langHint ? `\nDefault to ${langHint} unless the user switches languages.` : `\nMirror the user's language.`) +
+                    (countryHint ? `\nAdapt examples/pronunciations for ${countryHint}${stateHint ? ', ' + stateHint : ''}${cityHint ? ' (' + cityHint + ')' : ''}.` : ''),
             };
             dcSend(dc, { type: 'session.update', session: sessionPatch });
 
@@ -557,9 +483,9 @@ export default function VoiceCallModal({
                     response: { instructions: `Hi ${nameHint}! I’m here with you. Tell me what you need and I’ll listen.` }
                 });
             }
-            setStatus('live');
         };
 
+        // SDP offer/answer
         const offer = await pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: false });
         await pc.setLocalDescription(offer);
 
@@ -581,11 +507,11 @@ export default function VoiceCallModal({
         const sdpText = await sdpRes.text();
         if (!sdpRes.ok) throw new Error(sdpText || `${sdpRes.status} ${sdpRes.statusText}`);
         if (pc.signalingState !== 'closed') await pc.setRemoteDescription({ type: 'answer', sdp: sdpText });
-        setStatus(prev => (prev === 'connecting' || prev === 'reconnecting') ? 'live' : prev);
-    }, [voice?.tts_voice_key, nameHint, langHint, cityHint, stateHint, countryHint, localeHint, handleServerEvent, drawWave, scheduleReconnect, stopRemoteVu]);
 
-    /* --------------------------- Lifecycle ---------------------------- */
+        setStatus('live');
+    }, [voice?.tts_voice_key, nameHint, langHint, cityHint, stateHint, countryHint, localeHint, handleServerEvent, drawUserWave, monitorAssistantAudio, stopAnalysers]);
 
+    /* -------------------------------- lifecycle ----------------------------- */
     React.useEffect(() => {
         if (!open) return;
 
@@ -593,7 +519,7 @@ export default function VoiceCallModal({
             setErr(undefined);
             setStatus('connecting');
 
-            // optional DB logging (non-blocking)
+            // optional DB logging
             let call: any = { id: undefined, allowed_seconds: null };
             try {
                 const { data: start, error: startErr } = await supabase.rpc('start_voice_call', {
@@ -617,7 +543,7 @@ export default function VoiceCallModal({
                         const elapsed = Math.floor((Date.now() - started) / 1000);
                         const left = Math.max(0, call.allowed_seconds - elapsed);
                         setSecondsLeft(left);
-                        if (left <= 0) { clearCountdown(); teardown('limit'); }
+                        if (left <= 0) { clear.countdown(); teardown('limit'); }
                     }, 1000);
                 }
             } catch (e: any) {
@@ -626,18 +552,19 @@ export default function VoiceCallModal({
             }
         })();
 
-        const onVisibility = () => { if (document.visibilityState === 'visible') { try { remoteAudioCtxRef.current?.resume(); } catch { } } };
+        const onVisibility = () => { if (document.visibilityState === 'visible') { try { remoteCtxRef.current?.resume(); localCtxRef.current?.resume(); } catch { } } };
         document.addEventListener('visibilitychange', onVisibility);
 
         return () => {
             document.removeEventListener('visibilitychange', onVisibility);
-            clearCountdown(); clearReconnectTimer(); stopPings(); stopRemoteVu();
+            clear.countdown(); clear.ping(); clear.reconnect(); clear.reconnectIndicator();
+            stopAnalysers();
             try { pcRef.current?.close(); } catch { }
             try { localStreamRef.current?.getTracks().forEach(t => t.stop()); } catch { }
             pcRef.current = null; dcRef.current = null; localStreamRef.current = null;
             greetedOnceRef.current = false;
         };
-    }, [open, supabase, voice?.id, connect, teardown, stopPings, stopRemoteVu]);
+    }, [open, supabase, voice?.id, connect, teardown, stopAnalysers]);
 
     if (!open) return null;
 
@@ -646,8 +573,7 @@ export default function VoiceCallModal({
         else onClose();
     };
 
-    /* -------------------------------- UI -------------------------------- */
-
+    /* ---------------------------------- UI ---------------------------------- */
     return (
         <>
             <div className="fixed inset-0 z-[90]" role="dialog" aria-modal="true" style={{ background: '#000' }}>
@@ -663,12 +589,13 @@ export default function VoiceCallModal({
                     </svg>
                 </button>
 
-                {/* Centered ring + 6IXAI + live horizontal wave (no smoke) */}
+                {/* Centered orb + 6IXAI + user wave BELOW orb */}
                 <div className="h-full w-full grid place-items-center pt-12">
                     <div className="relative">
+                        {/* Orb ring (no smoke). Glow only when assistant speaks */}
                         <div
-                            className={`w-[260px] h-[260px] rounded-full transition-shadow duration-150
-${isSpeaking ? 'shadow-[0_0_40px_10px_rgba(255,255,255,0.25)]' : 'shadow-none'}`}
+                            className={`w-[260px] h-[260px] rounded-full transition-shadow duration-150 ${assistantSpeaking ? 'shadow-[0_0_40px_10px_rgba(255,255,255,0.25)]' : 'shadow-none'
+                                }`}
                             style={{
                                 background: 'transparent',
                                 border: '1px solid rgba(255,255,255,0.20)',
@@ -678,7 +605,9 @@ ${isSpeaking ? 'shadow-[0_0_40px_10px_rgba(255,255,255,0.25)]' : 'shadow-none'}`
                         <div className="absolute inset-0 grid place-items-center">
                             <div className="text-white/90 text-xl font-semibold tracking-widest">6IXAI</div>
                         </div>
-                        <div className="absolute -bottom-16 left-1/2 -translate-x-1/2 w-[min(84vw,520px)]">
+
+                        {/* Horizontal live wave for USER mic — positioned BELOW the orb */}
+                        <div className="absolute left-1/2 -translate-x-1/2 top-full mt-8 w-[min(84vw,520px)]">
                             <canvas
                                 ref={waveCanvasRef}
                                 className="h-[54px] w-full"
@@ -701,8 +630,10 @@ ${isSpeaking ? 'shadow-[0_0_40px_10px_rgba(255,255,255,0.25)]' : 'shadow-none'}`
 
                 {/* Bottom bar */}
                 <div className="fixed left-0 right-0 bottom-0 px-4 pb-[env(safe-area-inset-bottom,12px)]">
-                    <div className="mx-auto max-w-[520px] rounded-2xl h-12 grid place-items-center"
-                        style={{ background: 'rgba(255,255,255,0.06)', color: '#fff', backdropFilter: 'blur(10px)' }}>
+                    <div
+                        className="mx-auto max-w-[520px] rounded-2xl h-12 grid place-items-center"
+                        style={{ background: 'rgba(255,255,255,0.06)', color: '#fff', backdropFilter: 'blur(10px)' }}
+                    >
                         <button onClick={closeBarClick} className="w-full h-full flex items-center justify-center rounded-2xl active:scale-[.99]">
                             {status === 'live' || status === 'connecting' || status === 'reconnecting' ? 'End Call' : 'Close'}
                         </button>
@@ -726,7 +657,7 @@ ${isSpeaking ? 'shadow-[0_0_40px_10px_rgba(255,255,255,0.25)]' : 'shadow-none'}`
                 open={catalogOpen}
                 plan={plan}
                 onClose={() => setCatalogOpen(false)}
-                onPick={switchVoice}
+                onPick={(v) => { const mapped = mapToOpenAIVoice(v.tts_voice_key); if (mapped) dcSend(dcRef.current, { type: 'session.update', session: { voice: mapped } }); setCatalogOpen(false); }}
             />
         </>
     );

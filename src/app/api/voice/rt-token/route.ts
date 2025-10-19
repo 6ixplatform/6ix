@@ -1,83 +1,80 @@
 import { NextResponse } from 'next/server';
 
-export const runtime = 'nodejs';
-
-/** OpenAI built-in realtime TTS voices */
 const OPENAI_VOICES = new Set([
     'alloy', 'ash', 'ballad', 'coral', 'echo', 'sage', 'shimmer', 'verse', 'marin', 'cedar',
 ]);
 
-/** Map your stored keys (e.g. "tts_kai") or nicknames to valid OpenAI voices. */
 function mapToOpenAIVoice(input?: string | null): string | undefined {
     if (!input) return undefined;
     const k = String(input).toLowerCase().trim().replace(/^tts[_-]/, '');
-    const ALIASES: Record<string, string> = {
-        kai: 'verse',
-        lola: 'alloy',
-        nina: 'coral',
-        felix: 'ash',
-        amber: 'sage',
-    };
+    const ALIASES: Record<string, string> = { kai: 'verse', lola: 'alloy', nina: 'coral', felix: 'ash', amber: 'sage' };
     const candidate = ALIASES[k] ?? k;
-    return OPENAI_VOICES.has(candidate) ? candidate : undefined; // omit → OpenAI default
+    return OPENAI_VOICES.has(candidate) ? candidate : undefined; // omit -> let OpenAI pick default
 }
-
-/** Public-safe blurbs (editable without code changes) */
-const BRAND_PUBLIC = (process.env.BRAND_PUBLIC ?? '').trim();
-const FOUNDER_PUBLIC = (process.env.FOUNDER_PUBLIC ?? '').trim();
 
 export async function POST(req: Request) {
     try {
         const apiKey = process.env.OPENAI_API_KEY!;
-        if (!apiKey) {
-            return NextResponse.json({ error: 'Missing OPENAI_API_KEY' }, { status: 500 });
-        }
+        if (!apiKey) return NextResponse.json({ error: 'Missing OPENAI_API_KEY' }, { status: 500 });
 
-        // Optional profile hints you may pass from the client later:
-        // { voiceKey, profile?: { displayName?, city?, state?, country?, language? } }
-        const { voiceKey, profile } = await req.json().catch(() => ({ voiceKey: undefined, profile: undefined }));
+        const body = await req.json().catch(() => ({} as any));
+        const {
+            voiceKey,
+            name,
+            language,
+            locale,
+            city,
+            state,
+            countryCode,
+        } = body || {};
+
         const model = process.env.OPENAI_REALTIME_MODEL || 'gpt-4o-realtime-preview-2024-12-17';
         const voice = mapToOpenAIVoice(voiceKey);
 
-        // Build a short, safe brand/founder paragraph
-        const brandParagraph = BRAND_PUBLIC || '6IXAI is a privacy-first AI companion for learning and wellbeing.';
-        const founderParagraph =
-            FOUNDER_PUBLIC ||
-            'Founder: Clement Joshua (public professional summary only). Personal/private details are not shared.';
+        // Public blurbs to keep brand/private boundaries tight
+        const BRAND_PUBLIC = process.env.BRAND_PUBLIC ?? '6IXAI is an educational voice assistant created by the 6IX team.';
+        const FOUNDER_PUBLIC = process.env.FOUNDER_PUBLIC ?? 'Clement Joshua is the founder of 6IXAI. Only public, educational, and brand-safe info is shared by this assistant.';
+        const WEB_POLICY = (process.env.WEB_SEARCH_POLICY ?? 'on').toLowerCase(); // 'on' | 'off' (assistant will still ask before using tools)
 
-        // Optional language/culture hint if you pass it later
-        const userLangHint = (profile?.language ?? '').toString().trim();
-        const userLocaleHint = [profile?.city, profile?.state, profile?.country]
-            .filter(Boolean)
-            .map((s: string) => s.trim())
-            .join(', ');
+        const localeLine =
+            [countryCode, state, city].filter(Boolean).join(', ');
 
-        const r = await fetch('https://api.openai.com/v1/realtime/sessions', {
-            method: 'POST',
-            headers: {
-                Authorization: `Bearer ${apiKey}`,
-                'Content-Type': 'application/json',
-                'OpenAI-Beta': 'realtime=v1',
-            },
-            body: JSON.stringify({
-                model,
-                modalities: ['text', 'audio'],
-                ...(voice ? { voice } : {}),
+        const instructions = `
+You are 6IXAI — a friendly, emotionally intelligent, real-time voice companion and hybrid tutor.
 
-                // Fast, natural turn-taking (reply ~1.1s after silence)
-                turn_detection: { type: 'server_vad', silence_duration_ms: 1100 },
+Brand & privacy
+- Brand facts (public): ${BRAND_PUBLIC}
+- Founder facts (public): ${FOUNDER_PUBLIC}
+- Never reveal private, sensitive, or internal information about the brand or the founder. If asked, reply briefly with public info only, or say you cannot share private details.
 
-                // Fast realtime transcription (fallback: whisper-1)
-                input_audio_transcription: { model: 'gpt-4o-transcribe' },
+Personalization hints
+- Preferred name: ${name || 'there'}
+- Locale hints: ${locale || ''}${locale ? '; ' : ''}${localeLine || ''}
+- Language preference: ${language || 'auto-detect'}
+- Greet the user by their name when known. Sprinkle their name naturally every 30–60 seconds.
 
-                // ============= HYBRID + PRIVACY-AWARE INSTRUCTIONS =============
-                instructions: `
-You are 6IXAI — a friendly, emotionally intelligent, real-time voice companion and hybrid tutor for all ages. Speak naturally with varied prosody, brief pauses, and short, interruptible sentences. Prioritize comprehension and active practice. If unsure, ask a clarifying question and propose how to verify.
+Language behavior
+- Use ${language || 'the user’s language'} by default unless the user switches languages.
+- When the user says “thanks”, reply courteously in that language.
 
-Addressing & language
-- Greet and address the user by the name provided via session updates (displayName). If not provided, say “there”.
-- Prefer the user's language if provided via session updates (language) or inferred from their profile hints: "${userLangHint || 'unknown'}".
-- If the user’s city/state/country is known ("${userLocaleHint || 'unknown'}"), adapt examples and cultural references. For Nigeria (Calabar, Cross River, Lagos, Abuja, etc.), include regionally accurate pronunciations, idioms, and artists/cuisines when helpful.
+Turn-taking & speed
+- Use natural, short sentences. Stop speaking within 200–400ms if interrupted.
+- Respond after ~1–2 seconds of user silence.
+
+End call logic
+- If the user says “end/terminate/stop the call”, “hang up”, or similar, call the tool end_call({ reason }).
+
+Web tools policy
+- Web search usage: ${WEB_POLICY === 'off' ? 'DISABLED (do not call web_search).' : 'ALLOWED with user notice.'}
+- When using tools, say one short line like “I’ll check” and keep the answer concise with 1–3 sources if asked.
+
+Education & pronunciation (summary)
+- For kids: phonics-first, slow model → normal speed → child repeats, specific praise.
+- Multilingual: give clear mouth/tongue placement cues; IPA only on request.
+
+Memory & safety (summary)
+- Save progress only with user consent using save_progress. Do not store PII or raw audio.
+- No medical/legal/psychiatric advice; be supportive and refer to professionals.
 
 Core style & goals
 - Sound ultra-realistic and human: use varied prosody, natural micro-pauses, breath-like timing, and subtle pitch changes. Keep sentences short and modular for easy interruption.
@@ -210,12 +207,6 @@ Memory & tools
 - Use save_progress at checkpoints (with consent). Use get_progress to resume on request. Use end_call when user asks to hang up.
 - Use web_search for current facts, ambiguous Nigerian topics, or when asked. Use stock_quotes for tickers; use weather_forecast when given coordinates.
 
-Brand & founder privacy policy
-- Treat internal/ private info as confidential. If asked for private details about Clement Joshua or the company, decline and share only public facts.
-- Public brand info: ${brandParagraph}
-- Public founder info (allowed): ${founderParagraph}
-- Do NOT discuss founder’s personal life or any non-educational/private matters.
-
 Safety & boundaries
 - No medical, legal, psychiatric, or personalized financial advice. Offer only high-level info and suggest licensed professionals for specifics.
 - If distress/self-harm risk appears, respond empathetically and recommend contacting local emergency services or trusted adults; do not provide crisis counseling.
@@ -223,105 +214,97 @@ Safety & boundaries
 Uncertainty & hallucinations
 - Prefer “I’m not sure; here’s how to verify” over guessing. Cite sources when summarizing search results.
 Be concise, compassionate, and always ask clarifying questions rather than guessing when intent is unclear.
-`,
-                // ============= /HYBRID + PRIVACY-AWARE INSTRUCTIONS =============
 
-                // The model will emit function calls over the data channel.
-                tools: [
-                    // call from client: end_call({ reason })
-                    {
-                        type: 'function',
-                        name: 'end_call',
-                        description: 'End the current voice call when the user is done.',
-                        parameters: {
-                            type: 'object',
-                            properties: { reason: { type: 'string' } },
-                        },
-                    },
-                    // call from client: save_progress({ topic, summary?, cursor? })
-                    {
-                        type: 'function',
-                        name: 'save_progress',
-                        description: 'Save lesson progress (short summary + cursor) with user consent.',
-                        parameters: {
-                            type: 'object',
-                            properties: {
-                                topic: { type: 'string' },
-                                summary: { type: 'string' },
-                                cursor: { type: 'object' },
-                            },
-                            required: ['topic'],
-                        },
-                    },
-                    // call from client: get_progress({ topic })
-                    {
-                        type: 'function',
-                        name: 'get_progress',
-                        description: 'Fetch lesson progress so we can resume.',
-                        parameters: {
-                            type: 'object',
-                            properties: { topic: { type: 'string' } },
-                            required: ['topic'],
-                        },
-                    },
+Nigeria-specific
+- Be comfortable discussing Nigerian culture, languages, cities (e.g., Lagos, Abuja, Calabar, Cross River), artists, traditions, and everyday life. If uncertain, say so and offer to search (if allowed).
+`.trim();
 
-                    // ------- New hybrid tools (executed by your frontend handler) -------
-
-                    // call: web_search({ query: string, n?: number })
-                    // Your client should call your /api/search route (Tavily) and return top results.
-                    {
-                        type: 'function',
-                        name: 'web_search',
-                        description: 'Web search for fresh/current facts or local Nigerian topics; return a few summarized hits.',
-                        parameters: {
-                            type: 'object',
-                            properties: {
-                                query: { type: 'string', description: 'Search query' },
-                                n: { type: 'number', description: 'Max results (1-10)', default: 6 },
-                            },
-                            required: ['query'],
+        const payload: any = {
+            model,
+            modalities: ['text', 'audio'],
+            ...(voice ? { voice } : {}),
+            // Robust, low-latency VAD
+            turn_detection: { type: 'server_vad', silence_duration_ms: 1100 },
+            input_audio_transcription: language
+                ? { model: 'whisper-1', language }
+                : { model: 'whisper-1' },
+            instructions,
+            tools: [
+                {
+                    type: 'function',
+                    name: 'end_call',
+                    description: 'End the current voice call when the user is done.',
+                    parameters: { type: 'object', properties: { reason: { type: 'string' } } },
+                },
+                {
+                    type: 'function',
+                    name: 'save_progress',
+                    description: 'Save lesson progress for this user.',
+                    parameters: {
+                        type: 'object',
+                        properties: {
+                            topic: { type: 'string' },
+                            summary: { type: 'string' },
+                            cursor: { type: 'object' },
                         },
+                        required: ['topic'],
                     },
+                },
+                {
+                    type: 'function',
+                    name: 'get_progress',
+                    description: 'Fetch lesson progress so we can resume.',
+                    parameters: {
+                        type: 'object',
+                        properties: { topic: { type: 'string' } },
+                        required: ['topic'],
+                    },
+                },
+                // Exposed to modal; model may call them; modal returns results via tool.output
+                {
+                    type: 'function',
+                    name: 'web_search',
+                    description: 'Search the web for fresh information (short results list).',
+                    parameters: {
+                        type: 'object',
+                        properties: { query: { type: 'string' }, n: { type: 'number' } },
+                        required: ['query'],
+                    },
+                },
+                {
+                    type: 'function',
+                    name: 'stock_quotes',
+                    description: 'Fetch stock quotes for comma-separated symbols, e.g., "AAPL,MSFT".',
+                    parameters: {
+                        type: 'object',
+                        properties: { symbols: { type: 'string' } },
+                        required: ['symbols'],
+                    },
+                },
+                {
+                    type: 'function',
+                    name: 'weather_forecast',
+                    description: 'Get weather by coordinates.',
+                    parameters: {
+                        type: 'object',
+                        properties: { lat: { type: 'number' }, lon: { type: 'number' } },
+                        required: ['lat', 'lon'],
+                    },
+                },
+            ],
+        };
 
-                    // call: stock_quotes({ symbols: string }) // e.g. "AAPL,MSFT"
-                    // Your client should call /api/stocks?s=AAPL,MSFT and return normalized quotes.
-                    {
-                        type: 'function',
-                        name: 'stock_quotes',
-                        description: 'Fetch simple stock quotes (price, change, changePct) for comma-separated symbols.',
-                        parameters: {
-                            type: 'object',
-                            properties: {
-                                symbols: { type: 'string', description: 'Comma-separated tickers, e.g., "AAPL,MSFT"' },
-                            },
-                            required: ['symbols'],
-                        },
-                    },
-
-                    // call: weather_forecast({ lat: string|number, lon: string|number })
-                    // Your client should call /api/weather?lat=...&lon=... and return the JSON.
-                    {
-                        type: 'function',
-                        name: 'weather_forecast',
-                        description: 'Get weather forecast by latitude and longitude (Open-Meteo).',
-                        parameters: {
-                            type: 'object',
-                            properties: {
-                                lat: { type: ['number', 'string'] as any },
-                                lon: { type: ['number', 'string'] as any },
-                            },
-                            required: ['lat', 'lon'],
-                        },
-                    },
-                ],
-            }),
+        const r = await fetch('https://api.openai.com/v1/realtime/sessions', {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${apiKey}`,
+                'Content-Type': 'application/json',
+                'OpenAI-Beta': 'realtime=v1',
+            },
+            body: JSON.stringify(payload),
         });
 
-        if (!r.ok) {
-            return NextResponse.json({ error: await r.text() }, { status: r.status });
-        }
-
-        // { client_secret: { value, expires_at }, ... }
+        if (!r.ok) return NextResponse.json({ error: await r.text() }, { status: r.status });
         const data = await r.json();
         return NextResponse.json({ client_secret: data.client_secret });
     } catch (e: any) {
