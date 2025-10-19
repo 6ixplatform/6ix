@@ -4674,3 +4674,23 @@ html[data-live="1"].modal-open video#six-live-wallpaper {
         max-inline-size: min(88vw, 58ch) !important;
     }
 }
+
+/* Force nudge for the account menu in case any other styles fight it */
+.user-menu {
+    /* if the inline var exists, use it; otherwise default to 0 */
+    transform: translateY(var(--user-menu-nudge, 0)) !important;
+}
+
+/* Mobile: push UP */
+@media (max-width: 639px) {
+    .user-menu {
+        --user-menu-nudge: -20x !important;
+    }
+}
+
+/* Desktop: push DOWN */
+@media (min-width: 640px) {
+    .user-menu {
+        --user-menu-nudge: 8px !important;
+    }
+}

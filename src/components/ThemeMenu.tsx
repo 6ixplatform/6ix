@@ -26,6 +26,7 @@ const PALETTE = [
     { name: 'Butter Pink', hex: '#ffd6e7' }, { name: 'Mint Pink', hex: '#ffd0ef' },
     { name: 'White', hex: '#ffffffff' }, { name: 'White Gray', hex: '#ffffff90' },
     { name: 'Pink', hex: '#ec4899' }, { name: 'Rogue Pink', hex: '#f43f5e' },
+    { name: 'milk Pink', hex: '#f0a5caff' }, { name: 'light creme Pink', hex: '#ffc0f0ff' },
     { name: 'Red', hex: '#ef4444' }, { name: 'Orange', hex: '#f97316' },
     { name: 'Gold', hex: '#f59e0b' }, { name: 'Lime', hex: '#84cc16' },
     { name: 'Green', hex: '#22c55e' }, { name: 'Teal', hex: '#14b8a6' },
@@ -271,7 +272,7 @@ export default function ThemeMenu({ plan = 'free' }: ThemeMenuProps) {
             <div className="fixed inset-0" style={{ zIndex: 10050 }} onClick={() => setOpen(false)} />
             <div
                 ref={panelRef}
-                className="fixed -mt-32 ml-9 rounded-2xl shadow-2xl border overflow-hidden"
+                className="fixed -mt-100 md:-mt-20 ml-9 rounded-2xl shadow-2xl border overflow-hidden"
                 role="menu"
                 aria-label="Appearance"
                 style={{
