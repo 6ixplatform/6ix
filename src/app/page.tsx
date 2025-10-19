@@ -64,7 +64,7 @@ export default function Home() {
         <>
             <BackStopper />
             <NoBack />
-            <main className="home-scope min-h-dvh grid grid-rows-[auto,1fr,auto] antialiased sm:pt-0">
+            <main className="home-scope min-h-dvh flex flex-col antialiased sm:pt-0 overflow-y-auto">
                 {/* Splash overlay */}
                 {showSplash && <Splash delay={1600} onDone={() => setShowSplash(false)} />}
 
@@ -282,6 +282,11 @@ export default function Home() {
 
                 {/* Page-scoped theme tokens & UI polish */}
                 <style jsx global>{`
+                html, body {
+                height: 100%;
+                overflow-x: hidden;
+                overflow-y: auto;
+                }
 /* Light/Dark tokens (safe if also defined in 6ix.css) */
 html { color-scheme: light dark; }
 :root{
