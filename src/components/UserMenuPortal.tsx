@@ -7,6 +7,24 @@ import type { Plan } from '@/lib/planRules';
 import ThemeMenu from './ThemeMenu';
 import { useRouter } from 'next/navigation';
 
+// ---- Theme menu vertical nudge (stored so you can tweak without rebuilding)
+const THEME_MENU_Y_KEY = '6ix:themeMenuY'; // negative = up, positive = down
+const DEFAULT_THEME_MENU_Y = -28; // ⬆️ push up 28px by default
+
+function readThemeMenuY(): number {
+    try { return parseInt(localStorage.getItem(THEME_MENU_Y_KEY) || String(DEFAULT_THEME_MENU_Y), 10); }
+    catch { return DEFAULT_THEME_MENU_Y; }
+}
+
+/** Call anywhere to push the mini theme menu up by `px` (use positive numbers). */
+export function pushThemeMiniMenuUp(px: number) {
+    try {
+        const v = -Math.abs(px); // store as negative (up)
+        localStorage.setItem(THEME_MENU_Y_KEY, String(v));
+        window.dispatchEvent(new Event('six:themeMenuY-change'));
+    } catch { }
+}
+
 const AVATAR_FALLBACK =
     'data:image/svg+xml;utf8,' +
     encodeURIComponent(`
@@ -124,6 +142,7 @@ export default function UserMenuPortal({
     const themeBtnRef = useRef<HTMLButtonElement | null>(null);
     const isMobile = useIsMobile();
 
+
     useLayoutEffect(() => {
         if (!open) return;
         const el = anchorRef.current;
@@ -161,16 +180,30 @@ export default function UserMenuPortal({
         if (!themeOpen) return null;
 
         const width = 220;
-        // On mobile anchor to the avatar (anchorRef) and center horizontally;
-        // on desktop (where we shouldn't render the item anyway) this path won’t run.
         const anchorEl = isMobile ? anchorRef.current : themeBtnRef.current;
         const rect = anchorEl?.getBoundingClientRect();
 
-        const top = (rect?.bottom ?? pos.top) + 8;
+        // listen to external nudges
+        const [yOff, setYOff] = React.useState<number>(readThemeMenuY());
+        React.useEffect(() => {
+            const on = () => setYOff(readThemeMenuY());
+            window.addEventListener('six:themeMenuY-change', on);
+            return () => window.removeEventListener('six:themeMenuY-change', on);
+        }, []);
+
+        // ⬆️ push it up by yOff (negative by default)
+        const GAP = 8;
+        const top = Math.max(
+            8,
+            (rect?.bottom ?? pos.top) + GAP + yOff
+        );
+
         const left = isMobile
-            ? Math.max(8, Math.round((window.innerWidth - width) / 2)) // centered
-            : Math.min(Math.max(8, (rect?.right ?? pos.left + width) - width), // (desktop fallback)
-                window.innerWidth - width - 8);
+            ? Math.max(8, Math.round((window.innerWidth - width) / 2)) // centered on mobile
+            : Math.min(
+                Math.max(8, (rect?.right ?? pos.left + width) - width),
+                window.innerWidth - width - 8
+            );
 
         const Item = ({ t, label }: { t: ThemeMode; label: string }) => (
             <button
@@ -201,7 +234,7 @@ export default function UserMenuPortal({
             document.body
         );
     };
-
+    
     return createPortal(
         <>
             <div className="fixed inset-0 z-[90]" onClick={onClose} />

@@ -1,4 +1,3 @@
-// app/auth/signin/page.tsx
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
@@ -11,6 +10,7 @@ import NoBack from '@/components/NoBack';
 import { supabaseBrowser } from '@/lib/supabaseBrowser';
 
 type LastUser = {
+    id?: string;
     handle?: string;
     display_name?: string;
     avatar_url?: string;
@@ -28,95 +28,140 @@ export default function SignInClient() {
     const router = useRouter();
     const search = useSearchParams();
     const supabase = useMemo(() => supabaseBrowser(), []);
+
     const [email, setEmail] = useState('');
     const [agree, setAgree] = useState(false);
     const [loading, setLoading] = useState(false); // sending sign-in code
     const [err, setErr] = useState<string | null>(null);
     const [notice, setNotice] = useState<string | null>(null);
 
-
     const [lastUser, setLastUser] = useState<LastUser | null>(null);
     const [hintVerified, setHintVerified] = useState(false);
 
-    useEffect(() => {
-        let cancel = false;
-        (async () => {
-            const candidate = (email || lastUser?.email || '').trim().toLowerCase();
-            if (!candidate) { setHintVerified(false); return; }
-            const ok = await checkEmailExists(candidate);
-            if (cancel) return;
-            setHintVerified(ok);
-            if (!ok) setLastUser(null); // make sure no avatar/email hint remains
-        })();
-        return () => { cancel = true; };
-    }, [email, lastUser?.email]);
-
-    // auto-redirect for new emails → signup (effect-based countdown)
-    const [counting, setCounting] = useState(false);
-    const [secsLeft, setSecsLeft] = useState(REDIRECT_TO_SIGNUP_SEC);
-
-    // Prefill from query (?email=...) e.g. when redirected from signup "exists"
+    // Prefill from query (?email=...)
     useEffect(() => {
         const q = (search.get('email') || '').trim().toLowerCase();
         if (q) setEmail(q);
     }, [search]);
-    // load last user, then verify with backend; if gone → clear it.
-    // also start a realtime watcher so future deletes/changes get reflected.
+
+    // If there is an active session on this device, prefer that fresh profile
+    useEffect(() => {
+        (async () => {
+            try {
+                const { data } = await supabase.auth.getSession();
+                const uid = data?.session?.user?.id;
+                const sessEmail = data?.session?.user?.email;
+                if (!uid || !sessEmail) return;
+
+                const p = await fetchProfileById(uid);
+                if (!p) return;
+                const u: LastUser = {
+                    id: p.id, email: p.email, handle: p.handle,
+                    display_name: p.display_name, avatar_url: p.avatar_url
+                };
+                setLastUser(u);
+                setHintVerified(true);
+                if (!email) setEmail(p.email);
+                try { localStorage.setItem('6ix:last_user', JSON.stringify(u)); } catch { }
+            } catch { }
+        })();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // Load last user from storage, then verify + hydrate from server, then watch realtime
     useEffect(() => {
         let unsub: (() => void) | null = null;
         (async () => {
             try {
                 const raw = localStorage.getItem('6ix:last_user');
                 if (!raw) return;
-                const u: LastUser = JSON.parse(raw);
-                if (!u?.email) return;
+                const remembered: LastUser = JSON.parse(raw);
+                if (!remembered?.email) return;
 
-                // prefill UI while we verify
-                setLastUser(u);
-                if (!email) setEmail(u.email);
+                // optimistic UI while we verify
+                setLastUser(remembered);
+                if (!email) setEmail(remembered.email);
 
-                // 1) verify against server
-                const exists = await checkEmailExists(u.email);
+                const exists = await checkEmailExists(remembered.email);
                 if (!exists) {
-                    clearRememberedIfMatches(u.email);
+                    clearRememberedIfMatches(remembered.email);
                     setLastUser(null);
-                    if (email.trim().toLowerCase() === u.email.toLowerCase()) setEmail('');
+                    if (email.trim().toLowerCase() === remembered.email.toLowerCase()) setEmail('');
                     return;
                 }
 
-                // 2) keep it in sync via realtime (profiles table)
-                unsub = watchProfileEmail(u.email);
-            } catch { /* ignore */ }
+                // hydrate fresh profile (overrides stale avatar/handle/name)
+                const fresh = await fetchProfileByEmail(remembered.email);
+                if (fresh) {
+                    const u: LastUser = {
+                        id: fresh.id, email: fresh.email, handle: fresh.handle,
+                        display_name: fresh.display_name, avatar_url: fresh.avatar_url
+                    };
+                    setLastUser(u);
+                    setHintVerified(true);
+                    try { localStorage.setItem('6ix:last_user', JSON.stringify(u)); } catch { }
+                }
+
+                // keep in sync with future profile updates
+                unsub = watchProfileEmail(remembered.email);
+            } catch { }
         })();
         return () => { if (unsub) unsub(); };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-
-    // Fallback: if only the email was remembered
+    // When the typed email changes, verify and pull the *current* profile for that email
     useEffect(() => {
-        if (email) return;
-        try {
-            const e = localStorage.getItem('6ix:last_email');
-            if (e) setEmail(e);
-        } catch { }
+        let cancel = false;
+        (async () => {
+            const candidate = (email || '').trim().toLowerCase();
+            if (!candidate) { setHintVerified(false); return; }
+
+            const ok = await checkEmailExists(candidate);
+            if (cancel) return;
+            setHintVerified(ok);
+
+            if (ok) {
+                const p = await fetchProfileByEmail(candidate);
+                if (cancel) return;
+                if (p) {
+                    const u: LastUser = {
+                        id: p.id, email: p.email, handle: p.handle,
+                        display_name: p.display_name, avatar_url: p.avatar_url
+                    };
+                    setLastUser(u);
+                    try { localStorage.setItem('6ix:last_user', JSON.stringify(u)); } catch { }
+                }
+            } else {
+                setLastUser(null);
+                clearRememberedIfMatches(candidate);
+            }
+        })();
+        return () => { cancel = true; };
     }, [email]);
 
-    // Fallback: reuse AI profile’s avatar if present
+    // Fallback remembered email (only if email field empty)
     useEffect(() => {
-        if (!hintVerified || !lastUser?.email) return;
+        if (email) return;
+        try { const e = localStorage.getItem('6ix:last_email'); if (e) setEmail(e); } catch { }
+    }, [email]);
+
+    // Fallback: reuse AI profile avatar *only if* we still don't have one and email is verified
+    useEffect(() => {
+        if (!hintVerified || !lastUser?.email || lastUser?.avatar_url) return;
         try {
             const raw = localStorage.getItem('6ixai:profile');
             if (!raw) return;
             const p = JSON.parse(raw) as { displayName?: string; avatarUrl?: string };
-            setLastUser(u => !u?.email ? u : ({
-                ...u,
-                display_name: u.display_name || p?.displayName,
-                avatar_url: u.avatar_url || p?.avatarUrl,
-            }));
+            const merged = {
+                ...lastUser,
+                display_name: lastUser.display_name || p?.displayName,
+                avatar_url: lastUser.avatar_url || p?.avatarUrl,
+            };
+            setLastUser(merged);
+            localStorage.setItem('6ix:last_user', JSON.stringify(merged));
         } catch { }
-    }, [hintVerified, lastUser?.email]);
-
+    }, [hintVerified, lastUser?.email, lastUser?.avatar_url]);
 
     const emailOk = useMemo(() => /\S+@\S+\.\S+/.test(email), [email]);
     const canSend = emailOk && agree && !loading;
@@ -130,17 +175,11 @@ export default function SignInClient() {
         return (pool.length ? pool : EMAIL_DOMAINS).map(d => `${local}@${d}`);
     }, [email]);
 
-    // Cancel & start redirect helpers
-    const cancelRedirect = () => {
-        setCounting(false);
-        setSecsLeft(REDIRECT_TO_SIGNUP_SEC);
-    };
-    const startRedirectCountdown = () => {
-        setCounting(true);
-        setSecsLeft(REDIRECT_TO_SIGNUP_SEC);
-    };
-
-    // Perform countdown & redirect to /auth/signup (avoid router-in-render)
+    // countdown redirect
+    const [counting, setCounting] = useState(false);
+    const [secsLeft, setSecsLeft] = useState(REDIRECT_TO_SIGNUP_SEC);
+    const cancelRedirect = () => { setCounting(false); setSecsLeft(REDIRECT_TO_SIGNUP_SEC); };
+    const startRedirectCountdown = () => { setCounting(true); setSecsLeft(REDIRECT_TO_SIGNUP_SEC); };
     useEffect(() => {
         if (!counting) return;
         if (secsLeft <= 0) {
@@ -153,7 +192,7 @@ export default function SignInClient() {
         return () => clearTimeout(t);
     }, [counting, secsLeft, router]);
 
-    // Prefetch verify page for snappier nav
+    // Prefetch verify page
     useEffect(() => {
         if (emailOk) {
             const to = `/auth/verify?email=${encodeURIComponent(email.trim().toLowerCase())}&redirect=${encodeURIComponent('/ai')}`;
@@ -167,7 +206,6 @@ export default function SignInClient() {
         setErr(null);
         setNotice(null);
         setLoading(true);
-
         try {
             const r = await fetch('/api/auth/send-otp', {
                 method: 'POST',
@@ -178,7 +216,6 @@ export default function SignInClient() {
             const data = await r.json();
             if (!r.ok || !data?.ok) throw new Error(data?.error || 'Could not send code');
 
-            // Our API returns { existing: boolean } (fallback to .exists for older responses)
             const existing: boolean = Boolean(data?.existing ?? data?.exists);
 
             if (existing) {
@@ -218,9 +255,32 @@ export default function SignInClient() {
             const j = await r.json().catch(() => ({} as any));
             return Boolean(j?.ok) && (j.exists === true || j.existing === true);
         } catch {
-            // If the check fails, be conservative and do NOT show stale memory.
             return false;
         }
+    }
+
+    // Fresh profile fetchers
+    async function fetchProfileByEmail(addr: string) {
+        try {
+            const { data, error } = await supabase
+                .from('profiles')
+                .select('id,email,handle,display_name,avatar_url')
+                .eq('email', addr.trim().toLowerCase())
+                .single();
+            if (error) return null;
+            return data as any;
+        } catch { return null; }
+    }
+    async function fetchProfileById(id: string) {
+        try {
+            const { data, error } = await supabase
+                .from('profiles')
+                .select('id,email,handle,display_name,avatar_url')
+                .eq('id', id)
+                .single();
+            if (error) return null;
+            return data as any;
+        } catch { return null; }
     }
 
     function clearRememberedIfMatches(emailToClear: string) {
@@ -233,18 +293,16 @@ export default function SignInClient() {
             }
             const le = localStorage.getItem('6ix:last_email');
             if (match(le)) localStorage.removeItem('6ix:last_email');
-        } catch { /* ignore */ }
+        } catch { }
     }
 
-    /** Subscribe to profiles changes for this email; clears memory if the row disappears. */
+    /** Subscribe to profile changes; updates avatar/name in state + localStorage. */
     function watchProfileEmail(emailToWatch: string) {
         try {
             const addr = emailToWatch.trim().toLowerCase();
-            // any DELETE for this email → clear; UPDATE could change the email → re-check
             const ch = supabase
                 .channel(`profiles_email_${addr}`)
-                .on(
-                    'postgres_changes',
+                .on('postgres_changes',
                     { event: 'DELETE', schema: 'public', table: 'profiles', filter: `email=eq.${addr}` },
                     () => {
                         clearRememberedIfMatches(addr);
@@ -252,26 +310,22 @@ export default function SignInClient() {
                         if (email.trim().toLowerCase() === addr) setEmail('');
                     }
                 )
-                .on(
-                    'postgres_changes',
+                .on('postgres_changes',
                     { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `email=eq.${addr}` },
-                    async () => {
-                        const still = await checkEmailExists(addr);
-                        if (!still) {
-                            clearRememberedIfMatches(addr);
-                            setLastUser(null);
-                            if (email.trim().toLowerCase() === addr) setEmail('');
-                        }
+                    (payload: any) => {
+                        const row = payload?.new || {};
+                        const u: LastUser = {
+                            id: row.id, email: row.email, handle: row.handle,
+                            display_name: row.display_name, avatar_url: row.avatar_url
+                        };
+                        setLastUser(u);
+                        try { localStorage.setItem('6ix:last_user', JSON.stringify(u)); } catch { }
                     }
                 )
                 .subscribe();
-
-            return () => { supabase.removeChannel(ch); };
-        } catch {
-            return () => { };
-        }
+            return () => { try { supabase.removeChannel(ch); } catch { } };
+        } catch { return () => { }; }
     }
-
 
     return (
         <>
@@ -279,8 +333,6 @@ export default function SignInClient() {
             <NoBack />
 
             <main className="auth-screen auth-scope signin-scope min-h-dvh bg-black text-white" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
-
-
                 {/* DESKTOP / LAPTOP */}
                 <div className="hidden md:grid grid-cols-2 min-h-dvh">
                     {/* Left: logo */}
@@ -296,20 +348,15 @@ export default function SignInClient() {
                     <section className="relative px-8 lg:px-12 pt-30 pb-12 overflow-y-auto">
                         <HelpKit side="left" />
                         <header className="relative pb-8">
-                            <h1 className="text-4xl lg:text-5xl font-semibold leading-tight">
-                                Welcome back to 6ix
-                            </h1>
+                            <h1 className="text-4xl lg:text-5xl font-semibold leading-tight">Welcome back to 6ix</h1>
 
-                            {/* Email under the headline */}
                             {(email || lastUser?.email) && (
-                                <div className="mt-2 text-lg text-zinc-400 break-all">
-                                    {(email || lastUser?.email)}
-                                </div>
+                                <div className="mt-2 text-lg text-zinc-400 break-all">{(email || lastUser?.email)}</div>
                             )}
 
-                            {/* Avatar on the right (desktop only, bigger) */}
+                            {/* Only show avatar when the email is verified (fresh) */}
                             {hintVerified && lastUser?.avatar_url && (
-                                <div className="absolute right-0 top-1/2 -translate-y-1/2 w-20 h-20 md:w-24 md:h-24 rounded-full overflow-hidden border border-white/15">
+                                <div className="absolute right-0 top-1/2 -translate-y-1/2 w-20 h-20 md:w-24 md:h-24 rounded-full overflow-hidden border border-white/15 signin-avatar">
                                     <Image src={lastUser.avatar_url} alt="" width={96} height={96} className="w-full h-full object-cover" />
                                 </div>
                             )}
@@ -319,15 +366,13 @@ export default function SignInClient() {
                             </p>
                         </header>
 
-
                         <div className="mt-8 max-w-md md:max-w-2xl lg:max-w-[820px]">
-
                             <SignInCard
                                 email={email}
                                 setEmail={setEmail}
                                 agree={agree}
                                 setAgree={setAgree}
-                                suggestions={suggestions}
+                                
                                 loading={loading}
                                 err={err}
                                 notice={notice}
@@ -346,19 +391,18 @@ export default function SignInClient() {
                 </div>
 
                 {/* MOBILE */}
-                <div className="md:hidden pb-[calc(env(safe-area-inset-bottom)+8px">
+                <div className="md:hidden pb-[calc(env(safe-area-inset-bottom)+8px]">
                     <HelpKit side="left" />
                     <div className="relative mt-4 text-center px-6">
                         <h1 className="text-3xl font-semibold">Welcome back to 6ix</h1>
 
                         {(email || lastUser?.email) && (
-                            <div className="mt-1 text-base text-zinc-400 break-all">
-                                {(email || lastUser?.email)}
-                            </div>
+                            <div className="mt-1 text-base text-zinc-400 break-all">{(email || lastUser?.email)}</div>
                         )}
 
-                        {lastUser?.avatar_url && (
-                            <div className="absolute right-6 -top-6 w-12 h-12 rounded-full overflow-hidden border border-white/15">
+                        {/* gate avatar with verified flag to avoid stale localStorage */}
+                        {hintVerified && lastUser?.avatar_url && (
+                            <div className="absolute right-6 -top-6 w-12 h-12 rounded-full overflow-hidden border border-white/15 signin-avatar">
                                 <Image src={lastUser.avatar_url} alt="" width={48} height={48} className="w-full h-full object-cover" />
                             </div>
                         )}
@@ -368,14 +412,13 @@ export default function SignInClient() {
                         </p>
                     </div>
 
-                    <div className="rounded-2xl  px-4 mt-5 w-full relative">
-
+                    <div className="rounded-2xl px-4 mt-5 w-full relative">
                         <SignInCard
                             email={email}
                             setEmail={setEmail}
                             agree={agree}
                             setAgree={setAgree}
-                            suggestions={suggestions}
+                           
                             loading={loading}
                             err={err}
                             notice={notice}
@@ -395,6 +438,10 @@ export default function SignInClient() {
 
                 {/* Global tweaks (UI unchanged) */}
                 <style jsx global>{`
+                .signin-avatar{ border:1px solid rgba(255,255,255,.15); box-shadow:0 14px 50px rgba(0,0,0,.35); }
+html.theme-light .signin-avatar{ border-color:rgba(0,0,0,.12); box-shadow:0 14px 40px rgba(0,0,0,.18); }
+.spin-neutral{ border-color:rgba(255,255,255,.72); border-top-color:transparent; }
+html.theme-light .spin-neutral{ border-color:rgba(0,0,0,.72); border-top-color:transparent; }
                 /* === Local Silver Ring (rounded, 20s sweep) === */
 :root { --sr-w: 1px; --sr-speed: 20s; --sr-glint: 6deg; }
 
@@ -683,11 +730,11 @@ accent-color: #000000; /* black tick in light mode */
     );
 }
 
-/* ---------------- Reusable Card (UI unchanged) ---------------- */
+/* ---------------- Reusable Card ---------------- */
 function SignInCard({
     email, setEmail,
     agree, setAgree,
-    suggestions,
+    
     loading, err, notice, canSend,
     counting, secsLeft, onCancelRedirect,
     onSend,
@@ -697,7 +744,7 @@ function SignInCard({
     setEmail: (v: string) => void;
     agree: boolean;
     setAgree: (v: boolean) => void;
-    suggestions: string[];
+  
     loading: boolean;
     err: string | null;
     notice: string | null;
@@ -716,6 +763,7 @@ function SignInCard({
         setNavBusy(true);
         router.push('/auth/signup');
     };
+
     return (
         <div className="relative signup-card rounded-2xl border border-white/10 sr-ring sr-20 bg-white/6 backdrop-blur-xl auth-card p-5 sm:p-6 sheen-auto water-mobile">
             <div className="flex items-center gap-3 mb-4">
@@ -734,6 +782,8 @@ function SignInCard({
                     autoComplete="email"
                     autoFocus
                 />
+                {/* datalist for quick domain suggestions */}
+                
             </label>
 
             <label className="mt-4 flex items-start gap-2 cursor-pointer select-none">
@@ -764,13 +814,14 @@ function SignInCard({
             )}
             {err && <p className="mt-3 text-sm text-red-500" aria-live="polite">{err}</p>}
 
+            {/* ✅ Spinner added to the Sign-in button */}
             <button
                 className={`btn btn-primary mt-4 ${(!canSend) ? 'pointer-events-none' : ''}`}
                 onClick={onSend}
                 disabled={!canSend}
                 aria-busy={loading}
             >
-                {loading ? 'Sending…' : 'Sign in'}
+                {loading && <Spinner />} {loading ? 'Sending…' : 'Sign in'}
             </button>
 
             <div className="mt-4 text-center text-sm text-soft">

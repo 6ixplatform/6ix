@@ -226,8 +226,8 @@ padding: var(--hk-chip-pad-y) var(--hk-chip-pad-x);
 font-size:12px; line-height:1; letter-spacing:.1px;
 border-radius:9999px;
 -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px);
-border:1px solid rgba(255, 255, 255, 0);
-background:rgba(255,255,255,.12); color:#fff;
+border:1px solid rgba(255, 255, 255, 1);
+background:rgba(255, 255, 255, 1); color:#fff;
 box-shadow:
 inset 0 2px 0 rgba(0, 0, 0, 0.22),
 inset 0 -1px 0 rgba(0, 0, 0, 0.06),
