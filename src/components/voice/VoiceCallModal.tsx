@@ -1,4 +1,3 @@
-// components/voice/VoiceCallModal.tsx
 'use client';
 
 import * as React from 'react';
@@ -58,7 +57,6 @@ function pickLanguageFromProfile(p?: ProfileRow | null) {
     if (typeof navigator !== 'undefined' && navigator.language) return navigator.language;
 }
 
-
 const BASE_BEHAVIOR_INSTRUCTIONS = `
 You are 6IXAI, a warm, emotionally intelligent real-time voice companion.
 
@@ -89,11 +87,9 @@ Voice & delivery:
 - Speak gently (not overly loud), with natural cadence and subtle intonation.
 `;
 
-/* -------------------------------- Component ------------------------------ */
 export default function VoiceCallModal({
     open, onClose, voice, plan, displayName: fallbackName = 'there',
 }: { open: boolean; onClose: () => void; voice: VoiceRow | null; plan: Plan; displayName?: string; }) {
-
     const supabase = createClientComponentClient();
 
     const [status, setStatus] = React.useState<'idle' | 'connecting' | 'live' | 'reconnecting' | 'ending' | 'error'>('idle');
@@ -138,6 +134,10 @@ export default function VoiceCallModal({
     // continuity
     const greetedOnceRef = React.useRef(false);
 
+    // stability
+    const iceRestartsRef = React.useRef(0);
+    const lastStableRef = React.useRef(0);
+
     /* ------------------------- profile personalization ---------------------- */
     React.useEffect(() => {
         if (!open) return;
@@ -179,16 +179,26 @@ export default function VoiceCallModal({
         reconnect: () => { if (reconnectTimerRef.current) { window.clearTimeout(reconnectTimerRef.current); reconnectTimerRef.current = null; } },
         reconnectIndicator: () => { if (reconnectIndicatorTimerRef.current) { window.clearTimeout(reconnectIndicatorTimerRef.current); reconnectIndicatorTimerRef.current = null; } },
     };
-    const stopAnalysers = React.useCallback(() => {
+
+    // Stop only remote analyser loop (assistant glow)
+    const stopRemoteAnalyser = React.useCallback(() => {
         if (rafRef.current) cancelAnimationFrame(rafRef.current);
         rafRef.current = null;
         try { remoteCtxRef.current?.close(); } catch { }
-        try { localCtxRef.current?.close(); } catch { }
-        remoteCtxRef.current = null; localCtxRef.current = null;
-        remoteAnalyserRef.current = null; localAnalyserRef.current = null;
-        remoteBufRef.current = new Uint8Array(0); localBufRef.current = new Uint8Array(0);
+        remoteCtxRef.current = null;
+        remoteAnalyserRef.current = null;
+        remoteBufRef.current = new Uint8Array(0);
         setAssistantSpeaking(false);
     }, []);
+
+    // Full analyser cleanup (used on teardown)
+    const stopAllAnalysers = React.useCallback(() => {
+        stopRemoteAnalyser();
+        try { localCtxRef.current?.close(); } catch { }
+        localCtxRef.current = null;
+        localAnalyserRef.current = null;
+        localBufRef.current = new Uint8Array(0);
+    }, [stopRemoteAnalyser]);
 
     /* ----------------------------- tool handlers --------------------------- */
     const handleServerEvent = React.useCallback(async (evt: any) => {
@@ -214,7 +224,6 @@ export default function VoiceCallModal({
                 return;
             }
 
-            // Your web tools
             if (toolName === 'web_search') {
                 const q = (args?.query ?? '').toString(); const n = Math.min(Math.max(Number(args?.n || 6), 1), 10);
                 try {
@@ -314,7 +323,7 @@ export default function VoiceCallModal({
     const teardown = React.useCallback(async (reason: 'hangup' | 'limit' | 'assistant_end' | 'error') => {
         try {
             setStatus('ending');
-            clear.countdown(); clear.ping(); clear.reconnect(); clear.reconnectIndicator(); stopAnalysers();
+            clear.countdown(); clear.ping(); clear.reconnect(); clear.reconnectIndicator(); stopAllAnalysers();
             try { localStreamRef.current?.getTracks().forEach(t => t.stop()); } catch { }
             try { pcRef.current?.getSenders().forEach(s => s.track?.stop()); } catch { }
             try { pcRef.current?.close(); } catch { }
@@ -323,58 +332,36 @@ export default function VoiceCallModal({
         }
         try { if (callId) await supabase.rpc('end_voice_call', { p_call_id: callId, p_reason: reason }); } catch { }
         setStatus('idle'); setCallId(undefined); onClose();
-    }, [callId, onClose, supabase, stopAnalysers]);
+    }, [callId, onClose, supabase, stopAllAnalysers]);
 
     const connect = React.useCallback(async (isReconnect = false) => {
         setErr(undefined);
         if (!isReconnect) setStatus('connecting');
 
-        // --- MIC: always resolve to a non-null MediaStream -------------------------
-        async function ensureMic(): Promise<MediaStream> {
-            // Reuse if we already have a stream
-            if (localStreamRef.current instanceof MediaStream) return localStreamRef.current;
+        // mic (typed, guaranteed non-null)
+        let mic: MediaStream;
+        const existing = localStreamRef.current;
+        if (existing) {
+            mic = existing;
+        } else {
+            const md = (navigator as any).mediaDevices as MediaDevices | undefined;
+            if (!md?.getUserMedia) throw new Error('Microphone not available. Use HTTPS and allow mic.');
+            mic = await md.getUserMedia({ audio: true });
+            localStreamRef.current = mic;
 
-            const md = (navigator as any).mediaDevices;
-            if (md?.getUserMedia) {
-                const stream: MediaStream = await md.getUserMedia({
-                    audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: false },
-                });
-                localStreamRef.current = stream;
-                return stream;
-            }
-
-            // Legacy fallback (older Safari/Firefox)
-            const legacy = (navigator as any).webkitGetUserMedia || (navigator as any).mozGetUserMedia;
-            if (legacy) {
-                const stream: MediaStream = await new Promise((resolve, reject) =>
-                    legacy.call(navigator, { audio: true }, resolve, reject)
-                );
-                localStreamRef.current = stream;
-                return stream;
-            }
-
-            throw new Error('Microphone not available. Use HTTPS, start from a user gesture, and allow mic access.');
+            // local analyser (user horizontal wave)
+            try {
+                const LCtx = (window.AudioContext || (window as any).webkitAudioContext) as typeof AudioContext;
+                const lctx = new LCtx(); await lctx.resume().catch(() => { });
+                const analyser = lctx.createAnalyser(); analyser.fftSize = 1024;
+                const src = lctx.createMediaStreamSource(mic); src.connect(analyser);
+                localCtxRef.current = lctx; localAnalyserRef.current = analyser; localBufRef.current = new Uint8Array(analyser.fftSize);
+                drawUserWave();
+            } catch { }
         }
 
-        // Resolve a strongly-typed mic stream
-        const mic: MediaStream = await ensureMic();
 
-        // (Re)create the LOCAL analyser that drives the USER horizontal wave
-        try {
-            const LCtx = (window.AudioContext || (window as any).webkitAudioContext) as typeof AudioContext;
-            const lctx = new LCtx(); await lctx.resume().catch(() => { });
-            const analyser = lctx.createAnalyser(); analyser.fftSize = 1024;
-            const src = lctx.createMediaStreamSource(mic);
-            src.connect(analyser);
-
-            localCtxRef.current = lctx;
-            localAnalyserRef.current = analyser;
-            localBufRef.current = new Uint8Array(analyser.fftSize);
-
-            drawUserWave();
-        } catch { }
-
-        // token (include personalization hints)
+        // token with personalization
         const rt = await fetch('/api/voice/rt-token', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -396,52 +383,75 @@ export default function VoiceCallModal({
         const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
         pcRef.current = pc;
 
+        const markReconnectingSoon = () => {
+            if (!reconnectIndicatorTimerRef.current) {
+                reconnectIndicatorTimerRef.current = window.setTimeout(() => {
+                    if (pcRef.current && pcRef.current.connectionState !== 'connected') setStatus('reconnecting');
+                    reconnectIndicatorTimerRef.current = null;
+                }, 2500);
+            }
+        };
+
         pc.onconnectionstatechange = () => {
             const s = pc.connectionState;
-
-            // show "Reconnecting…" only if >1500ms not connected
-            if (s !== 'connected' && !reconnectIndicatorTimerRef.current) {
-                reconnectIndicatorTimerRef.current = window.setTimeout(() => {
-                    if (pc.connectionState !== 'connected') setStatus('reconnecting');
-                    reconnectIndicatorTimerRef.current = null;
-                }, 1500);
-            }
             if (s === 'connected') {
                 clear.reconnectIndicator();
                 setStatus('live');
+                iceRestartsRef.current = 0;
+                lastStableRef.current = Date.now();
+                return;
+            }
+            if (s === 'disconnected') {
+                markReconnectingSoon();
+                if (iceRestartsRef.current < 3) {
+                    iceRestartsRef.current += 1;
+                    try { pc.restartIce(); } catch { }
+                    return;
+                }
             }
             if (s === 'failed' || s === 'closed') {
-                // hard reconnect
                 if (!reconnectTimerRef.current) {
+                    const backoff = Math.min(4000, 600 * (1 + iceRestartsRef.current));
                     reconnectTimerRef.current = window.setTimeout(() => {
                         reconnectTimerRef.current = null;
+                        iceRestartsRef.current = 0;
                         connect(true).catch(() => setStatus('error'));
-                    }, 600);
+                    }, backoff);
                 }
             }
         };
         pc.oniceconnectionstatechange = () => {
-            if (pc.iceConnectionState === 'failed' && !reconnectTimerRef.current) {
-                reconnectTimerRef.current = window.setTimeout(() => {
-                    reconnectTimerRef.current = null;
-                    connect(true).catch(() => setStatus('error'));
-                }, 600);
+            const s = pc.iceConnectionState;
+            if (s === 'disconnected') markReconnectingSoon();
+            if (s === 'failed') {
+                if (!reconnectTimerRef.current) {
+                    reconnectTimerRef.current = window.setTimeout(() => {
+                        reconnectTimerRef.current = null;
+                        iceRestartsRef.current = 0;
+                        connect(true).catch(() => setStatus('error'));
+                    }, 800);
+                }
             }
         };
 
         // remote audio
         const audioEl = remoteAudioRef.current ?? document.createElement('audio');
         if (!remoteAudioRef.current) remoteAudioRef.current = audioEl;
-        audioEl.autoplay = true; audioEl.setAttribute('playsinline', 'true'); audioEl.setAttribute('webkit-playsinline', 'true');
+        audioEl.autoplay = true;
+        audioEl.setAttribute('playsinline', 'true');
+        audioEl.setAttribute('webkit-playsinline', 'true');
         audioEl.onerror = () => setErr('Audio playback failed.');
 
         pc.ontrack = (e: RTCTrackEvent) => {
             const [stream] = e.streams;
             audioEl.srcObject = stream;
-            audioEl.play().catch(() => { });
+            audioEl.play().catch(() => {
+                audioEl.muted = true;
+                audioEl.play().finally(() => { audioEl.muted = false; });
+            });
 
             // remote analyser (assistant glow)
-            stopAnalysers(); // stop previous remote loop (not the local one)
+            stopRemoteAnalyser();
             try {
                 const RCtx = (window.AudioContext || (window as any).webkitAudioContext) as typeof AudioContext;
                 const rctx = new RCtx(); const analyser = rctx.createAnalyser(); analyser.fftSize = 512;
@@ -509,7 +519,7 @@ export default function VoiceCallModal({
         if (pc.signalingState !== 'closed') await pc.setRemoteDescription({ type: 'answer', sdp: sdpText });
 
         setStatus('live');
-    }, [voice?.tts_voice_key, nameHint, langHint, cityHint, stateHint, countryHint, localeHint, handleServerEvent, drawUserWave, monitorAssistantAudio, stopAnalysers]);
+    }, [voice?.tts_voice_key, nameHint, langHint, cityHint, stateHint, countryHint, localeHint, handleServerEvent, drawUserWave, monitorAssistantAudio, stopRemoteAnalyser]);
 
     /* -------------------------------- lifecycle ----------------------------- */
     React.useEffect(() => {
@@ -558,13 +568,13 @@ export default function VoiceCallModal({
         return () => {
             document.removeEventListener('visibilitychange', onVisibility);
             clear.countdown(); clear.ping(); clear.reconnect(); clear.reconnectIndicator();
-            stopAnalysers();
+            stopAllAnalysers();
             try { pcRef.current?.close(); } catch { }
             try { localStreamRef.current?.getTracks().forEach(t => t.stop()); } catch { }
             pcRef.current = null; dcRef.current = null; localStreamRef.current = null;
             greetedOnceRef.current = false;
         };
-    }, [open, supabase, voice?.id, connect, teardown, stopAnalysers]);
+    }, [open, supabase, voice?.id, connect, teardown, stopAllAnalysers]);
 
     if (!open) return null;
 
@@ -589,13 +599,12 @@ export default function VoiceCallModal({
                     </svg>
                 </button>
 
-                {/* Centered orb + 6IXAI + user wave BELOW orb */}
-                <div className="h-full w-full grid place-items-center pt-12">
-                    <div className="relative">
-                        {/* Orb ring (no smoke). Glow only when assistant speaks */}
+                {/* Centered orb + user wave BELOW the orb with ample gap */}
+                <div className="h-full w-full flex flex-col items-center justify-center pt-20 gap-12">
+                    {/* Orb (assistant speaking) */}
+                    <div className="relative w-[260px] h-[260px]">
                         <div
-                            className={`w-[260px] h-[260px] rounded-full transition-shadow duration-150 ${assistantSpeaking ? 'shadow-[0_0_40px_10px_rgba(255,255,255,0.25)]' : 'shadow-none'
-                                }`}
+                            className={`absolute inset-0 rounded-full transition-shadow duration-150 ${assistantSpeaking ? 'shadow-[0_0_40px_10px_rgba(255,255,255,0.25)]' : 'shadow-none'}`}
                             style={{
                                 background: 'transparent',
                                 border: '1px solid rgba(255,255,255,0.20)',
@@ -605,18 +614,19 @@ export default function VoiceCallModal({
                         <div className="absolute inset-0 grid place-items-center">
                             <div className="text-white/90 text-xl font-semibold tracking-widest">6IXAI</div>
                         </div>
-
-                        {/* Horizontal live wave for USER mic — positioned BELOW the orb */}
-                        <div className="absolute left-1/2 -translate-x-1/2 top-full mt-8 w-[min(84vw,520px)]">
-                            <canvas
-                                ref={waveCanvasRef}
-                                className="h-[54px] w-full"
-                                style={{ display: 'block', filter: 'drop-shadow(0 0 10px rgba(255,255,255,0.15))' }}
-                            />
-                        </div>
                     </div>
 
-                    <div className="mt-14 text-white/90 text-sm">
+                    {/* User live wave */}
+                    <div className="w-[min(90vw,560px)]">
+                        <canvas
+                            ref={waveCanvasRef}
+                            className="h-[54px] w-full"
+                            style={{ display: 'block', filter: 'drop-shadow(0 0 10px rgba(255,255,255,0.15))' }}
+                        />
+                    </div>
+
+                    {/* Status */}
+                    <div className="text-white/90 text-sm">
                         {status === 'connecting' && 'Connecting…'}
                         {status === 'reconnecting' && 'Reconnecting…'}
                         {status === 'live' && (secondsLeft != null ? `Live · ${secondsLeft}s left` : 'Live')}
