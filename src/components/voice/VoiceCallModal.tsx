@@ -138,33 +138,52 @@ export default function VoiceCallModal({
             setStatus('connecting');
 
             try {
-                // 1) start call (plan gating happens in RPC)
-                const { data: start, error: startErr } = await supabase.rpc('start_voice_call', {
-                    p_assistant_voice_id: voice?.id ?? null,
-                    p_locale: typeof navigator !== 'undefined' ? navigator.language : null,
-                    p_device_info: { ua: typeof navigator !== 'undefined' ? navigator.userAgent : '' },
-                });
-                if (startErr) throw startErr;
+                // 1) start call (optional; skip if unauthenticated so we don’t block OpenAI)
+                let call: any = { id: undefined, allowed_seconds: null };
+                try {
+                    const { data: start, error: startErr } = await supabase.rpc('start_voice_call', {
+                        p_assistant_voice_id: voice?.id ?? null,
+                        p_locale: typeof navigator !== 'undefined' ? navigator.language : null,
+                        p_device_info: { ua: typeof navigator !== 'undefined' ? navigator.userAgent : '' },
+                    });
 
-                const call = start as any;
-                setCallId(call.id);
-                setSecondsLeft(typeof call.allowed_seconds === 'number' ? call.allowed_seconds : undefined);
-
+                    if (!startErr && start) {
+                        call = start as any;
+                        setCallId(call.id);
+                        setSecondsLeft(
+                            typeof call.allowed_seconds === 'number' ? call.allowed_seconds : undefined
+                        );
+                    } else if (startErr?.message) {
+                        // Don’t crash the call flow if the user isn’t logged in
+                        console.warn('[voice] start_voice_call skipped:', startErr.message);
+                    }
+                } catch (e: any) {
+                    console.warn('[voice] start_voice_call failed, continuing without DB:', e?.message || e);
+                }
                 // 2) mic
                 const mic = await navigator.mediaDevices.getUserMedia({ audio: true });
                 localStreamRef.current = mic;
-
                 // 3) ephemeral client token
                 const r = await fetch('/api/voice/rt-token', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ voiceKey: voice?.tts_voice_key }),
+                    credentials: 'include',
+                    cache: 'no-store',
                 });
                 const { client_secret, error } = await r.json();
-                if (error || !client_secret) throw new Error(error || 'Failed to mint token');
+                if (error) throw new Error(error);
+
+                // ✅ robust token extraction (supports both shapes: string or { value })
+                const token: string | undefined =
+                    typeof client_secret === 'string' ? client_secret : client_secret?.value;
+
+                if (!token) throw new Error('Missing realtime token from server');
 
                 // 4) peer
-                const pc = new RTCPeerConnection();
+                const pc = new RTCPeerConnection({
+                    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
+                });
                 pcRef.current = pc;
 
                 pc.onconnectionstatechange = () => {
@@ -244,11 +263,15 @@ export default function VoiceCallModal({
 
                 // 6) SDP exchange (include Realtime beta header)
                 const baseUrl = 'https://api.openai.com/v1/realtime';
-                const model = process.env.NEXT_PUBLIC_OPENAI_REALTIME_MODEL || 'gpt-4o-realtime-preview';
+                const model =
+                    process.env.NEXT_PUBLIC_OPENAI_REALTIME_MODEL ||
+                    process.env.OPENAI_REALTIME_MODEL ||
+                    'gpt-4o-realtime-preview-2024-12-17';
+
                 const sdpRes = await fetch(`${baseUrl}?model=${encodeURIComponent(model)}`, {
                     method: 'POST',
                     headers: {
-                        Authorization: `Bearer ${client_secret.value}`,
+                        Authorization: `Bearer ${token}`, // <-- use the string token
                         'Content-Type': 'application/sdp',
                         'OpenAI-Beta': 'realtime=v1',
                     },
