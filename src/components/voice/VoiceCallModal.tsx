@@ -5,6 +5,18 @@ import * as React from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import VoiceCatalogPicker from './VoiceCatalogPicker';
 
+const OPENAI_VOICES = new Set([
+    'alloy', 'ash', 'ballad', 'coral', 'echo', 'sage', 'shimmer', 'verse', 'marin', 'cedar'
+]);
+
+function mapToOpenAIVoice(input?: string | null): string | undefined {
+    if (!input) return undefined;
+    const k = String(input).toLowerCase().trim().replace(/^tts[_-]/, '');
+    const ALIASES: Record<string, string> = { kai: 'verse', lola: 'alloy', nina: 'coral', felix: 'ash', amber: 'sage' };
+    const candidate = (ALIASES[k] ?? k);
+    return OPENAI_VOICES.has(candidate) ? candidate : 'verse';
+}
+
 type Plan = 'free' | 'pro' | 'max';
 
 export type VoiceRow = {
@@ -161,24 +173,35 @@ export default function VoiceCallModal({
                     console.warn('[voice] start_voice_call failed, continuing without DB:', e?.message || e);
                 }
                 // 2) mic
-                const mic = await navigator.mediaDevices.getUserMedia({ audio: true });
+                async function getMic(): Promise<MediaStream> {
+                    const md = (navigator as any).mediaDevices;
+                    if (md?.getUserMedia) return md.getUserMedia({ audio: true });
+                    const legacy = (navigator as any).webkitGetUserMedia || (navigator as any).mozGetUserMedia;
+                    if (legacy) {
+                        return new Promise((resolve, reject) =>
+                            legacy.call(navigator, { audio: true }, resolve, reject)
+                        );
+                    }
+                    throw new Error(
+                        'Microphone not available. Use HTTPS, start from a user gesture, and allow mic access.'
+                    );
+                }
+                const mic = await getMic();
+
                 localStreamRef.current = mic;
                 // 3) ephemeral client token
                 const r = await fetch('/api/voice/rt-token', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ voiceKey: voice?.tts_voice_key }),
+                    body: JSON.stringify({ voiceKey: mapToOpenAIVoice(voice?.tts_voice_key) }),
                     credentials: 'include',
                     cache: 'no-store',
                 });
                 const { client_secret, error } = await r.json();
                 if (error) throw new Error(error);
-
-                // ✅ robust token extraction (supports both shapes: string or { value })
-                const token: string | undefined =
-                    typeof client_secret === 'string' ? client_secret : client_secret?.value;
-
+                const token: string | undefined = typeof client_secret === 'string' ? client_secret : client_secret?.value;
                 if (!token) throw new Error('Missing realtime token from server');
+
 
                 // 4) peer
                 const pc = new RTCPeerConnection({
@@ -252,8 +275,9 @@ export default function VoiceCallModal({
                 dcRef.current = dc;
                 dc.onmessage = (m) => handleServerEvent(m.data);
                 dc.onopen = () => {
-                    if (voice?.tts_voice_key) {
-                        dc.send(JSON.stringify({ type: 'session.update', session: { voice: voice.tts_voice_key } }));
+                    const v = mapToOpenAIVoice(voice?.tts_voice_key);
+                    if (v) {
+                        dc.send(JSON.stringify({ type: 'session.update', session: { voice: v } }));
                     }
                 };
 
@@ -277,7 +301,17 @@ export default function VoiceCallModal({
                     },
                     body: offer.sdp,
                 });
-                if (!sdpRes.ok) throw new Error(await sdpRes.text());
+                const raw = await sdpRes.text();
+                if (!sdpRes.ok) {
+                    // Try to unwrap OpenAI error JSON and make it human-readable
+                    try {
+                        const j = JSON.parse(raw);
+                        const msg = j?.error?.message || j?.message || raw;
+                        throw new Error(msg);
+                    } catch {
+                        throw new Error(raw);
+                    }
+                }
 
                 const answerSdp = await sdpRes.text();
                 await pc.setRemoteDescription({ type: 'answer', sdp: answerSdp });
