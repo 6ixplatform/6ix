@@ -189,19 +189,30 @@ export default function VoiceCallModal({
                 const mic = await getMic();
 
                 localStreamRef.current = mic;
+
+                // Safari/iOS: ensure audio context is resumed by a user gesture
+                try {
+                    const Ctx = (window.AudioContext || (window as any).webkitAudioContext) as typeof AudioContext;
+                    const ctx = new Ctx();
+                    await ctx.resume().catch(() => { });
+                } catch { }
+
                 // 3) ephemeral client token
+                // inside the effect after start_voice_call and getUserMedia
                 const r = await fetch('/api/voice/rt-token', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ voiceKey: mapToOpenAIVoice(voice?.tts_voice_key) }),
+                    body: JSON.stringify({ voiceKey: voice?.tts_voice_key }),
                     credentials: 'include',
                     cache: 'no-store',
                 });
                 const { client_secret, error } = await r.json();
                 if (error) throw new Error(error);
-                const token: string | undefined = typeof client_secret === 'string' ? client_secret : client_secret?.value;
-                if (!token) throw new Error('Missing realtime token from server');
 
+                const token: string | undefined =
+                    typeof client_secret === 'string' ? client_secret : client_secret?.value;
+
+                if (!token) throw new Error('Missing realtime token from server');
 
                 // 4) peer
                 const pc = new RTCPeerConnection({
@@ -223,7 +234,10 @@ export default function VoiceCallModal({
                 audioEl.autoplay = true;
                 audioEl.setAttribute('playsinline', 'true');
                 audioEl.setAttribute('webkit-playsinline', 'true');
-
+                audioEl.onerror = () => {
+                    // surface a clearer message if Safari refuses to play
+                    setErr('Audio playback failed (blocked or no track yet).');
+                };
                 pc.ontrack = (e: RTCTrackEvent) => {
                     const [stream] = e.streams;
                     audioEl.srcObject = stream;
@@ -295,26 +309,18 @@ export default function VoiceCallModal({
                 const sdpRes = await fetch(`${baseUrl}?model=${encodeURIComponent(model)}`, {
                     method: 'POST',
                     headers: {
-                        Authorization: `Bearer ${token}`, // <-- use the string token
+                        Authorization: `Bearer ${token}`,
                         'Content-Type': 'application/sdp',
                         'OpenAI-Beta': 'realtime=v1',
                     },
                     body: offer.sdp,
                 });
-                const raw = await sdpRes.text();
-                if (!sdpRes.ok) {
-                    // Try to unwrap OpenAI error JSON and make it human-readable
-                    try {
-                        const j = JSON.parse(raw);
-                        const msg = j?.error?.message || j?.message || raw;
-                        throw new Error(msg);
-                    } catch {
-                        throw new Error(raw);
-                    }
-                }
 
-                const answerSdp = await sdpRes.text();
-                await pc.setRemoteDescription({ type: 'answer', sdp: answerSdp });
+                // ✅ read once
+                const sdpText = await sdpRes.text();
+                if (!sdpRes.ok) throw new Error(sdpText || `${sdpRes.status} ${sdpRes.statusText}`);
+
+                await pc.setRemoteDescription({ type: 'answer', sdp: sdpText });
 
                 // greet
                 dc.send(JSON.stringify({
