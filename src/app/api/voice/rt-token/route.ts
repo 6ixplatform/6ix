@@ -1,5 +1,6 @@
-// app/api/voice/rt-token/route.ts
 import { NextResponse } from 'next/server';
+
+export const runtime = 'nodejs';
 
 /** OpenAI built-in realtime TTS voices */
 const OPENAI_VOICES = new Set([
@@ -18,8 +19,12 @@ function mapToOpenAIVoice(input?: string | null): string | undefined {
         amber: 'sage',
     };
     const candidate = ALIASES[k] ?? k;
-    return OPENAI_VOICES.has(candidate) ? candidate : undefined; // omit to let OpenAI default
+    return OPENAI_VOICES.has(candidate) ? candidate : undefined; // omit → OpenAI default
 }
+
+/** Public-safe blurbs (editable without code changes) */
+const BRAND_PUBLIC = (process.env.BRAND_PUBLIC ?? '').trim();
+const FOUNDER_PUBLIC = (process.env.FOUNDER_PUBLIC ?? '').trim();
 
 export async function POST(req: Request) {
     try {
@@ -28,11 +33,24 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'Missing OPENAI_API_KEY' }, { status: 500 });
         }
 
-        const { voiceKey } = await req.json().catch(() => ({ voiceKey: undefined }));
-        const model =
-            process.env.OPENAI_REALTIME_MODEL || 'gpt-4o-realtime-preview-2024-12-17';
-
+        // Optional profile hints you may pass from the client later:
+        // { voiceKey, profile?: { displayName?, city?, state?, country?, language? } }
+        const { voiceKey, profile } = await req.json().catch(() => ({ voiceKey: undefined, profile: undefined }));
+        const model = process.env.OPENAI_REALTIME_MODEL || 'gpt-4o-realtime-preview-2024-12-17';
         const voice = mapToOpenAIVoice(voiceKey);
+
+        // Build a short, safe brand/founder paragraph
+        const brandParagraph = BRAND_PUBLIC || '6IXAI is a privacy-first AI companion for learning and wellbeing.';
+        const founderParagraph =
+            FOUNDER_PUBLIC ||
+            'Founder: Clement Joshua (public professional summary only). Personal/private details are not shared.';
+
+        // Optional language/culture hint if you pass it later
+        const userLangHint = (profile?.language ?? '').toString().trim();
+        const userLocaleHint = [profile?.city, profile?.state, profile?.country]
+            .filter(Boolean)
+            .map((s: string) => s.trim())
+            .join(', ');
 
         const r = await fetch('https://api.openai.com/v1/realtime/sessions', {
             method: 'POST',
@@ -46,19 +64,20 @@ export async function POST(req: Request) {
                 modalities: ['text', 'audio'],
                 ...(voice ? { voice } : {}),
 
-                // Low-latency, natural turn-taking
-                // Tip: 1000–1300ms is a nice balance; smaller = snappier but easier to interrupt user
+                // Fast, natural turn-taking (reply ~1.1s after silence)
                 turn_detection: { type: 'server_vad', silence_duration_ms: 1100 },
 
-                // Fast realtime transcription
+                // Fast realtime transcription (fallback: whisper-1)
                 input_audio_transcription: { model: 'gpt-4o-transcribe' },
 
-                // If you later want a specific audio container, uncomment:
-                // tts_format: { type: 'aac', container: 'mp4' },
-
-                // ==================== HYBRID INSTRUCTIONS ====================
+                // ============= HYBRID + PRIVACY-AWARE INSTRUCTIONS =============
                 instructions: `
-You are 6IXAI — a friendly, emotionally intelligent, real-time voice companion and hybrid tutor designed to teach, coach, and support learners of all ages with highly natural voice delivery, accurate pronunciation, and long-term memory of lessons.
+You are 6IXAI — a friendly, emotionally intelligent, real-time voice companion and hybrid tutor for all ages. Speak naturally with varied prosody, brief pauses, and short, interruptible sentences. Prioritize comprehension and active practice. If unsure, ask a clarifying question and propose how to verify.
+
+Addressing & language
+- Greet and address the user by the name provided via session updates (displayName). If not provided, say “there”.
+- Prefer the user's language if provided via session updates (language) or inferred from their profile hints: "${userLangHint || 'unknown'}".
+- If the user’s city/state/country is known ("${userLocaleHint || 'unknown'}"), adapt examples and cultural references. For Nigeria (Calabar, Cross River, Lagos, Abuja, etc.), include regionally accurate pronunciations, idioms, and artists/cuisines when helpful.
 
 Core style & goals
 - Sound ultra-realistic and human: use varied prosody, natural micro-pauses, breath-like timing, and subtle pitch changes. Keep sentences short and modular for easy interruption.
@@ -171,11 +190,45 @@ Domestic management & lifestyle organization
 Hybrid session flow
 1) Greet & detect intent. 2) Consent & safety check. 3) Mini assessment. 4) Teaching/support phase (micro-content → practice → feedback → micro-quiz). 5) Practice/creation attempt with reinforcement. 6) Reflection. 7) Summarize & offer to save progress. 8) End or continue.
 
+Turn-taking & latency
+- Listen while the user speaks. When ~1–2 seconds of silence occurs, respond succinctly.
+- If the user interrupts, stop speaking within ~200–400ms and resume listening.
+- Stream responses in short chunks to allow quick interruption.
+
+Teaching, kids, and pronunciation
+- Use phonics-first scaffolding for children: slow → syllables → normal speed; request repetition and give positive, specific feedback.
+- For language tutoring: model slow/normal/exaggerated articulation; describe mouth/tongue placement in plain language; use IPA on request.
+- Provide quick recaps and micro-quizzes; ask 1–2 diagnostic questions to set level.
+
+Therapy-like support (non-clinical)
+- Validate feelings; suggest simple coping steps (breathing, journaling, grounding, gratitude). Never diagnose or give medical advice.
+
+Nigerian culture & local knowledge
+- When asked about Nigerian culture, languages, cuisines, artists, musicians, festivals, or regional customs, answer confidently. If recency or specifics are uncertain, use the web_search tool to fetch current info, then summarize.
+
+Memory & tools
+- Use save_progress at checkpoints (with consent). Use get_progress to resume on request. Use end_call when user asks to hang up.
+- Use web_search for current facts, ambiguous Nigerian topics, or when asked. Use stock_quotes for tickers; use weather_forecast when given coordinates.
+
+Brand & founder privacy policy
+- Treat internal/ private info as confidential. If asked for private details about Clement Joshua or the company, decline and share only public facts.
+- Public brand info: ${brandParagraph}
+- Public founder info (allowed): ${founderParagraph}
+- Do NOT discuss founder’s personal life or any non-educational/private matters.
+
+Safety & boundaries
+- No medical, legal, psychiatric, or personalized financial advice. Offer only high-level info and suggest licensed professionals for specifics.
+- If distress/self-harm risk appears, respond empathetically and recommend contacting local emergency services or trusted adults; do not provide crisis counseling.
+
+Uncertainty & hallucinations
+- Prefer “I’m not sure; here’s how to verify” over guessing. Cite sources when summarizing search results.
 Be concise, compassionate, and always ask clarifying questions rather than guessing when intent is unclear.
 `,
-                // ==================== /HYBRID INSTRUCTIONS ====================
+                // ============= /HYBRID + PRIVACY-AWARE INSTRUCTIONS =============
 
+                // The model will emit function calls over the data channel.
                 tools: [
+                    // call from client: end_call({ reason })
                     {
                         type: 'function',
                         name: 'end_call',
@@ -185,10 +238,11 @@ Be concise, compassionate, and always ask clarifying questions rather than guess
                             properties: { reason: { type: 'string' } },
                         },
                     },
+                    // call from client: save_progress({ topic, summary?, cursor? })
                     {
                         type: 'function',
                         name: 'save_progress',
-                        description: 'Save lesson progress for this user.',
+                        description: 'Save lesson progress (short summary + cursor) with user consent.',
                         parameters: {
                             type: 'object',
                             properties: {
@@ -199,6 +253,7 @@ Be concise, compassionate, and always ask clarifying questions rather than guess
                             required: ['topic'],
                         },
                     },
+                    // call from client: get_progress({ topic })
                     {
                         type: 'function',
                         name: 'get_progress',
@@ -209,6 +264,55 @@ Be concise, compassionate, and always ask clarifying questions rather than guess
                             required: ['topic'],
                         },
                     },
+
+                    // ------- New hybrid tools (executed by your frontend handler) -------
+
+                    // call: web_search({ query: string, n?: number })
+                    // Your client should call your /api/search route (Tavily) and return top results.
+                    {
+                        type: 'function',
+                        name: 'web_search',
+                        description: 'Web search for fresh/current facts or local Nigerian topics; return a few summarized hits.',
+                        parameters: {
+                            type: 'object',
+                            properties: {
+                                query: { type: 'string', description: 'Search query' },
+                                n: { type: 'number', description: 'Max results (1-10)', default: 6 },
+                            },
+                            required: ['query'],
+                        },
+                    },
+
+                    // call: stock_quotes({ symbols: string }) // e.g. "AAPL,MSFT"
+                    // Your client should call /api/stocks?s=AAPL,MSFT and return normalized quotes.
+                    {
+                        type: 'function',
+                        name: 'stock_quotes',
+                        description: 'Fetch simple stock quotes (price, change, changePct) for comma-separated symbols.',
+                        parameters: {
+                            type: 'object',
+                            properties: {
+                                symbols: { type: 'string', description: 'Comma-separated tickers, e.g., "AAPL,MSFT"' },
+                            },
+                            required: ['symbols'],
+                        },
+                    },
+
+                    // call: weather_forecast({ lat: string|number, lon: string|number })
+                    // Your client should call /api/weather?lat=...&lon=... and return the JSON.
+                    {
+                        type: 'function',
+                        name: 'weather_forecast',
+                        description: 'Get weather forecast by latitude and longitude (Open-Meteo).',
+                        parameters: {
+                            type: 'object',
+                            properties: {
+                                lat: { type: ['number', 'string'] as any },
+                                lon: { type: ['number', 'string'] as any },
+                            },
+                            required: ['lat', 'lon'],
+                        },
+                    },
                 ],
             }),
         });
@@ -217,7 +321,7 @@ Be concise, compassionate, and always ask clarifying questions rather than guess
             return NextResponse.json({ error: await r.text() }, { status: r.status });
         }
 
-        // OpenAI returns { client_secret: { value, expires_at }, ... }
+        // { client_secret: { value, expires_at }, ... }
         const data = await r.json();
         return NextResponse.json({ client_secret: data.client_secret });
     } catch (e: any) {
