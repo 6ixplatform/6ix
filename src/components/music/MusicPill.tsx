@@ -9,6 +9,13 @@ import type { Song } from '@/lib/musicTypes';
 import { fetchTotals, recordPlay } from '@/lib/musicStats';
 import { AD_PILL_ART, ADS, AdUnit } from '@/lib/ads';
 
+const isBrowser = typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
+const safeGet = (k: string) => {
+    try { return isBrowser ? window.localStorage.getItem(k) : null; } catch { return null; }
+};
+const safeSet = (k: string, v: string) => {
+    try { if (isBrowser) window.localStorage.setItem(k, v); } catch { /* ignore quota / private mode */ }
+};
 
 type Props = { category?: string; className?: string };
 type Repeat = 'off' | 'one' | 'all';
@@ -76,31 +83,51 @@ export default function MusicPill({ category, className = '' }: Props) {
         void (el as any).offsetWidth;
         el.classList.add('pulse');
     }
-    // Ads – add this just under your existing ad state
+    // Ads — replace your existing "ad state" block with this version
     const [activeAd, setActiveAd] = React.useState<AdUnit | null>(null);
     const videoRef = React.useRef<HTMLVideoElement | null>(null);
-    const SHUFFLE_ADS = false; // set to true when you want shuffle 🔀
+    const SHUFFLE_ADS = false; // as before
 
     const AD_ORDER_KEY = 'six:adOrder';
     const AD_PTR_KEY = 'six:adPtr';
 
-    const [adOrder, setAdOrder] = React.useState<number[]>(() => {
-        try { const s = localStorage.getItem(AD_ORDER_KEY); if (s) return JSON.parse(s); } catch { }
-        return Array.from({ length: ADS.length }, (_, i) => i);
-    });
-    const [adPtr, setAdPtr] = React.useState<number>(() => {
-        const p = Number(localStorage.getItem(AD_PTR_KEY) || 0);
-        return Number.isFinite(p) ? p : 0;
-    });
+    // Default order for SSR (no localStorage here)
+    const defaultOrder = React.useMemo(
+        () => Array.from({ length: ADS.length }, (_, i) => i),
+        []
+    );
 
+    // IMPORTANT: Do NOT read localStorage in these initializers
+    const [adOrder, setAdOrder] = React.useState<number[]>(defaultOrder);
+    const [adPtr, setAdPtr] = React.useState<number>(0);
+
+    // Hydrate from storage after mount
+    React.useEffect(() => {
+        // order
+        const s = safeGet(AD_ORDER_KEY);
+        if (s) {
+            try {
+                const arr = JSON.parse(s);
+                if (Array.isArray(arr) && arr.length === ADS.length) setAdOrder(arr);
+            } catch { /* ignore bad JSON */ }
+        }
+        // pointer
+        const p = Number(safeGet(AD_PTR_KEY) ?? '0');
+        setAdPtr(Number.isFinite(p) ? p : 0);
+    }, []);
+
+    // Persist whenever they change
+    React.useEffect(() => { safeSet(AD_ORDER_KEY, JSON.stringify(adOrder)); }, [adOrder]);
+    React.useEffect(() => { safeSet(AD_PTR_KEY, String(adPtr)); }, [adPtr]);
+
+    // (optional) your existing rebuildOrder can stay the same; here’s a safe version
     const rebuildOrder = React.useCallback(() => {
         const base = Array.from({ length: ADS.length }, (_, i) => i);
         if (SHUFFLE_ADS) base.sort(() => Math.random() - 0.5);
         setAdOrder(base);
-        localStorage.setItem(AD_ORDER_KEY, JSON.stringify(base));
         setAdPtr(0);
-        localStorage.setItem(AD_PTR_KEY, '0');
-    }, []);
+    }, [/* ADS length is stable; no deps needed typically */]);
+
 
     const pickNextAd = React.useCallback(() => {
         if (!adOrder.length) rebuildOrder();

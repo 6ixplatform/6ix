@@ -3,6 +3,9 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import VoiceQuickPicker, { VoiceRow } from './voice/VoiceQuickPicker';
+import VoiceCallModal from './voice/VoiceCallModal';
+
 
 /* ----- Types ----- */
 type Plan = 'free' | 'pro' | 'max';
@@ -51,6 +54,9 @@ type Props = {
     plan: 'free' | 'pro' | 'max';
     hints?: string[];
     hintTick?: number;
+
+    /** NEW: used by VoiceCallModal to greet the user */
+    displayName?: string;
 };
 
 /* ──────────────────────────────────────────────────────────── */
@@ -81,6 +87,7 @@ export default function FloatingComposer({
     recState, startRecording, stopRecording,
     send, handleStop,
     plan,
+    displayName: displayNameProp, // <— add to destructure
 }: Props) {
     const [composerMax, setComposerMax] = useState(false);
 
@@ -100,6 +107,13 @@ export default function FloatingComposer({
     // NEW: shape + expand button logic
     const [isMultiline, setIsMultiline] = useState(false);
     const [showExpandBtn, setShowExpandBtn] = useState(false);
+
+    // Voice chat state
+    const [openCall, setOpenCall] = useState(false);
+    const [openPicker, setOpenPicker] = useState(false);
+    const [pickedVoice, setPickedVoice] = useState<VoiceRow | null>(null);
+    const effectiveDisplayName = displayNameProp ?? 'there';
+    
 
     // push right-side icons inwards so they don't sit under OS scrollbars
     const [sbGap, setSbGap] = useState(0);
@@ -124,6 +138,7 @@ export default function FloatingComposer({
         setIsMultiline(lines > 1); // switch from pill → rounded rectangle
         setShowExpandBtn(lines >= 4); // show "<>" button only at 4+ lines
     }, [input, textRef]);
+
     const openFiles = React.useCallback(() => {
         pickerOpenRef.current = true;
         fileInputRef.current?.click();
@@ -133,6 +148,7 @@ export default function FloatingComposer({
         const ne = e.nativeEvent as { isComposing?: boolean; keyCode?: number } | undefined;
         return Boolean(ne?.isComposing) || e.key === 'Process' || ne?.keyCode === 229;
     };
+
     // Collapse/shape reset
     const resetComposerUI = React.useCallback(() => {
         setIsMultiline(false);
@@ -160,7 +176,6 @@ export default function FloatingComposer({
             closeMax(); // drop any maximize flow and collapse height
         }
     }, [streaming, handleStop, isSendingOrBusy, input, focusLockRef, send, setInput, closeMax]);
-
 
     const onTextareaKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         if (e.key === 'Enter' && !e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey && !isIMEComposing(e)) {
@@ -439,10 +454,22 @@ min-h-[40px] overflow-hidden ring-0 border-0 shadow-none`}
                             />
 
                             {/* right controls pinned bottom-right */}
-                            <div className="absolute right-1.5 bottom-1.5 flex items-center gap-1"
-                                style={{ right: 6 + sbGap }}
-                            >
-                                {/* mic */}
+                            <div className="absolute right-1.5 bottom-1.5 flex items-center gap-1" style={{ right: 6 + sbGap }}>
+                                {/* CALL (new) — before mic */}
+                                <button
+                                    type="button"
+                                    className="h-6 w-6 md:h-8 md:w-8 rounded-full grid place-items-center active:scale-95"
+                                    title="Start voice call"
+                                    aria-label="Start voice call"
+                                    onClick={() => setOpenPicker(true)}
+                                    style={chipStyle}
+                                >
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.08 4.18 2 2 0 0 1 4.06 2h3a2 2 0 0 1 2 1.72c.12.89.31 1.76.57 2.6a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.48-1.09a2 2 0 0 1 2.11-.45c.84.26 1.71.45 2.6.57A2 2 0 0 1 22 16.92z" />
+                                    </svg>
+                                </button>
+
+                                {/* mic (existing) */}
                                 <button
                                     type="button"
                                     className={`h-6 w-6 md:h-8 md:w-8 rounded-full active:scale-95 flex items-center justify-center
@@ -468,7 +495,7 @@ ${recState === 'recording' ? 'px-2 min-w-[66px] md:min-w-[72px] justify-start' :
                                     )}
                                 </button>
 
-                                {/* transcribing pill */}
+                                {/* transcribing pill (existing) */}
                                 {transcribing && (
                                     <span className="hidden md:inline-flex h-8 px-3 rounded-full text-[12px] items-center gap-2" style={chipStyle}>
                                         <svg width="14" height="14" viewBox="0 0 24 24" className="animate-spin opacity-80" fill="none" stroke="currentColor" strokeWidth="2">
@@ -478,7 +505,7 @@ ${recState === 'recording' ? 'px-2 min-w-[66px] md:min-w-[72px] justify-start' :
                                     </span>
                                 )}
 
-                                {/* send / stop */}
+                                {/* send / stop (existing) */}
                                 <button
                                     type="button"
                                     onClick={onSendClick}
@@ -500,6 +527,7 @@ ${recState === 'recording' ? 'px-2 min-w-[66px] md:min-w-[72px] justify-start' :
                                     )}
                                 </button>
                             </div>
+
                         </div>
                     </div>
                 </div>
@@ -528,10 +556,10 @@ ${recState === 'recording' ? 'px-2 min-w-[66px] md:min-w-[72px] justify-start' :
                             title="Close full composer"
                             style={{ color: 'var(--btn-fg)' }}
                         >
-                            {/* "><" icon (chevrons facing each other) */}
+                            {/* "><" icon */}
                             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
-                                <path d="M10 7l-5 5 5 5" /> {/* < */}
-                                <path d="M14 7l5 5-5 5" /> {/* > */}
+                                <path d="M10 7l-5 5 5 5" />
+                                <path d="M14 7l5 5-5 5" />
                             </svg>
                         </button>
                         <div className="absolute inset-0 p-3 pt-12 flex flex-col">
@@ -681,6 +709,7 @@ ${recState === 'recording' ? 'px-2 min-w-[66px] md:min-w-[72px] justify-start' :
                 </div>,
                 document.body
             )}
+
             <style jsx>{`
 .composer-shell,
 .composer-shell:focus,
@@ -700,6 +729,30 @@ pointer-events: none;
 box-shadow: inset 0 0 0 0 transparent;
 }
 `}</style>
+
+            {/* Voice quick picker (male/female or full catalog by plan) */}
+            <VoiceQuickPicker
+                open={openPicker}
+                onClose={() => setOpenPicker(false)}
+                plan={plan}
+                onPick={(v) => {
+                    setPickedVoice(v);
+                    setOpenPicker(false);
+                    setOpenCall(true);
+                }}
+            />
+            {/* Pro/Max full catalog picker */}
+           
+
+            {/* Fullscreen voice modal */}
+            <VoiceCallModal
+                open={openCall}
+                onClose={() => { setOpenCall(false); setPickedVoice(null); }}
+                voice={pickedVoice}
+                plan={plan}
+                displayName={effectiveDisplayName}
+            />
+
         </>
     );
 }
