@@ -688,6 +688,7 @@ export default function VoiceCallModal({
                         />
                     </div>
 
+\
                     {/* Status */}
                     <div className="text-white/90 text-sm">
                         {status === 'connecting' && 'Connecting…'}
