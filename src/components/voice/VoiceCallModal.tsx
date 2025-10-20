@@ -4,28 +4,21 @@ import * as React from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import VoiceCatalogPicker from './VoiceCatalogPicker';
 
-
-// --- Whisper language normalizer (2-letter codes only) ---
+/* ----------------------------- Whisper normalize ----------------------------- */
 const WHISPER_LANGS = new Set([
     'af', 'ar', 'az', 'be', 'bg', 'bs', 'ca', 'cs', 'cy', 'da', 'de', 'el', 'en', 'es', 'et', 'fa', 'fi', 'fr', 'gl', 'he', 'hi', 'hr', 'hu', 'hy', 'id', 'is', 'it', 'iw',
     'ja', 'kk', 'kn', 'ko', 'lt', 'lv', 'mi', 'mk', 'mr', 'ms', 'ne', 'nl', 'no', 'pl', 'pt', 'ro', 'ru', 'sk', 'sl', 'sr', 'sv', 'sw', 'ta', 'th', 'tl', 'tr', 'uk', 'ur', 'vi', 'zh'
 ]);
-
 function normalizeWhisperLanguage(lang?: string): string | undefined {
     if (!lang) return undefined;
-    const lower = lang.toLowerCase(); // e.g. 'en-us'
-    const base = lower.split(/[-_]/)[0]; // -> 'en'
-    // common aliases to collapse to base codes
+    const lower = lang.toLowerCase(); // e.g. en-us
+    const base = lower.split(/[-_]/)[0]; // -> en
     const ALIAS: Record<string, string> = {
-        'pt-br': 'pt', 'pt_pt': 'pt',
-        'zh-cn': 'zh', 'zh-tw': 'zh',
-        'he-il': 'he', 'iw-il': 'he',
-        'jw': 'jv' // (kept for completeness; not in list)
+        'pt-br': 'pt', 'pt_pt': 'pt', 'zh-cn': 'zh', 'zh-tw': 'zh', 'he-il': 'he', 'iw-il': 'he', 'jw': 'jv'
     };
     const cand = ALIAS[lower] ?? ALIAS[base] ?? base;
     return WHISPER_LANGS.has(cand) ? cand : undefined; // undefined => let Whisper auto-detect
 }
-
 
 /* ----------------------------- Voice Mapping ----------------------------- */
 const OPENAI_VOICES = new Set([
@@ -80,6 +73,7 @@ function pickLanguageFromProfile(p?: ProfileRow | null) {
     if (typeof navigator !== 'undefined' && navigator.language) return navigator.language;
 }
 
+/* ----------------------------- Your Base Behavior ----------------------------- */
 const BASE_BEHAVIOR_INSTRUCTIONS = `
 You are 6IXAI, a warm, emotionally intelligent real-time voice companion.
 
@@ -110,9 +104,11 @@ Voice & delivery:
 - Speak gently (not overly loud), with natural cadence and subtle intonation.
 `;
 
+/* -------------------------------- Component ------------------------------ */
 export default function VoiceCallModal({
     open, onClose, voice, plan, displayName: fallbackName = 'there',
 }: { open: boolean; onClose: () => void; voice: VoiceRow | null; plan: Plan; displayName?: string; }) {
+
     const supabase = createClientComponentClient();
 
     const [status, setStatus] = React.useState<'idle' | 'connecting' | 'live' | 'reconnecting' | 'ending' | 'error'>('idle');
@@ -130,8 +126,9 @@ export default function VoiceCallModal({
     const [localeHint, setLocaleHint] = React.useState<string | undefined>();
 
     // visuals
-    const [assistantSpeaking, setAssistantSpeaking] = React.useState(false); // orb glow (assistant audio)
-    const waveCanvasRef = React.useRef<HTMLCanvasElement | null>(null); // horizontal wave (user mic)
+    const [assistantSpeaking, setAssistantSpeaking] = React.useState(false);
+    const [assistantLevel, setAssistantLevel] = React.useState(0); // 0..1 for glow intensity
+    const waveCanvasRef = React.useRef<HTMLCanvasElement | null>(null);
 
     // WebRTC & audio
     const pcRef = React.useRef<RTCPeerConnection | null>(null);
@@ -159,7 +156,6 @@ export default function VoiceCallModal({
 
     // stability
     const iceRestartsRef = React.useRef(0);
-    const lastStableRef = React.useRef(0);
 
     /* ------------------------- profile personalization ---------------------- */
     React.useEffect(() => {
@@ -212,6 +208,7 @@ export default function VoiceCallModal({
         remoteAnalyserRef.current = null;
         remoteBufRef.current = new Uint8Array(0);
         setAssistantSpeaking(false);
+        setAssistantLevel(0);
     }, []);
 
     // Full analyser cleanup (used on teardown)
@@ -336,8 +333,11 @@ export default function VoiceCallModal({
 
         let sum = 0;
         for (let i = 0; i < view.length; i++) { const v = (view[i] - 128) / 128; sum += v * v; }
-        const rms = Math.sqrt(sum / view.length);
-        setAssistantSpeaking(rms > 0.03);
+        const rms = Math.sqrt(sum / view.length); // ~0..0.5
+        // smooth → "ring wave" feel
+        const level = Math.min(1, Math.max(0, (rms - 0.01) / 0.12)); // map to 0..1
+        setAssistantLevel(prev => prev * 0.85 + level * 0.15);
+        setAssistantSpeaking(level > 0.02);
 
         rafRef.current = requestAnimationFrame(monitorAssistantAudio);
     }, []);
@@ -361,11 +361,10 @@ export default function VoiceCallModal({
         setErr(undefined);
         if (!isReconnect) setStatus('connecting');
 
-        // mic (typed, guaranteed non-null)
+        // mic
         let mic: MediaStream;
-        const existing = localStreamRef.current;
-        if (existing) {
-            mic = existing;
+        if (localStreamRef.current) {
+            mic = localStreamRef.current;
         } else {
             const md = (navigator as any).mediaDevices as MediaDevices | undefined;
             if (!md?.getUserMedia) throw new Error('Microphone not available. Use HTTPS and allow mic.');
@@ -383,8 +382,7 @@ export default function VoiceCallModal({
             } catch { }
         }
 
-
-        // token with personalization
+        // get token (& servers)
         const rt = await fetch('/api/voice/rt-token', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -396,14 +394,17 @@ export default function VoiceCallModal({
             credentials: 'include',
             cache: 'no-store',
         });
-        const { client_secret, error } = await rt.json();
+        const { client_secret, iceServers, error } = await rt.json();
         if (error) throw new Error(error);
         const token: string | undefined = typeof client_secret === 'string' ? client_secret : client_secret?.value;
         if (!token) throw new Error('Missing realtime token');
 
-        // fresh peer
+        // fresh peer with returned ICE (TURN recommended)
         try { pcRef.current?.close(); } catch { }
-        const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+        const servers: RTCIceServer[] = Array.isArray(iceServers) && iceServers.length
+            ? iceServers
+            : [{ urls: 'stun:stun.l.google.com:19302' }];
+        const pc = new RTCPeerConnection({ iceServers: servers });
         pcRef.current = pc;
 
         const markReconnectingSoon = () => {
@@ -411,7 +412,16 @@ export default function VoiceCallModal({
                 reconnectIndicatorTimerRef.current = window.setTimeout(() => {
                     if (pcRef.current && pcRef.current.connectionState !== 'connected') setStatus('reconnecting');
                     reconnectIndicatorTimerRef.current = null;
-                }, 2500);
+                }, 2000);
+            }
+        };
+
+        const preferRelayIfFlappy = () => {
+            if (!pcRef.current) return;
+            if (iceRestartsRef.current >= 2) {
+                const cfg = (pcRef.current as any).getConfiguration?.() ?? {};
+                (pcRef.current as any).setConfiguration?.({ ...cfg, iceTransportPolicy: 'relay' as RTCIceTransportPolicy });
+                try { pcRef.current.restartIce(); } catch { }
             }
         };
 
@@ -421,16 +431,13 @@ export default function VoiceCallModal({
                 clear.reconnectIndicator();
                 setStatus('live');
                 iceRestartsRef.current = 0;
-                lastStableRef.current = Date.now();
                 return;
             }
             if (s === 'disconnected') {
                 markReconnectingSoon();
-                if (iceRestartsRef.current < 3) {
-                    iceRestartsRef.current += 1;
-                    try { pc.restartIce(); } catch { }
-                    return;
-                }
+                iceRestartsRef.current += 1;
+                preferRelayIfFlappy();
+                try { pc.restartIce(); } catch { }
             }
             if (s === 'failed' || s === 'closed') {
                 if (!reconnectTimerRef.current) {
@@ -473,7 +480,7 @@ export default function VoiceCallModal({
                 audioEl.play().finally(() => { audioEl.muted = false; });
             });
 
-            // remote analyser (assistant glow)
+            // remote analyser (assistant ring)
             stopRemoteAnalyser();
             try {
                 const RCtx = (window.AudioContext || (window as any).webkitAudioContext) as typeof AudioContext;
@@ -498,14 +505,10 @@ export default function VoiceCallModal({
 
             const mappedVoice = mapToOpenAIVoice(voice?.tts_voice_key);
             const whisperLang = normalizeWhisperLanguage(langHint);
-
             const sessionPatch: any = {
                 ...(mappedVoice ? { voice: mappedVoice } : {}),
                 turn_detection: { type: 'server_vad', silence_duration_ms: 1800 },
-                // Only send language if it's a valid 2-letter Whisper code; otherwise let it auto-detect
-                input_audio_transcription: whisperLang
-                    ? { model: 'whisper-1', language: whisperLang }
-                    : { model: 'whisper-1' },
+                input_audio_transcription: whisperLang ? { model: 'whisper-1', language: whisperLang } : { model: 'whisper-1' },
                 instructions:
                     BASE_BEHAVIOR_INSTRUCTIONS +
                     `\nAddress the user as ${nameHint}. Use their name naturally from time to time.` +
@@ -516,10 +519,7 @@ export default function VoiceCallModal({
 
             if (!greetedOnceRef.current) {
                 greetedOnceRef.current = true;
-                dcSend(dc, {
-                    type: 'response.create',
-                    response: { instructions: `Hi ${nameHint}! I’m here with you. Tell me what you need and I’ll listen.` }
-                });
+                dcSend(dc, { type: 'response.create', response: { instructions: `Hi ${nameHint}! I’m here with you. Tell me what you need and I’ll listen.` } });
             }
         };
 
@@ -612,6 +612,10 @@ export default function VoiceCallModal({
     };
 
     /* ---------------------------------- UI ---------------------------------- */
+    // compute assistant ring based on level (0..1)
+    const ringSpread = 10 + 70 * assistantLevel; // px
+    const ringOpacity = 0.12 + 0.25 * assistantLevel;
+
     return (
         <>
             <div className="fixed inset-0 z-[90]" role="dialog" aria-modal="true" style={{ background: '#000' }}>
@@ -627,24 +631,29 @@ export default function VoiceCallModal({
                     </svg>
                 </button>
 
-                {/* Centered orb + user wave BELOW the orb with ample gap */}
+                {/* Center area: orb + big gap + user wave BELOW */}
                 <div className="h-full w-full flex flex-col items-center justify-center pt-20 gap-12">
-                    {/* Orb (assistant speaking) */}
+                    {/* Orb (assistant speaking ring) */}
                     <div className="relative w-[260px] h-[260px]">
+                        {/* ring/glow that “waves” with audio level */}
                         <div
-                            className={`absolute inset-0 rounded-full transition-shadow duration-150 ${assistantSpeaking ? 'shadow-[0_0_40px_10px_rgba(255,255,255,0.25)]' : 'shadow-none'}`}
+                            className="absolute inset-0 rounded-full transition-[box-shadow] duration-120"
                             style={{
                                 background: 'transparent',
                                 border: '1px solid rgba(255,255,255,0.20)',
-                                boxShadow: 'inset 0 0 25px rgba(255,255,255,0.08), inset 0 0 1px rgba(255,255,255,0.5), 0 0 1px rgba(255,255,255,0.25)',
+                                boxShadow:
+                                    `inset 0 0 25px rgba(255,255,255,0.08),
+inset 0 0 1px rgba(255,255,255,0.5),
+0 0 ${Math.round(ringSpread)}px rgba(255,255,255,${ringOpacity})`,
                             }}
                         />
+                        {/* label */}
                         <div className="absolute inset-0 grid place-items-center">
                             <div className="text-white/90 text-xl font-semibold tracking-widest">6IXAI</div>
                         </div>
                     </div>
 
-                    {/* User live wave */}
+                    {/* User live horizontal wave */}
                     <div className="w-[min(90vw,560px)]">
                         <canvas
                             ref={waveCanvasRef}
