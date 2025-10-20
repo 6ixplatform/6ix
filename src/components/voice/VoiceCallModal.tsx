@@ -4,6 +4,29 @@ import * as React from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import VoiceCatalogPicker from './VoiceCatalogPicker';
 
+
+// --- Whisper language normalizer (2-letter codes only) ---
+const WHISPER_LANGS = new Set([
+    'af', 'ar', 'az', 'be', 'bg', 'bs', 'ca', 'cs', 'cy', 'da', 'de', 'el', 'en', 'es', 'et', 'fa', 'fi', 'fr', 'gl', 'he', 'hi', 'hr', 'hu', 'hy', 'id', 'is', 'it', 'iw',
+    'ja', 'kk', 'kn', 'ko', 'lt', 'lv', 'mi', 'mk', 'mr', 'ms', 'ne', 'nl', 'no', 'pl', 'pt', 'ro', 'ru', 'sk', 'sl', 'sr', 'sv', 'sw', 'ta', 'th', 'tl', 'tr', 'uk', 'ur', 'vi', 'zh'
+]);
+
+function normalizeWhisperLanguage(lang?: string): string | undefined {
+    if (!lang) return undefined;
+    const lower = lang.toLowerCase(); // e.g. 'en-us'
+    const base = lower.split(/[-_]/)[0]; // -> 'en'
+    // common aliases to collapse to base codes
+    const ALIAS: Record<string, string> = {
+        'pt-br': 'pt', 'pt_pt': 'pt',
+        'zh-cn': 'zh', 'zh-tw': 'zh',
+        'he-il': 'he', 'iw-il': 'he',
+        'jw': 'jv' // (kept for completeness; not in list)
+    };
+    const cand = ALIAS[lower] ?? ALIAS[base] ?? base;
+    return WHISPER_LANGS.has(cand) ? cand : undefined; // undefined => let Whisper auto-detect
+}
+
+
 /* ----------------------------- Voice Mapping ----------------------------- */
 const OPENAI_VOICES = new Set([
     'alloy', 'ash', 'ballad', 'coral', 'echo', 'sage', 'shimmer', 'verse', 'marin', 'cedar'
@@ -474,10 +497,15 @@ export default function VoiceCallModal({
             pingTimerRef.current = window.setInterval(() => dcSend(dc, { type: 'ping', ts: Date.now() }), 15000);
 
             const mappedVoice = mapToOpenAIVoice(voice?.tts_voice_key);
+            const whisperLang = normalizeWhisperLanguage(langHint);
+
             const sessionPatch: any = {
                 ...(mappedVoice ? { voice: mappedVoice } : {}),
                 turn_detection: { type: 'server_vad', silence_duration_ms: 1800 },
-                input_audio_transcription: langHint ? { model: 'whisper-1', language: langHint } : { model: 'whisper-1' },
+                // Only send language if it's a valid 2-letter Whisper code; otherwise let it auto-detect
+                input_audio_transcription: whisperLang
+                    ? { model: 'whisper-1', language: whisperLang }
+                    : { model: 'whisper-1' },
                 instructions:
                     BASE_BEHAVIOR_INSTRUCTIONS +
                     `\nAddress the user as ${nameHint}. Use their name naturally from time to time.` +
