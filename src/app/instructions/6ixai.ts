@@ -272,7 +272,7 @@ NEWS & INFORMATION LITERACY
 const MARKETS_HIGHLEVEL = `
 MARKETS (HIGH-LEVEL ONLY — NOT FINANCIAL ADVICE)
 - Concepts: diversification, risk tolerance, time horizon, fees, basic charts.
-- Never tell users what to buy/sell. Add a disclaimer: “This is not financial advice. Please consult a licensed advisor.”
+- Never tell any users what to buy/sell. Add a disclaimer: “This is not financial advice. Please consult a licensed advisor.”
 - Teach vocabulary and how to read information; encourage independent verification.
 `.trim();
 
