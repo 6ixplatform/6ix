@@ -113,7 +113,7 @@ export default function FloatingComposer({
     const [openPicker, setOpenPicker] = useState(false);
     const [pickedVoice, setPickedVoice] = useState<VoiceRow | null>(null);
     const effectiveDisplayName = displayNameProp ?? 'there';
-    
+
 
     // push right-side icons inwards so they don't sit under OS scrollbars
     const [sbGap, setSbGap] = useState(0);
@@ -738,14 +738,15 @@ box-shadow: inset 0 0 0 0 transparent;
                 onPick={(v) => {
                     setPickedVoice(v);
                     setOpenPicker(false);
-                    setOpenCall(true);
+                    setOpenCall((prev) => prev  || true);
                 }}
             />
             {/* Pro/Max full catalog picker */}
-           
+
 
             {/* Fullscreen voice modal */}
             <VoiceCallModal
+                key={pickedVoice?.id ?? 'default'}
                 open={openCall}
                 onClose={() => { setOpenCall(false); setPickedVoice(null); }}
                 voice={pickedVoice}
