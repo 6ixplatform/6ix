@@ -741,9 +741,7 @@ box-shadow: inset 0 0 0 0 transparent;
                     setOpenCall((prev) => prev  || true);
                 }}
             />
-            {/* Pro/Max full catalog picker */}
-
-
+           
             {/* Fullscreen voice modal */}
             <VoiceCallModal
                 key={pickedVoice?.id ?? 'default'}
