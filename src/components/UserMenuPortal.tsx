@@ -1,4 +1,3 @@
-// src/components/UserMenuPortal.tsx
 'use client';
 
 import React, { useLayoutEffect, useRef, useState, MutableRefObject } from 'react';
@@ -7,17 +6,16 @@ import type { Plan } from '@/lib/planRules';
 import ThemeMenu from './ThemeMenu';
 import { useRouter } from 'next/navigation';
 
-// ---- Theme menu vertical nudge (stored so you can tweak without rebuilding)
-const THEME_MENU_Y_KEY = '6ix:themeMenuY'; // negative = up, positive = down
-const DEFAULT_THEME_MENU_Y = -28; // ⬆️ push up 28px by default
+// ---- Theme menu vertical nudge
+const THEME_MENU_Y_KEY = '6ix:themeMenuY';
+const DEFAULT_THEME_MENU_Y = -28;
 function readThemeMenuY(): number {
     try { return parseInt(localStorage.getItem(THEME_MENU_Y_KEY) || String(DEFAULT_THEME_MENU_Y), 10); }
     catch { return DEFAULT_THEME_MENU_Y; }
 }
-/** Call anywhere to push the mini theme menu up by `px` (use positive numbers). */
 export function pushThemeMiniMenuUp(px: number) {
     try {
-        const v = -Math.abs(px); // store as negative (up)
+        const v = -Math.abs(px);
         localStorage.setItem(THEME_MENU_Y_KEY, String(v));
         window.dispatchEvent(new Event('six:themeMenuY-change'));
     } catch { }
@@ -33,21 +31,13 @@ const AVATAR_FALLBACK =
 <rect x="18" y="50" width="44" height="16" rx="8" fill="#ffffff" opacity="0.85"/>
 </svg>`);
 
-// SMALL inline badge — renders before the display name
+// SMALL inline badge
 function VerifiedBadgeInline({ verified }: { verified?: boolean | null }) {
     if (!verified) return null;
     return (
-        <svg
-            aria-label="Verified"
-            viewBox="0 0 24 24"
-            width="14"
-            height="14"
+        <svg aria-label="Verified" viewBox="0 0 24 24" width="14" height="14"
             className="inline-block align-[2px] mr-[6px] shrink-0"
-            fill="#1DA1F2"
-            stroke="#fff"
-            strokeWidth="2"
-            style={{ borderRadius: 999 }}
-        >
+            fill="#1DA1F2" stroke="#fff" strokeWidth="2" style={{ borderRadius: 999 }}>
             <circle cx="12" cy="12" r="10" />
             <path d="M7 12l3 3 7-7" />
         </svg>
@@ -74,13 +64,10 @@ type ProfileMini = {
     avatarUrl?: string | null;
     wallet?: number | null;
     credits?: number | null;
-    /** NEW: whether the user is verified */
     verified?: boolean | null;
 };
 
 type ThemeMode = 'system' | 'light' | 'dark';
-
-// tiny helper so this file can control the same theme as the page
 function useMiniTheme() {
     const read = (): ThemeMode => {
         try { return (localStorage.getItem('6ix:theme') as ThemeMode) || 'system'; } catch { return 'system'; }
@@ -101,6 +88,8 @@ function useMiniTheme() {
     return { theme, setTheme };
 }
 
+const CASHOUT_USD_MIN = 1000;
+
 export default function UserMenuPortal({
     open,
     anchorRef,
@@ -113,7 +102,7 @@ export default function UserMenuPortal({
     onSignout,
     onHistory,
     onChangePhoto,
-    onApplyVerification, // NEW (optional)
+    onApplyVerification,
     savingAvatar,
 }: {
     open: boolean;
@@ -127,18 +116,15 @@ export default function UserMenuPortal({
     onSignout: () => void;
     onHistory: () => void;
     onChangePhoto: () => void;
-    /** Optional: handler for "Apply for verification" (defaults to /verify) */
     onApplyVerification?: () => void;
     savingAvatar?: boolean;
 }) {
     const router = useRouter();
     const [pos, setPos] = useState<{ top: number; left: number; width: number }>({ top: 0, left: 0, width: 240 });
 
-    // local avatar seed so the image appears instantly
     const [mini, setMini] = React.useState<{ avatarUrl?: string | null } | null>(null);
     React.useEffect(() => { try { setMini(JSON.parse(localStorage.getItem('6ixai:profile') || 'null')); } catch { } }, []);
 
-    // THEME menu state
     const { theme, setTheme } = useMiniTheme();
     const [themeOpen, setThemeOpen] = useState(false);
     const themeBtnRef = useRef<HTMLButtonElement | null>(null);
@@ -151,10 +137,9 @@ export default function UserMenuPortal({
 
         const recalc = () => {
             const r = el.getBoundingClientRect();
-            const isMobile = window.innerWidth < 640; // sm breakpoint
+            const isMobile = window.innerWidth < 640;
             const W = Math.min(260, window.innerWidth - 16);
 
-            // ✅ Desktop: right-align; ✅ Mobile: open under avatar (left)
             const left = isMobile
                 ? Math.max(8, r.left)
                 : Math.min(Math.max(8, r.right - W), window.innerWidth - W - 8);
@@ -177,7 +162,6 @@ export default function UserMenuPortal({
         (profile.displayName || profile.username || (profile.email?.split('@')[0] ?? '')).trim() || '—';
     const avatarSrc = (profile.avatarUrl?.trim() || mini?.avatarUrl || AVATAR_FALLBACK) as string;
 
-    // ---- CTA label/handler logic
     const isPremiumPlan = plan === 'pro' || plan === 'max';
     const isVerified = !!profile.verified;
     const ctaLabel = !isPremiumPlan
@@ -186,12 +170,10 @@ export default function UserMenuPortal({
 
     const ctaDisabled = isPremiumPlan && isVerified;
     const ctaOnClick = () => {
-        if (!isPremiumPlan) {
-            onPremium(); onClose(); return;
-        }
-        if (isVerified) return; // disabled already
+        if (!isPremiumPlan) { onPremium(); onClose(); return; }
+        if (isVerified) return;
         if (onApplyVerification) { onApplyVerification(); onClose(); return; }
-        router.push('/verify'); onClose(); // default route
+        router.push('/verify'); onClose();
     };
 
     const ThemeMiniMenu = () => {
@@ -201,18 +183,15 @@ export default function UserMenuPortal({
         const anchorEl = isMobile ? anchorRef.current : themeBtnRef.current;
         const rect = anchorEl?.getBoundingClientRect();
 
-        // listen to external nudges
         const [yOff, setYOff] = React.useState<number>(readThemeMenuY());
         React.useEffect(() => {
             const on = () => setYOff(readThemeMenuY());
             window.addEventListener('six:themeMenuY-change', on);
-            return () => window.removeEventListener('six:themeMenuY-change', on);
+            return () => window.removeEventListener('六:themeMenuY-change' as any, on);
         }, []);
 
-        // ⬆️ push it up by yOff (negative by default)
         const GAP = 8;
         const top = Math.max(8, (rect?.bottom ?? pos.top) + GAP + yOff);
-
         const left = isMobile
             ? Math.max(8, Math.round((window.innerWidth - width) / 2))
             : Math.min(
@@ -250,6 +229,10 @@ export default function UserMenuPortal({
         );
     };
 
+    const walletNow = Number(profile.wallet ?? 0);
+    const creditsNow = Number(profile.credits ?? 0);
+    const canCashOut = isPremiumPlan && walletNow >= CASHOUT_USD_MIN;
+
     return createPortal(
         <>
             <div className="fixed inset-0 z-[90]" onClick={onClose} />
@@ -278,11 +261,25 @@ export default function UserMenuPortal({
                             <VerifiedBadgeInline verified={Boolean(profile?.verified)} />
                             {name}
                         </div>
-                        <div className="sub block md:hidden">
-                            <span className="text-[12px] opacity-80">
-                                Wallet ${Number(profile.wallet ?? 0).toLocaleString()} · Coins {Number(profile.credits ?? 0).toLocaleString()}
-                            </span>
-                        </div>
+
+                        {/* MOBILE: wallet/coins only for Pro/Max */}
+                        {(plan === 'pro' || plan === 'max') && (
+                            <div className="sub block md:hidden">
+                                <span className="text-[12px] opacity-80">
+                                    Wallet ${walletNow.toLocaleString('en-US')} · Coins {creditsNow.toLocaleString('en-US')}
+                                </span>
+                                {canCashOut && (
+                                    <button
+                                        type="button"
+                                        onClick={() => { router.push('/cashout'); onClose(); }}
+                                        className="ml-2 inline-flex items-center h-5 px-2 rounded-full bg-white text-black text-[10px] font-semibold"
+                                        title="Request payout"
+                                    >
+                                        Cash out
+                                    </button>
+                                )}
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -313,42 +310,18 @@ export default function UserMenuPortal({
                         </button>
                     </li>
 
-                    {/* Premium / Verification CTA (auto-switch by plan + verified) */}
                     {/* Premium / Verify CTA */}
                     <li>
-                        {(() => {
-                            const isVerified = !!profile?.verified;
-                            const canApply = (plan === 'pro' || plan === 'max') && !isVerified;
-                            const btnText = isVerified
-                                ? 'Verified ✓'
-                                : canApply
-                                    ? 'Apply for verification'
-                                    : 'Get Premium + Verified';
-
-                            const handleClick = () => {
-                                if (isVerified) return; // nothing to do
-                                if (canApply) { // Pro/Max but not verified
-                                    router.push('/verify');
-                                    onClose();
-                                } else { // Free → go to premium flow
-                                    onPremium();
-                                    onClose();
-                                }
-                            };
-
-                            return (
-                                <button
-                                    type="button"
-                                    role="menuitem"
-                                    className={`sheet-item ${isVerified ? 'opacity-60 cursor-default' : ''}`}
-                                    onClick={handleClick}
-                                    disabled={isVerified}
-                                    aria-disabled={isVerified}
-                                >
-                                    {btnText}
-                                </button>
-                            );
-                        })()}
+                        <button
+                            type="button"
+                            role="menuitem"
+                            className={`sheet-item ${ctaDisabled ? 'opacity-60 cursor-default' : ''}`}
+                            onClick={ctaOnClick}
+                            disabled={ctaDisabled}
+                            aria-disabled={ctaDisabled}
+                        >
+                            {ctaLabel}
+                        </button>
                     </li>
 
                     {/* History */}

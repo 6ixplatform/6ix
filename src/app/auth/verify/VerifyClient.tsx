@@ -566,7 +566,7 @@ function VerifyCard({
     const inputsDisabled = verifying;
 
     return (
-        <div className="verify-card sr-ring sr-20relative w-[min(92vw,40rem)] p-5 sm:p-6">
+        <div className="verify-card sr-ring sr-20 relative w-[min(92vw,40rem)] p-5 sm:p-6">
             <div className="mb-4 relative z-10">
                 <div className="text-lg sm:text-xl font-semibold">Enter code</div>
             </div>

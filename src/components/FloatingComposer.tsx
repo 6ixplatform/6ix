@@ -1,38 +1,63 @@
-// FloatingComposer.tsx (plan-synchronized)
+// src/components/FloatingComposer.tsx
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import VoiceQuickPicker, { VoiceRow } from './voice/VoiceQuickPicker';
 import VoiceCallModal from './voice/VoiceCallModal';
-import STTLimitToast from './STTLimitToast'; // ⬅️ toast
-import { useLivePlan } from '@/lib/useLivePlan'; // ← PLAN SYNC
+import STTLimitToast from './STTLimitToast';
+import { useLivePlan } from '@/lib/useLivePlan';
 
 /* ----- Types ----- */
 type Plan = 'free' | 'pro' | 'max';
+
 type Attachment = {
-    id: string; name: string; mime: string; size: number;
+    id: string;
+    name: string;
+    mime: string;
+    size: number;
     kind: 'image' | 'video' | 'audio' | 'pdf' | 'doc' | 'sheet' | 'text' | 'other';
-    previewUrl?: string; remoteUrl?: string | null;
+    previewUrl?: string;
+    remoteUrl?: string | null;
     status?: 'pending' | 'uploading' | 'ready' | 'error';
 };
+
 type Props = {
-    input: string; setInput: (s: string) => void;
-    attachments: Attachment[]; onRemoveAttachment: (id: string) => void;
-    onOpenFiles: () => void; onFilesChosen: (files: FileList) => void;
+    input: string;
+    setInput: (s: string) => void;
+
+    attachments: Attachment[];
+    onRemoveAttachment: (id: string) => void;
+    onOpenFiles: () => void; // (kept for back-compat; we still trigger file input internally)
+    onFilesChosen: (files: FileList) => void;
+
     compRef: React.RefObject<HTMLDivElement | null>;
     fileInputRef: React.RefObject<HTMLInputElement | null>;
     textRef: React.RefObject<HTMLTextAreaElement | null>;
     pickerOpenRef: React.MutableRefObject<boolean>;
     focusLockRef: React.MutableRefObject<boolean>;
-    streaming: boolean; transcribing: boolean; isBusy: boolean; hasPendingUpload: boolean;
-    busyLabel?: string; phase?: 'uploading' | 'analyzing' | 'ready'; tickerMessages?: string[];
+
+    streaming: boolean;
+    transcribing: boolean;
+    isBusy: boolean;
+    hasPendingUpload: boolean;
+    busyLabel?: string;
+    phase?: 'uploading' | 'analyzing' | 'ready';
+    tickerMessages?: string[];
+
     recState: 'idle' | 'recording';
     startRecording: () => void;
-    stopRecording: () => void; // call this to finish capture; see STT helper below
-    send: () => void; handleStop: () => void;
-    /** kept optional for backward compatibility; we’ll prefer effective plan */
-    plan?: Plan; hints?: string[]; hintTick?: number;
+    stopRecording: () => void; // finish capture
+
+    send: () => void;
+    handleStop: () => void;
+
+    /** Optional prop; will fall back to plan from useLivePlan() */
+    plan?: Plan;
+    hints?: string[];
+    hintTick?: number;
+
+    /** Used by VoiceCallModal to greet user */
     displayName?: string;
 };
 
@@ -54,7 +79,7 @@ function MicWave({ active, level }: { active: boolean; level: number }) {
     );
 }
 
-// Theme-aware Stop icon (uses currentColor so it contrasts in light/dark)
+// Theme-aware square "Stop" icon (currentColor for light/dark)
 function StopIcon({ size = 16 }: { size?: number }) {
     return (
         <svg viewBox="0 0 24 24" width={size} height={size} role="img" aria-label="Stop">
@@ -76,33 +101,32 @@ export default function FloatingComposer(props: Props) {
 
     // ---- PLAN SYNC: single source of truth ----
     const { effPlan } = useLivePlan();
-    const plan = (planProp ?? effPlan) as Plan; // ⬅️ use this everywhere
+    const plan = (planProp ?? effPlan) as Plan;
 
-    // Toast state (shown when server says free quota is exhausted)
+    // Toast state (shown when /api/stt says free quota exhausted)
     const [showSttToast, setShowSttToast] = useState(false);
     const [sttResetAt, setSttResetAt] = useState<string | undefined>(undefined);
 
-    // If you do STT upload here, call this helper with your audio File:
+    // If you perform STT here, call this helper with the recorded File.
     const postStt = async (file: File): Promise<string | null> => {
         const fd = new FormData();
         fd.append('file', file);
         const res = await fetch('/api/stt', {
             method: 'POST',
-            headers: { 'x-plan': plan }, // ⬅️ PLAN WIRE
+            headers: { 'x-plan': plan },
             body: fd,
         });
         if (res.status === 429) {
             const { resetAt } = await res.json().catch(() => ({}));
             setSttResetAt(resetAt);
-            setShowSttToast(true); // ⬅️ open toast
+            setShowSttToast(true);
             return null;
         }
         if (!res.ok) throw new Error('stt_failed');
         const { text } = await res.json();
         return text ?? '';
     };
-    // NOTE: Trigger `postStt(file)` from your recording pipeline right after you call `stopRecording()`
-    // and have the recorded File/Blob available.
+    // NOTE: call postStt(file) from your recording pipeline after stopRecording().
 
     const [composerMax, setComposerMax] = useState(false);
     useEffect(() => {
@@ -115,6 +139,7 @@ export default function FloatingComposer(props: Props) {
     const isSendingOrBusy = streaming || transcribing || hasPendingUpload || isBusy;
     const canSend = input.trim().length > 0 && !isSendingOrBusy;
 
+    // shape + expand button logic
     const [isMultiline, setIsMultiline] = useState(false);
     const [showExpandBtn, setShowExpandBtn] = useState(false);
 
@@ -124,6 +149,7 @@ export default function FloatingComposer(props: Props) {
     const [pickedVoice, setPickedVoice] = useState<VoiceRow | null>(null);
     const effectiveDisplayName = displayNameProp ?? 'there';
 
+    // push right-side icons inwards so they don't sit under OS scrollbars
     const [sbGap, setSbGap] = useState(0);
     useEffect(() => {
         const calc = () => setSbGap(Math.max(0, window.innerWidth - document.documentElement.clientWidth));
@@ -198,8 +224,12 @@ export default function FloatingComposer(props: Props) {
         }
     };
 
+    /* Theme-adaptive chip */
     const chipStyle: React.CSSProperties = {
-        background: 'var(--btn-bg)', color: 'var(--btn-fg)', border: 'none', boxShadow: '0 0 0 0 transparent'
+        background: 'var(--btn-bg)',
+        color: 'var(--btn-fg)',
+        border: 'none',
+        boxShadow: '0 0 0 0 transparent'
     };
 
     // ── VU meter ──
@@ -269,18 +299,70 @@ export default function FloatingComposer(props: Props) {
                 style={{ bottom: `calc(env(safe-area-inset-bottom, 0px) + 12px)` }}
             >
                 {/* attachments row */}
-                {/* ...unchanged... */}
+                {attachments.length > 0 && (
+                    <div className="pointer-events-auto mb-2 flex flex-wrap gap-2">
+                        {attachments.map(a => (
+                            <div
+                                key={a.id}
+                                className="relative overflow-hidden rounded-xl h-20 w-20 grid place-items-center"
+                                style={{ background: 'var(--surface-1)', border: '1px solid var(--th-border)', color: 'var(--th-text)' }}
+                            >
+                                {/* preview / type */}
+                                {a.previewUrl ? (
+                                    a.kind === 'image' ? (
+                                        <img src={a.previewUrl} className="h-full w-full object-cover" alt="" />
+                                    ) : a.kind === 'video' ? (
+                                        <video src={a.previewUrl} className="h-full w-full object-cover" muted />
+                                    ) : (
+                                        <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'var(--badge-bg)', color: 'var(--th-text)' }}>
+                                            {a.kind.toUpperCase()}
+                                        </span>
+                                    )
+                                ) : (
+                                    <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'var(--badge-bg)', color: 'var(--th-text)' }}>
+                                        FILE
+                                    </span>
+                                )}
+
+                                {/* spinner while ingest/analyze */}
+                                {a.status !== 'ready' && (
+                                    <div className="absolute inset-0 grid place-items-center" style={{ color: 'var(--th-text)' }}>
+                                        <svg viewBox="0 0 24 24" width="18" height="18" className="animate-spin opacity-90" fill="none" stroke="currentColor" strokeWidth="2">
+                                            <circle cx="12" cy="12" r="9" opacity=".2" />
+                                            <path d="M21 12a9 9 0 0 1-9 9" />
+                                        </svg>
+                                    </div>
+                                )}
+
+                                {/* remove */}
+                                <button
+                                    type="button"
+                                    onClick={() => onRemoveAttachment(a.id)}
+                                    className="absolute top-1.5 right-1.5 h-6 w-6 rounded-full grid place-items-center"
+                                    title="Remove"
+                                    aria-label="Remove"
+                                    style={{ background: 'var(--th-text)', color: 'var(--th-bg)' }}
+                                >
+                                    <svg viewBox="0 0 24 24" width="13" height="13">
+                                        <path d="M6 6L18 18M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                                    </svg>
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                )}
 
                 {/* hidden file input */}
                 <input
                     ref={fileInputRef}
                     type="file"
-                    multiple hidden
-                    accept={plan === 'free' ? 'image/*' : undefined} // ← PLAN SYNC
+                    multiple
+                    hidden
+                    accept={plan === 'free' ? 'image/*' : undefined}
                     onChange={(e) => {
                         const files = e.currentTarget.files;
                         if (!files || !files.length) return;
-                        const cap = plan === 'free' ? 6 : plan === 'pro' ? 9 : 20; // ← PLAN SYNC
+                        const cap = plan === 'free' ? 6 : plan === 'pro' ? 9 : 20;
                         if (files.length + attachments.length > cap) {
                             alert(`You can attach up to ${cap} ${plan === 'free' ? 'images' : 'files'} for your plan.`);
                             e.currentTarget.value = '';
@@ -295,12 +377,24 @@ export default function FloatingComposer(props: Props) {
 
                 {/* row: + outside on mobile, inside on desktop */}
                 <div className="flex items-end gap-2 md:gap-3 pointer-events-auto">
-                    {/* ...add-files button (mobile)... */}
+                    {/* + BEFORE composer (mobile only) */}
+                    <button
+                        type="button"
+                        className="md:hidden h-9 w-9 rounded-full grid place-items-center active:scale-95"
+                        title="Add files"
+                        aria-label="Add files"
+                        onClick={openFiles}
+                        style={chipStyle}
+                    >
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M12 5v14M5 12h14" />
+                        </svg>
+                    </button>
 
                     {/* COMPOSER SHELL */}
                     <div
                         className={`composer-shell pointer-events-auto relative flex-1 w-full
-${input.trim().length ? 'rounded-2xl md:rounded-3xl' : 'rounded-[9999px] md:rounded-3xl'}
+${isMultiline || input.trim().length ? 'rounded-2xl md:rounded-3xl' : 'rounded-[9999px] md:rounded-3xl'}
 min-h-[40px] overflow-hidden ring-0 border-0 shadow-none`}
                         style={{
                             background: 'var(--surface-1, rgba(17,17,17,.50))',
@@ -310,18 +404,78 @@ min-h-[40px] overflow-hidden ring-0 border-0 shadow-none`}
                             WebkitMaskImage: '-webkit-radial-gradient(white, black)'
                         }}
                     >
-                        {/* Expand button ... */}
+                        {/* Expand (<>), only when 4+ lines */}
+                        {showExpandBtn && (
+                            <button
+                                type="button"
+                                onClick={() => setComposerMax(true)}
+                                className="absolute top-1.5 right-1.5 h-7 w-7 rounded-md grid place-items-center"
+                                aria-label="Open full composer"
+                                title="Open full composer"
+                                style={{ color: 'var(--btn-fg)', right: 6 + sbGap }}
+                            >
+                                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M9 7l-5 5 5 5" />
+                                    <path d="M15 7l5 5-5 5" />
+                                </svg>
+                            </button>
+                        )}
 
                         <div className="block px-1 py-1">
-                            {/* + inside (desktop) ... */}
+                            {/* + INSIDE (desktop only) */}
+                            <button
+                                type="button"
+                                className="hidden md:grid absolute left-1.5 bottom-1.5 h-8 w-8 rounded-full place-items-center active:scale-95"
+                                title="Add files"
+                                aria-label="Add files"
+                                onClick={openFiles}
+                                style={chipStyle}
+                            >
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M12 5v14M5 12h14" />
+                                </svg>
+                            </button>
 
                             {/* textarea */}
-                            {/* ...unchanged textarea block... */}
+                            <textarea
+                                ref={textRef}
+                                value={input}
+                                onChange={(e) => setInput(e.target.value)}
+                                placeholder="Message 6IX AI"
+                                rows={1}
+                                className="block w-full bg-transparent appearance-none border-0 ring-0 outline-none focus:outline-none focus:ring-0 text-[15px] md:text-[16px] leading-[20px] pl-[12px] md:pl-[52px] pr-[112px] md:pr-[132px] py-[10px] resize-none shadow-none"
+                                onFocus={() => { focusLockRef.current = true; }}
+                                onBlur={() => {
+                                    if (!pickerOpenRef.current && focusLockRef.current) {
+                                        requestAnimationFrame(() => textRef.current?.focus({ preventScroll: true }));
+                                    }
+                                }}
+                                onInput={(e) => {
+                                    const el = e.currentTarget;
+                                    const maxH = Math.min(window.innerHeight * 0.35, 220);
+                                    el.style.height = 'auto';
+                                    el.style.height = Math.min(maxH, el.scrollHeight) + 'px';
+                                }}
+                                onKeyDown={onTextareaKeyDown}
+                                aria-keyshortcuts="Enter Tab"
+                                style={{ color: 'var(--th-text)' }}
+                            />
 
                             {/* right controls */}
                             <div className="absolute right-1.5 bottom-1.5 flex items-center gap-1" style={{ right: 6 + sbGap }}>
-                                {/* Start voice call */}
-                                {/* ...unchanged... */}
+                                {/* CALL (picker first; then modal) */}
+                                <button
+                                    type="button"
+                                    className="h-6 w-6 md:h-8 md:w-8 rounded-full grid place-items-center active:scale-95"
+                                    title="Start voice call"
+                                    aria-label="Start voice call"
+                                    onClick={() => setOpenPicker(true)}
+                                    style={chipStyle}
+                                >
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.08 4.18 2 2 0 0 1 4.06 2h3a2 2 0 0 1 2 1.72c.12.89.31 1.76.57 2.6a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.48-1.09a2 2 0 0 1 2.11-.45c.84.26 1.71.45 2.6.57A2 2 0 0 1 22 16.92z" />
+                                    </svg>
+                                </button>
 
                                 {/* mic (record / arm) */}
                                 <button
@@ -349,7 +503,7 @@ ${recState === 'recording' ? 'px-2 min-w-[66px] md:min-w-[72px] justify-start' :
                                     )}
                                 </button>
 
-                                {/* explicit STOP while recording (light/dark adaptive) */}
+                                {/* explicit STOP while recording */}
                                 {recState === 'recording' && (
                                     <button
                                         type="button"
@@ -381,10 +535,7 @@ ${recState === 'recording' ? 'px-2 min-w-[66px] md:min-w-[72px] justify-start' :
                                     aria-label={streaming ? 'Stop' : 'Send'}
                                     title={streaming ? 'Stop' : 'Send (Enter)'}
                                     className={`h-7 w-7 md:h-8 md:w-8 rounded-full grid place-items-center active:scale-95 transition ${(!canSend && !streaming) ? 'opacity-60' : ''}`}
-                                    style={streaming
-                                        ? { ...chipStyle, background: 'var(--danger-bg)', color: 'var(--danger-fg)' }
-                                        : chipStyle}
-
+                                    style={chipStyle}
                                 >
                                     {streaming ? (
                                         <StopIcon />
@@ -401,16 +552,199 @@ ${recState === 'recording' ? 'px-2 min-w-[66px] md:min-w-[72px] justify-start' :
                 </div>
             </div>
 
-            {/* Fullscreen modal editor ... unchanged except send button now uses StopIcon when streaming */}
+            {/* Fullscreen modal editor */}
+            {composerMax && createPortal(
+                <div
+                    role="dialog"
+                    aria-modal="true"
+                    className="fixed inset-0 z-[70] backdrop-blur-sm grid place-items-center"
+                    style={{ background: 'var(--overlay-bg)' }}
+                    onClick={closeMax}
+                >
+                    <div
+                        className="relative w-[min(1100px,96vw)] h-[72vh] md:h-[78vh] rounded-2xl bg-transparent p-3"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* minimize */}
+                        <button
+                            type="button"
+                            onClick={() => setComposerMax(false)}
+                            className="absolute top-2 right-2 h-8 w-8 rounded-md grid place-items-center"
+                            aria-label="Close full composer"
+                            title="Close full composer"
+                            style={{ color: 'var(--btn-fg)' }}
+                        >
+                            {/* "><" icon */}
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M10 7l-5 5 5 5" />
+                                <path d="M14 7l5 5-5 5" />
+                            </svg>
+                        </button>
+
+                        <div className="absolute inset-0 p-3 pt-12 flex flex-col">
+                            <div className="flex-1 relative">
+                                <textarea
+                                    ref={textRef}
+                                    value={input}
+                                    onChange={(e) => setInput(e.target.value)}
+                                    placeholder="Message 6IX AI"
+                                    className="absolute inset-0 w-full h-full bg-transparent outline-none text-[16px] leading-[1.4] rounded-xl p-4 pr-[132px] resize-none"
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter' && !e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey && !isIMEComposing(e)) {
+                                            e.preventDefault();
+                                            onSendClick();
+                                            return;
+                                        }
+                                        if (e.key === 'Tab') {
+                                            e.preventDefault();
+                                            const el = e.currentTarget;
+                                            const { selectionStart, selectionEnd, value } = el;
+                                            const next = value.slice(0, selectionStart) + '\n' + value.slice(selectionEnd);
+                                            setInput(next);
+                                            requestAnimationFrame(() => { try { el.selectionStart = el.selectionEnd = (selectionStart ?? 0) + 1; } catch { } });
+                                        }
+                                    }}
+                                    aria-keyshortcuts="Enter Tab"
+                                    style={{ color: 'var(--th-text)' }}
+                                />
+
+                                <div className="absolute right-3 bottom-3 flex items-center gap-2">
+                                    {/* mic in modal */}
+                                    <button
+                                        type="button"
+                                        className={`h-9 rounded-full active:scale-95 flex items-center gap-2 px-2 ${recState === 'recording' ? 'min-w-[80px]' : 'w-9 justify-center'}`}
+                                        title={recState === 'recording' ? 'Stop recording' : 'Record voice'}
+                                        aria-label="Record voice"
+                                        onClick={recState === 'recording' ? stopRecording : startRecording}
+                                        disabled={transcribing}
+                                        style={chipStyle}
+                                    >
+                                        {recState === 'recording' ? (
+                                            <>
+                                                <span className="inline-block h-[10px] w-[10px] rounded-full" style={{ background: '#ef4444' }} />
+                                                <MicWave active level={vu} />
+                                            </>
+                                        ) : (
+                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                <path d="M12 1a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V4a3 3 0 0 1 3-3z" />
+                                                <path d="M19 10a7 7 0 0 1-14 0" />
+                                                <path d="M12 19v4" />
+                                                <path d="M8 23h8" />
+                                            </svg>
+                                        )}
+                                    </button>
+
+                                    {/* transcribing pill */}
+                                    {transcribing && (
+                                        <span className="h-9 px-3 rounded-full text-[12px] inline-flex items-center gap-2" style={chipStyle}>
+                                            <svg width="14" height="14" viewBox="0 0 24 24" className="animate-spin opacity-80" fill="none" stroke="currentColor" strokeWidth="2">
+                                                <path d="M12 2a10 10 0 1 1-7.07 2.93" />
+                                            </svg>
+                                            Transcribing…
+                                        </span>
+                                    )}
+
+                                    {/* send / stop */}
+                                    <button
+                                        type="button"
+                                        onClick={() => (streaming ? handleStop() : send())}
+                                        className={`h-9 w-9 rounded-full grid place-items-center active:scale-95 ${input.trim().length ? '' : 'opacity-60'}`}
+                                        aria-label={streaming ? 'Stop' : 'Send'}
+                                        title={streaming ? 'Stop' : 'Send (Enter)'}
+                                        aria-keyshortcuts="Enter"
+                                        disabled={!input.trim().length && !streaming}
+                                        style={chipStyle}
+                                    >
+                                        {streaming ? (
+                                            <StopIcon size={20} />
+                                        ) : (
+                                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
+                                                <path d="M12 19V5" strokeLinecap="round" />
+                                                <path d="M7 10l5-5 5 5" strokeLinecap="round" strokeLinejoin="round" />
+                                            </svg>
+                                        )}
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* modal footer */}
+                            <div className="mt-3 flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    className="h-9 w-9 rounded-full grid place-items-center active:scale-95"
+                                    title="Add files"
+                                    aria-label="Add files"
+                                    onClick={openFiles}
+                                    style={chipStyle}
+                                >
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <path d="M12 5v14M5 12h14" />
+                                    </svg>
+                                </button>
+
+                                {attachments.length > 0 && (
+                                    <div className="flex flex-wrap gap-2">
+                                        {attachments.map(a => (
+                                            <div key={a.id} className="relative h-16 w-16 rounded-lg overflow-hidden grid place-items-center"
+                                                style={{ background: 'var(--surface-1)', border: '1px solid var(--th-border)', color: 'var(--th-text)' }}>
+                                                {a.previewUrl ? (
+                                                    a.kind === 'image' ? (
+                                                        <img src={a.previewUrl} className="h-full w-full object-cover" alt="" />
+                                                    ) : a.kind === 'video' ? (
+                                                        <video src={a.previewUrl} className="h-full w-full object-cover" muted />
+                                                    ) : (
+                                                        <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'var(--badge-bg)', color: 'var(--th-text)' }}>
+                                                            {a.kind.toUpperCase()}
+                                                        </span>
+                                                    )
+                                                ) : (
+                                                    <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'var(--badge-bg)', color: 'var(--th-text)' }}>
+                                                        FILE
+                                                    </span>
+                                                )}
+
+                                                <button
+                                                    type="button"
+                                                    onClick={() => onRemoveAttachment(a.id)}
+                                                    className="absolute top-1 right-1 h-5 w-5 rounded-full grid place-items-center"
+                                                    title="Remove"
+                                                    aria-label="Remove"
+                                                    style={{ background: 'var(--th-text)', color: 'var(--th-bg)' }}
+                                                >
+                                                    <svg viewBox="0 0 24 24" width="11" height="11">
+                                                        <path d="M6 6L18 18M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                                                    </svg>
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )}
 
             <style jsx>{`
 .composer-shell,
 .composer-shell:focus,
-.composer-shell:focus-within { border:0 !important; outline:none !important; box-shadow:none !important; }
-.composer-shell::after { content:''; position:absolute; inset:0; border-radius:inherit; pointer-events:none; box-shadow: inset 0 0 0 0 transparent; }
+.composer-shell:focus-within {
+border: 0 !important;
+outline: none !important;
+box-shadow: none !important;
+}
+.composer-shell::after {
+content: '';
+position: absolute;
+inset: 0;
+border-radius: inherit;
+pointer-events: none;
+box-shadow: inset 0 0 0 0 transparent;
+}
 `}</style>
 
-            {/* Voice quick picker */}
+            {/* Voice quick picker (male/female or catalog by plan) */}
             <VoiceQuickPicker
                 open={openPicker}
                 onClose={() => setOpenPicker(false)}
@@ -428,7 +762,7 @@ ${recState === 'recording' ? 'px-2 min-w-[66px] md:min-w-[72px] justify-start' :
                 displayName={effectiveDisplayName}
             />
 
-            {/* ---- STT free-plan toast (mount once here) ---- */}
+            {/* STT free-plan limit toast */}
             <STTLimitToast
                 open={showSttToast}
                 resetAt={sttResetAt}

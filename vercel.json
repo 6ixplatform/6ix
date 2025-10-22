@@ -2,10 +2,7 @@
     "crons": [
         {
             "path": "/api/billing/cron/expiry",
-            "schedule": "0 9 * * *",
-            "headers": {
-                "x-cron-secret": "@CRON_SECRET"
-            }
+            "schedule": "0 9 * * *"
         }
     ]
 }

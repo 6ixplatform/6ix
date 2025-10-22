@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic'; // avoid caching
 
 type ProfileRow = {
     id: string;
@@ -17,25 +18,49 @@ type ProfileRow = {
 };
 
 function asISO(d: Date) { return d.toISOString(); }
+function escapeHtml(s: string) {
+    return s
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+// Optional GET sanity check
+export async function GET() {
+    return NextResponse.json({ ok: true, hint: 'POST with x-cron-secret or ?secret=...', env: 'prod' });
+}
 
 export async function POST(req: Request) {
-    // ---- Auth (cron) ----
+    // ── Auth (cron) ──────────────────────────────────────────────────────────────
     const CRON_SECRET = process.env.CRON_SECRET || '';
-    if (!CRON_SECRET || req.headers.get('x-cron-secret') !== CRON_SECRET) {
-        return NextResponse.json({ ok: false, error: 'unauthorized' }, { status: 401 });
+    const url = new URL(req.url);
+    const headerSecret = req.headers.get('x-cron-secret') || ''; // manual or custom caller
+    const querySecret = url.searchParams.get('secret') || ''; // ?secret=... (handy if you self-call)
+    const isVercelCron = req.headers.get('x-vercel-cron') === '1';
+
+    if (CRON_SECRET) {
+        const ok = headerSecret === CRON_SECRET || querySecret === CRON_SECRET;
+        if (!ok) return NextResponse.json({ ok: false, error: 'unauthorized' }, { status: 401 });
+    } else {
+        // No secret configured → only allow scheduled invocations from Vercel Cron
+        if (!isVercelCron) return NextResponse.json({ ok: false, error: 'unauthorized' }, { status: 401 });
     }
 
-    // ---- Env (server-only) ----
-    const SUPA_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+    // ── Env (server-only) ────────────────────────────────────────────────────────
+    const SUPA_URL =
+        process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
     const SUPA_SVC =
         process.env.SUPABASE_SERVICE_ROLE_KEY ||
-        process.env.SUPABASE_SERVICE_ROLE; // legacy fallback
+        process.env.SUPABASE_SERVICE_ROLE || '';
 
     if (!SUPA_URL || !SUPA_SVC) {
         return NextResponse.json({ ok: false, error: 'supabase_config_missing' }, { status: 500 });
     }
 
-    const SITE = (process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL || '').replace(/\/+$/, '') || 'https://6ixapp.com';
+    const SITE =
+        (process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL || '').replace(/\/+$/, '') ||
+        'https://6ixapp.com';
     const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
     const FROM = process.env.RESEND_FROM || process.env.SUPPORT_FROM || '6IX AI <noreply@6ixapp.com>';
 
@@ -46,7 +71,7 @@ export async function POST(req: Request) {
 
     const now = new Date();
     const warnCutoff = new Date(now.getTime() + WARN_DAYS * 24 * 3600 * 1000);
-    const warnRearm = new Date(now.getTime() - 24 * 3600 * 1000); // at most once per 24h
+    const warnRearm = new Date(now.getTime() - 24 * 3600 * 1000); // once per 24h
     const expireCutoff = new Date(now.getTime() - GRACE_DAYS * 24 * 3600 * 1000);
 
     // =========================
@@ -54,7 +79,7 @@ export async function POST(req: Request) {
     // =========================
     let warnRows: ProfileRow[] = [];
     try {
-        // Prefer RPC if you have one (returns same columns as below)
+        // Prefer RPC if present (same columns)
         const { data, error } = await supa.rpc('get_expiring_profiles', {
             warn_before: asISO(warnCutoff),
             warn_after: asISO(now),
@@ -64,11 +89,9 @@ export async function POST(req: Request) {
         warnRows = (data || []) as ProfileRow[];
     } catch {
         // Fallback inline query
-        const { data, error } = await supa
+        const { data } = await supa
             .from('profiles')
-            .select(
-                'id, email, display_name, first_name, last_name, plan, plan_status, plan_expires_at, plan_expiry_warning_sent_at'
-            )
+            .select('id, email, display_name, first_name, last_name, plan, plan_status, plan_expires_at, plan_expiry_warning_sent_at')
             .neq('plan', 'free')
             .in('plan_status', ['active', 'past_due'])
             .not('plan_expires_at', 'is', null)
@@ -76,13 +99,12 @@ export async function POST(req: Request) {
             .lte('plan_expires_at', asISO(warnCutoff))
             .or(`plan_expiry_warning_sent_at.is.null,plan_expiry_warning_sent_at.lt.${asISO(warnRearm)}`)
             .limit(1000);
-        if (!error && data) warnRows = data as ProfileRow[];
+        warnRows = (data || []) as ProfileRow[];
     }
 
     let warned = 0;
 
     if (warnRows.length) {
-        // Process in small batches to avoid bursts
         for (const r of warnRows) {
             const email = (r.email || '').toLowerCase();
             const name = (r.display_name || `${r.first_name || ''} ${r.last_name || ''}`.trim() || 'there').trim();
@@ -99,15 +121,14 @@ export async function POST(req: Request) {
                     body: `Your plan will expire on ${expDateStr}. Renew to keep premium features active.`,
                     url: '/premium',
                 });
-            } catch { /* ignore */ }
+            } catch { }
 
-            // Mark "warning sent" (idempotent gate)
+            // Mark "warning sent" (idempotent-ish gate)
             try {
-                await supa
-                    .from('profiles')
+                await supa.from('profiles')
                     .update({ plan_expiry_warning_sent_at: asISO(now) })
                     .eq('id', r.id);
-            } catch { /* ignore */ }
+            } catch { }
 
             // Email (optional)
             if (RESEND_API_KEY && email) {
@@ -135,7 +156,7 @@ export async function POST(req: Request) {
                         },
                         body: JSON.stringify({ from: FROM, to: [email], subject, html, text }),
                     });
-                } catch { /* ignore */ }
+                } catch { }
             }
 
             warned++;
@@ -145,7 +166,6 @@ export async function POST(req: Request) {
     // =========================
     // B) ENFORCE: downgrade expired + grace
     // =========================
-    // Find users still on paid plan where expiry < now - grace AND not already expired
     const { data: expRows, error: expErr } = await supa
         .from('profiles')
         .select('id, email, display_name, first_name, last_name, plan, plan_status, plan_expires_at')
@@ -164,23 +184,17 @@ export async function POST(req: Request) {
         try {
             const { error: updErr } = await supa
                 .from('profiles')
-                .update({
-                    plan: 'free',
-                    plan_status: 'expired',
-                    // keep plan_expires_at for audit; optionally set null:
-                    // plan_expires_at: null,
-                })
+                .update({ plan: 'free', plan_status: 'expired' })
                 .in('id', ids);
             if (updErr) throw updErr;
         } catch {
-            // if bulk fails, try one by one to salvage
+            // Fallback: best-effort one-by-one
             for (const r of expRows) {
                 try {
-                    await supa
-                        .from('profiles')
+                    await supa.from('profiles')
                         .update({ plan: 'free', plan_status: 'expired' })
                         .eq('id', r.id);
-                } catch { /* ignore single failure */ }
+                } catch { }
             }
         }
 
@@ -194,7 +208,7 @@ export async function POST(req: Request) {
                     body: 'Your subscription expired and your account has been moved to the Free plan. You can upgrade again anytime.',
                     url: '/premium',
                 });
-            } catch { /* ignore */ }
+            } catch { }
 
             if (RESEND_API_KEY && r.email) {
                 const name = (r.display_name || `${r.first_name || ''} ${r.last_name || ''}`.trim() || 'there').trim();
@@ -219,7 +233,7 @@ export async function POST(req: Request) {
                         headers: { Authorization: `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
                         body: JSON.stringify({ from: FROM, to: [r.email], subject, html, text }),
                     });
-                } catch { /* ignore */ }
+                } catch { }
             }
 
             downgraded++;
@@ -233,18 +247,4 @@ export async function POST(req: Request) {
         warn_window_days: WARN_DAYS,
         grace_days: GRACE_DAYS,
     });
-}
-
-// Optional GET to sanity-check the endpoint
-export async function GET() {
-    return NextResponse.json({ ok: true, hint: 'POST with x-cron-secret to run.', env: 'prod' });
-}
-
-/* ---------- helpers ---------- */
-function escapeHtml(s: string) {
-    return s
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
 }

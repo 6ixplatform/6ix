@@ -1,4 +1,3 @@
-// src/components/AppHeader.tsx
 'use client';
 
 import React from 'react';
@@ -12,6 +11,7 @@ import {
     type SpeedMode,
     coerceUiModelForPlan,
 } from '@/lib/planRules';
+import { usePathname, useRouter } from 'next/navigation';
 
 /* ────────────────────────────────────────────────────────────────────────── */
 
@@ -48,6 +48,8 @@ const SPEEDS_BY_PLAN: Record<Plan, SpeedMode[]> = {
     pro: ['auto', 'instant'],
     max: ['auto', 'thinking'],
 };
+
+const CASHOUT_USD_MIN = 1000; // tiny chip appears once wallet >= $1000
 
 type MiniSeed = {
     displayName?: string | null;
@@ -216,15 +218,19 @@ export default function AppHeader({
     scrollToBottom,
     avatarFallback = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==',
 }: Props) {
+    const pathname = usePathname();
+    const isGame = pathname?.startsWith('/game') ?? false;
+    const router = useRouter();
+
     const [mini, setMini] = React.useState<{ avatarUrl?: string | null; displayName?: string | null; email?: string | null; wallet?: number | null; credits?: number | null } | null>(null);
     React.useEffect(() => { try { setMini(JSON.parse(localStorage.getItem('6ixai:profile') || 'null')); } catch { } }, []);
-    // inside AppHeader
+
     React.useLayoutEffect(() => {
         const el = (headerRef as any)?.current as HTMLDivElement | null;
         if (!el) return;
         const h = Math.ceil(el.getBoundingClientRect().height);
         document.documentElement.style.setProperty('--header-h', `${h}px`);
-    }, [effPlan, model, speed]); // re-measure if pills change
+    }, [effPlan, model, speed]);
 
     const name =
         (profile?.displayName ||
@@ -249,14 +255,18 @@ export default function AppHeader({
         onSpeedChange?.(next);
     };
 
+    const canCashOut = (effPlan === 'pro' || effPlan === 'max') && walletNow >= CASHOUT_USD_MIN;
+    const goCashout = () => router.push('/cashout');
+    const goUpgrade = () => { (onUpsell ? onUpsell('pro') : router.push('/premium')); };
+
     return (
         <div
             ref={headerRef}
             className="app-header fixed inset-x-0 top-0 z-[120]"
             style={{
                 paddingTop: 'max(env(safe-area-inset-top), 8px)',
-                background: 'rgba(8,8,8,.72)', // blurred black
-                borderBottom: '1px solid rgba(255,255,255,.08)', // subtle divider
+                background: 'rgba(8,8,8,.72)',
+                borderBottom: '1px solid rgba(255,255,255,.08)',
                 boxShadow: '0 1px 0 rgba(0,0,0,.10) inset',
                 backdropFilter: 'blur(14px) saturate(120%)',
                 WebkitBackdropFilter: 'blur(14px) saturate(120%)',
@@ -305,9 +315,34 @@ export default function AppHeader({
                     </div>
 
                     <div className="flex items-center gap-2 shrink-0 ml-auto">
-                        <div className="text-[11px] opacity-80 whitespace-nowrap ml-1" suppressHydrationWarning>
-                            <>Wallet ${walletNow.toLocaleString('en-US')} · Coins {creditsNow.toLocaleString('en-US')}</>
-                        </div>
+                        {effPlan !== 'free' ? (
+                            <>
+                                <div className="text-[11px] opacity-80 whitespace-nowrap ml-1" suppressHydrationWarning>
+                                    <>Wallet ${walletNow.toLocaleString('en-US')} · Coins {creditsNow.toLocaleString('en-US')}</>
+                                </div>
+                                {canCashOut && (
+                                    <button
+                                        type="button"
+                                        onClick={goCashout}
+                                        className="h-6 px-3 rounded-full bg-white text-black text-[11px] font-semibold hover:opacity-90 active:scale-[.98]"
+                                        title="Request payout"
+                                    >
+                                        Cash out
+                                    </button>
+                                )}
+                            </>
+                        ) : (
+                            isGame && (
+                                <button
+                                    type="button"
+                                    onClick={goUpgrade}
+                                    className="h-7 px-3 rounded-full bg-white/10 border border-white/15 text-[12px] text-zinc-200 hover:bg-white/15"
+                                    title="Upgrade to earn & unlock wallet + coins"
+                                >
+                                    Upgrade to earn
+                                </button>
+                            )
+                        )}
                         <ThemeMenu />
                         <div className="text-sm opacity-90 truncate max-w-[180px]"><span title={name}>{name}</span></div>
                         <button
@@ -340,14 +375,13 @@ export default function AppHeader({
                 </div>
             </div>
 
-            {/* Seam guard: hides any top fade/black line from the chat list */}
+            {/* Seam guard */}
             <div
                 aria-hidden
                 className="absolute inset-x-0 -bottom-px h-0 pointer-events-none z-[1]"
                 style={{ background: 'linear-gradient(to bottom, var(--th-bg, #000) 0%, rgba(0,0,0,0) 100%)' }}
             />
 
-            {/* Hard overrides: ensure no legacy header styling leaks in */}
             <style jsx global>{`
 /* Always render the header as a blurred black bar */
 .app-header {
@@ -357,18 +391,13 @@ backdrop-filter: blur(14px) saturate(120%) !important;
 border-bottom: 1px solid rgba(255,255,255,.08) !important;
 box-shadow: 0 1px 0 rgba(0,0,0,.10) inset !important;
 }
-
-/* Fallback when backdrop-filter isn't supported */
 @supports not (backdrop-filter: blur(1px)) {
 .app-header { background: rgba(8,8,8,.88) !important; }
 }
-
-/* Slightly stronger on larger screens for contrast */
 @media (min-width: 768px) {
 .app-header { background: rgba(8,8,8,.78) !important; }
 }
 `}</style>
         </div>
     );
-
-};
+}

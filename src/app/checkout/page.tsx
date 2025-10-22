@@ -264,8 +264,8 @@ export default function CheckoutPage() {
             <style jsx global>{`
 .card-glow {
 background:
-radial-gradient(120px 120px at 20% 22%, rgba(0,255,255,.22), transparent 60%),
-radial-gradient(140px 140px at 82% 78%, rgba(255,0,180,.2), transparent 65%);
+radial-gradient(120px 120px at 20% 22%, rgba(0, 255, 255, 0), transparent 60%),
+radial-gradient(140px 140px at 82% 78%, rgba(255, 0, 179, 0), transparent 65%);
 filter: blur(18px);
 animation: glow-move 12s linear infinite;
 opacity: .7;

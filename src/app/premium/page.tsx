@@ -258,6 +258,7 @@ export default function PremiumPage() {
 
             {/* minimal styles for the animated glass cards */}
             <style jsx global>{`
+            
 .card-glass {
 overflow: hidden;
 }
@@ -266,10 +267,6 @@ position: absolute;
 inset: -2px;
 pointer-events: none;
 border-radius: 16px;
-background:
-radial-gradient(120px 120px at var(--glow-x, 20%) var(--glow-y, 20%), rgba(0,255,255,.20), transparent 60%),
-radial-gradient(140px 140px at calc(100% - var(--glow-x, 20%)) calc(100% - var(--glow-y, 20%)), rgba(255,0,180,.18), transparent 65%);
-filter: blur(18px);
 animation: glow-move 12s linear infinite;
 opacity: .7;
 }
