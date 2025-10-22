@@ -10,12 +10,10 @@ import { useRouter } from 'next/navigation';
 // ---- Theme menu vertical nudge (stored so you can tweak without rebuilding)
 const THEME_MENU_Y_KEY = '6ix:themeMenuY'; // negative = up, positive = down
 const DEFAULT_THEME_MENU_Y = -28; // ⬆️ push up 28px by default
-
 function readThemeMenuY(): number {
     try { return parseInt(localStorage.getItem(THEME_MENU_Y_KEY) || String(DEFAULT_THEME_MENU_Y), 10); }
     catch { return DEFAULT_THEME_MENU_Y; }
 }
-
 /** Call anywhere to push the mini theme menu up by `px` (use positive numbers). */
 export function pushThemeMiniMenuUp(px: number) {
     try {
@@ -35,9 +33,9 @@ const AVATAR_FALLBACK =
 <rect x="18" y="50" width="44" height="16" rx="8" fill="#ffffff" opacity="0.85"/>
 </svg>`);
 
-// SMALL inline badge — we’ll render this before the display name, not on the avatar
-function VerifiedBadgeInline({ plan }: { plan: Plan }) {
-    if (plan !== 'max') return null; // ✅ only ProMax gets the blue tick
+// SMALL inline badge — renders before the display name
+function VerifiedBadgeInline({ verified }: { verified?: boolean | null }) {
+    if (!verified) return null;
     return (
         <svg
             aria-label="Verified"
@@ -55,6 +53,7 @@ function VerifiedBadgeInline({ plan }: { plan: Plan }) {
         </svg>
     );
 }
+
 function useIsMobile(bp = 1024) {
     const [isMobile, set] = React.useState(false);
     React.useEffect(() => {
@@ -75,6 +74,8 @@ type ProfileMini = {
     avatarUrl?: string | null;
     wallet?: number | null;
     credits?: number | null;
+    /** NEW: whether the user is verified */
+    verified?: boolean | null;
 };
 
 type ThemeMode = 'system' | 'light' | 'dark';
@@ -88,17 +89,15 @@ function useMiniTheme() {
 
     const apply = (t: ThemeMode) => {
         try { localStorage.setItem('6ix:theme', t); } catch { }
-        // allow your page to react if it listens
         try { window.dispatchEvent(new CustomEvent('six:theme', { detail: { theme: t } })); } catch { }
-        // common fallback: set data-theme for CSS variables if you rely on it
-        const prefersDark = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const prefersDark = typeof window !== 'undefined'
+            && window.matchMedia
+            && window.matchMedia('(prefers-color-scheme: dark)').matches;
         const resolved = t === 'dark' || (t === 'system' && prefersDark) ? 'dark' : 'light';
         document.documentElement.setAttribute('data-theme', resolved);
     };
 
-    // apply once on mount and whenever it changes
     React.useEffect(() => { apply(theme); }, [theme]);
-
     return { theme, setTheme };
 }
 
@@ -114,6 +113,7 @@ export default function UserMenuPortal({
     onSignout,
     onHistory,
     onChangePhoto,
+    onApplyVerification, // NEW (optional)
     savingAvatar,
 }: {
     open: boolean;
@@ -127,6 +127,8 @@ export default function UserMenuPortal({
     onSignout: () => void;
     onHistory: () => void;
     onChangePhoto: () => void;
+    /** Optional: handler for "Apply for verification" (defaults to /verify) */
+    onApplyVerification?: () => void;
     savingAvatar?: boolean;
 }) {
     const router = useRouter();
@@ -142,7 +144,6 @@ export default function UserMenuPortal({
     const themeBtnRef = useRef<HTMLButtonElement | null>(null);
     const isMobile = useIsMobile();
 
-
     useLayoutEffect(() => {
         if (!open) return;
         const el = anchorRef.current;
@@ -153,7 +154,7 @@ export default function UserMenuPortal({
             const isMobile = window.innerWidth < 640; // sm breakpoint
             const W = Math.min(260, window.innerWidth - 16);
 
-            // ✅ Desktop: align to right edge; ✅ Mobile: open directly under avatar (left-aligned)
+            // ✅ Desktop: right-align; ✅ Mobile: open under avatar (left)
             const left = isMobile
                 ? Math.max(8, r.left)
                 : Math.min(Math.max(8, r.right - W), window.innerWidth - W - 8);
@@ -176,6 +177,23 @@ export default function UserMenuPortal({
         (profile.displayName || profile.username || (profile.email?.split('@')[0] ?? '')).trim() || '—';
     const avatarSrc = (profile.avatarUrl?.trim() || mini?.avatarUrl || AVATAR_FALLBACK) as string;
 
+    // ---- CTA label/handler logic
+    const isPremiumPlan = plan === 'pro' || plan === 'max';
+    const isVerified = !!profile.verified;
+    const ctaLabel = !isPremiumPlan
+        ? 'Get Premium + Verified'
+        : (isVerified ? 'Verified ✓' : 'Apply for verification');
+
+    const ctaDisabled = isPremiumPlan && isVerified;
+    const ctaOnClick = () => {
+        if (!isPremiumPlan) {
+            onPremium(); onClose(); return;
+        }
+        if (isVerified) return; // disabled already
+        if (onApplyVerification) { onApplyVerification(); onClose(); return; }
+        router.push('/verify'); onClose(); // default route
+    };
+
     const ThemeMiniMenu = () => {
         if (!themeOpen) return null;
 
@@ -193,13 +211,10 @@ export default function UserMenuPortal({
 
         // ⬆️ push it up by yOff (negative by default)
         const GAP = 8;
-        const top = Math.max(
-            8,
-            (rect?.bottom ?? pos.top) + GAP + yOff
-        );
+        const top = Math.max(8, (rect?.bottom ?? pos.top) + GAP + yOff);
 
         const left = isMobile
-            ? Math.max(8, Math.round((window.innerWidth - width) / 2)) // centered on mobile
+            ? Math.max(8, Math.round((window.innerWidth - width) / 2))
             : Math.min(
                 Math.max(8, (rect?.right ?? pos.left + width) - width),
                 window.innerWidth - width - 8
@@ -234,7 +249,7 @@ export default function UserMenuPortal({
             document.body
         );
     };
-    
+
     return createPortal(
         <>
             <div className="fixed inset-0 z-[90]" onClick={onClose} />
@@ -257,10 +272,10 @@ export default function UserMenuPortal({
                         />
                     </div>
 
-                    {/* name + numbers, tucked left toward avatar */}
+                    {/* name + numbers */}
                     <div className="who min-w-0">
                         <div className="name text-[14px] font-semibold truncate">
-                            <VerifiedBadgeInline plan={plan} />
+                            <VerifiedBadgeInline verified={Boolean(profile?.verified)} />
                             {name}
                         </div>
                         <div className="sub block md:hidden">
@@ -298,16 +313,42 @@ export default function UserMenuPortal({
                         </button>
                     </li>
 
-                    {/* Get Premium + Verified */}
+                    {/* Premium / Verification CTA (auto-switch by plan + verified) */}
+                    {/* Premium / Verify CTA */}
                     <li>
-                        <button
-                            type="button"
-                            role="menuitem"
-                            className="sheet-item"
-                            onClick={() => { onPremium(); onClose(); }}
-                        >
-                            Get Premium + Verified
-                        </button>
+                        {(() => {
+                            const isVerified = !!profile?.verified;
+                            const canApply = (plan === 'pro' || plan === 'max') && !isVerified;
+                            const btnText = isVerified
+                                ? 'Verified ✓'
+                                : canApply
+                                    ? 'Apply for verification'
+                                    : 'Get Premium + Verified';
+
+                            const handleClick = () => {
+                                if (isVerified) return; // nothing to do
+                                if (canApply) { // Pro/Max but not verified
+                                    router.push('/verify');
+                                    onClose();
+                                } else { // Free → go to premium flow
+                                    onPremium();
+                                    onClose();
+                                }
+                            };
+
+                            return (
+                                <button
+                                    type="button"
+                                    role="menuitem"
+                                    className={`sheet-item ${isVerified ? 'opacity-60 cursor-default' : ''}`}
+                                    onClick={handleClick}
+                                    disabled={isVerified}
+                                    aria-disabled={isVerified}
+                                >
+                                    {btnText}
+                                </button>
+                            );
+                        })()}
                     </li>
 
                     {/* History */}
@@ -370,10 +411,10 @@ export default function UserMenuPortal({
                         </button>
                     </li>
 
-                    {/* (Mobile-only) Theme stays where it was, not part of alpha sort */}
+                    {/* (Mobile-only) Theme menu */}
                     {isMobile && <ThemeMenu />}
 
-                    {/* Sign out (kept at bottom, destructive) */}
+                    {/* Sign out */}
                     <li>
                         <button
                             type="button"
@@ -385,7 +426,6 @@ export default function UserMenuPortal({
                         </button>
                     </li>
                 </ul>
-
             </div>
 
             {/* popover portal */}

@@ -13,7 +13,16 @@ type TablePreview = { name: string; markdown: string };
 type Safety = { pii?: string[]; warnings?: string[] } | null;
 
 const KB = (n: number) => Math.max(1, Math.round((n || 0) / 1024));
+
+// Per-plan caps/knobs (kept in sync with UI: free 6, pro 9, max 20)
+const FILE_CAP: Record<Plan, number> = { free: 6, pro: 9, max: 20 };
+const IMG_CAP: Record<Plan, number> = { free: 1, pro: 4, max: 8 };
 const SUMMARY_ROWS: Record<Plan, number> = { free: 3, pro: 6, max: 10 };
+const SUMMARIZE_SLICE: Record<Plan, number> = { free: 2000, pro: 6000, max: 14000 };
+
+// Model routing
+const VISION_MODEL: Record<Plan, string> = { free: 'gpt-4o-mini', pro: 'gpt-4o', max: 'gpt-4o' };
+const TEXT_MODEL: Record<Plan, string> = { free: 'gpt-4o-mini', pro: 'gpt-4o', max: 'gpt-4o' };
 
 function looksCSV(name: string, mime: string, text: string) {
     return /(^text\/csv$|csv$)/i.test(mime) || /\.csv$/i.test(name) ||
@@ -53,26 +62,35 @@ function scanPII(text: string): Safety {
 function buildVisionInstruction(userPrompt?: string) {
     const base =
         'Describe the upload clearly for a general audience. ' +
-        'If an image, narrate what is visible (objects, text via OCR, colors, style, setting, relationships). ' +
+        'If an image, narrate what is visible (objects, text via OCR, colors, setting, relationships). ' +
         'Avoid explicit sexual language; use neutral, clinical phrasing when necessary. ' +
         'Prefer 2–3 short paragraphs, then 3–6 concise bullets with key details or text you can read from the image.';
     return userPrompt?.trim() ? `${base}\n\nUser prompt: ${userPrompt.trim()}` : base;
 }
 
-async function describeImagesWithLLM(images: InFile[], plan: Plan, prompt?: string): Promise<{ text: string; error?: string }> {
+// Effective plan: header > body > free
+function effectivePlan(req: NextRequest, bodyPlan?: Plan): Plan {
+    const hdr = (req.headers.get('x-6ix-plan') || req.headers.get('x-plan') || '').toLowerCase();
+    if (hdr === 'free' || hdr === 'pro' || hdr === 'max') return hdr as Plan;
+    if (bodyPlan === 'free' || bodyPlan === 'pro' || bodyPlan === 'max') return bodyPlan;
+    return 'free';
+}
+
+async function describeImagesWithLLM(images: InFile[], plan: Plan, prompt?: string): Promise<{ text: string; error?: string; downgraded?: string[] }> {
     if (!process.env.OPENAI_API_KEY) return { text: '', error: 'missing_api_key' };
 
-    const maxImgs = plan === 'free' ? 1 : plan === 'pro' ? 4 : 8;
-    const batch = images.slice(0, maxImgs);
+    const cap = IMG_CAP[plan];
+    const downgraded: string[] = [];
+    const batch = images.slice(0, cap);
+    if (images.length > cap) downgraded.push(`images:${images.length}->${cap}`);
 
     try {
-        const content: any[] = [
-            { type: 'text', text: buildVisionInstruction(prompt) },
-            ...batch.map(img => ({ type: 'image_url', image_url: { url: img.url } })),
+        const content: any[] = [{ type: 'text', text: buildVisionInstruction(prompt) },
+        ...batch.map(img => ({ type: 'image_url', image_url: { url: img.url } })),
         ];
 
         const resp = await openai.chat.completions.create({
-            model: 'gpt-4o-mini',
+            model: VISION_MODEL[plan],
             messages: [
                 { role: 'system', content: 'You are a precise, safety-aware vision assistant.' },
                 { role: 'user', content },
@@ -81,18 +99,18 @@ async function describeImagesWithLLM(images: InFile[], plan: Plan, prompt?: stri
         });
 
         const text = resp.choices?.[0]?.message?.content?.trim() || '';
-        return { text };
+        return { text, downgraded };
     } catch (e: any) {
         console.error('VISION_FAIL', e?.response?.data || e);
-        return { text: '', error: e?.response?.data?.error?.message || e?.message || 'vision_failed' };
+        return { text: '', error: e?.response?.data?.error?.message || e?.message || 'vision_failed', downgraded };
     }
 }
 
 async function summarizeTextWithLLM(textBlock: string, plan: Plan, prompt?: string): Promise<{ text: string; error?: string }> {
     if (!process.env.OPENAI_API_KEY) return { text: '', error: 'missing_api_key' };
 
-    const targetLen = plan === 'free' ? 2000 : plan === 'pro' ? 6000 : 14000;
-    const text = textBlock.slice(0, targetLen);
+    const slice = SUMMARIZE_SLICE[plan];
+    const text = textBlock.slice(0, slice);
 
     try {
         const user =
@@ -102,7 +120,7 @@ async function summarizeTextWithLLM(textBlock: string, plan: Plan, prompt?: stri
             'If there are action items, list them. Keep it tight.\n\n' + text;
 
         const resp = await openai.chat.completions.create({
-            model: 'gpt-4o-mini',
+            model: TEXT_MODEL[plan],
             messages: [
                 { role: 'system', content: 'You are a clear, helpful summarizer.' },
                 { role: 'user', content: user },
@@ -120,16 +138,27 @@ async function summarizeTextWithLLM(textBlock: string, plan: Plan, prompt?: stri
 export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
-        const { files, prompt, plan = 'free', who } = body as {
+        const { files, prompt, plan: planInBody, who } = body as {
             files: InFile[];
             prompt?: string;
-            plan?: Plan;
+            plan?: Plan; // may be stale; we prefer header
             who?: string | null;
         };
 
         if (!files?.length) {
-            return NextResponse.json({ reply: '_No files received._', summary: '_No files received._', blank: true }, { status: 400 });
+            return NextResponse.json(
+                { reply: '_No files received._', summary: '_No files received._', blank: true },
+                { status: 400, headers: { 'Cache-Control': 'no-store' } }
+            );
         }
+
+        const plan = effectivePlan(req, planInBody);
+
+        // Enforce per-plan file cap (kept in sync with UI)
+        const cap = FILE_CAP[plan];
+        const trimmed = files.slice(0, cap);
+        const downgraded: string[] = [];
+        if (files.length > cap) downgraded.push(`files:${files.length}->${cap}`);
 
         const bullets: string[] = [];
         const textSnippets: string[] = [];
@@ -138,12 +167,12 @@ export async function POST(req: NextRequest) {
         const allTags = new Set<string>();
         let anyReadable = false;
 
-        const imageFiles = files.filter(f => /^image\//.test(f.mime));
-        const textLikeFiles = files.filter(f =>
+        const imageFiles = trimmed.filter(f => /^image\//.test(f.mime));
+        const textLikeFiles = trimmed.filter(f =>
             /^text\//.test(f.mime) || /\.(txt|md|csv|json|xml|srt|vtt)$/i.test(f.name)
         );
 
-        for (const f of files) {
+        for (const f of trimmed) {
             let extracted = '';
             try {
                 if (textLikeFiles.includes(f)) {
@@ -184,14 +213,15 @@ export async function POST(req: NextRequest) {
         const rows = bullets.slice(0, SUMMARY_ROWS[plan]).join('\n');
         const summary = header + `### File quick read\n${rows}`;
 
-        // LLM pass (optional but preferred)
+        // LLM pass
         let llmReply = '';
         let llmError: string | undefined;
 
         if (imageFiles.length) {
-            const { text, error } = await describeImagesWithLLM(imageFiles, plan, prompt);
-            llmReply = text;
-            llmError = error;
+            const res = await describeImagesWithLLM(imageFiles, plan, prompt);
+            llmReply = res.text;
+            llmError = res.error;
+            if (res.downgraded?.length) downgraded.push(...res.downgraded);
             if (llmReply) {
                 const first = (who || 'Friend').split(' ')[0];
                 llmReply += `\n\n_Tip: ${first}, tap the 🔊 on the image card to hear this aloud._`;
@@ -202,12 +232,12 @@ export async function POST(req: NextRequest) {
             llmError = error;
         }
 
-        const list = files.map(f => `${f.name} • ${f.kind || f.mime} • ~${KB(f.size || 0)} KB`).join('; ');
+        const list = trimmed.map(f => `${f.name} • ${f.kind || f.mime} • ~${KB(f.size || 0)} KB`).join('; ');
         const fallbackReply = blank
             ? (plan === 'free'
                 ? `I couldn’t read anything from the upload. You can still ask me about it or tap 🔊 to hear your next results.`
                 : `I couldn’t extract readable content. I can still generate a clean, editable version (PDF/Excel/Slides). What would you like?`)
-            : `I reviewed ${files.length} file${files.length > 1 ? 's' : ''}: ${list}.` +
+            : `I reviewed ${trimmed.length} file${trimmed.length > 1 ? 's' : ''}: ${list}.` +
             (prompt?.trim() ? `\n\nI’ll tailor the analysis to: “${prompt.trim()}”.` : '');
 
         const followups =
@@ -219,9 +249,9 @@ export async function POST(req: NextRequest) {
         if (plan !== 'free') {
             extras.tags = Array.from(allTags).slice(0, 10);
             extras.actions = [
-                ...(files.some(f => /^image\//.test(f.mime)) ? ['Describe the image', 'Generate alt text', 'Extract dominant colors'] : []),
-                ...(files.some(f => /^application\/pdf$/.test(f.mime)) ? ['Summarize the PDF', 'Pull out all headings'] : []),
-                ...(files.some(f => /^text\//.test(f.mime)) ? ['Turn this into a brief', 'Draft an email about this'] : []),
+                ...(trimmed.some(f => /^image\//.test(f.mime)) ? ['Describe the image', 'Generate alt text', 'Extract dominant colors'] : []),
+                ...(trimmed.some(f => /^application\/pdf$/.test(f.mime)) ? ['Summarize the PDF', 'Pull out all headings'] : []),
+                ...(trimmed.some(f => /^text\//.test(f.mime)) ? ['Turn this into a brief', 'Draft an email about this'] : []),
                 'Compare with last file',
                 'Turn into a slide',
             ];
@@ -231,14 +261,13 @@ export async function POST(req: NextRequest) {
             if (maybePII) extras.safety = maybePII;
         }
         if (llmError) extras.llm_error = llmError;
+        if (downgraded.length) extras.downgraded = downgraded;
+        extras.plan = plan;
 
-        return NextResponse.json({
-            reply: llmReply || fallbackReply,
-            summary,
-            blank,
-            followups,
-            ...extras,
-        });
+        return NextResponse.json(
+            { reply: llmReply || fallbackReply, summary, blank, followups, ...extras },
+            { headers: { 'Cache-Control': 'no-store' } }
+        );
     } catch (e: any) {
         console.error('ANALYZE_FAIL', e);
         return NextResponse.json({ error: 'analyze_failed', detail: e?.message || String(e) }, { status: 500 });

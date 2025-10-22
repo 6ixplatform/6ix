@@ -628,7 +628,7 @@ ${inputsDisabled ? 'opacity-60 cursor-not-allowed' : ''}`}
                 </span>
             </button>
 
-            <p className="mt-4 text-xs text-zinc-500 text-center relative z-10">
+            <p className="mt-4 text-xs text-zinc-500 text-white/10 text-center relative z-10">
                 Wrong email?{' '}
                 <Link href="/auth/signup" className="underline decoration-white/20 hover:decoration-white">
                     Go back

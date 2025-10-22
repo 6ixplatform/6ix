@@ -231,7 +231,7 @@ export function effectivePlanWithLocalGrace(
     if (!sub) return profilePlan;
 
     const now = opts.now ?? Date.now();
-    const graceDays = opts.graceDays ?? 2;
+    const graceDays = opts.graceDays ?? 6;
 
     if (sub.status === 'active' || sub.status === 'trialing') {
         clearLocalPastDueSince();

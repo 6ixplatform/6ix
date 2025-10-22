@@ -1,4 +1,3 @@
-// components/ImageMsg.tsx
 'use client';
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 
@@ -11,10 +10,16 @@ type ImageMsgProps = {
     displayName?: string | null;
     busy?: boolean; // describe/TTS is running
     plan: PlanTier;
+
     onOpen: () => void;
     onDescribe: () => void;
     onRecreate: (e: React.MouseEvent<HTMLButtonElement>) => void;
     onShare: () => void;
+
+    // NEW (optional plan gates + upgrade handler)
+    canDescribe?: boolean; // default: true
+    canRecreate?: boolean; // default: true
+    onUpgrade?: () => void; // default: opens /premium
 };
 
 /* -------- unified card sizing (smaller) -------- */
@@ -28,9 +33,7 @@ const Icon = {
         <svg viewBox="0 0 24 24" width="18" height="18"
             fill="none" stroke="currentColor" strokeWidth="1.8"
             strokeLinecap="round" strokeLinejoin="round">
-            {/* speaker body as outline (no fill) */}
             <path d="M11 5L6 9H4v6h2l5 4V5z" />
-            {/* sound waves */}
             <path d="M16 9a5 5 0 0 1 0 6" />
             <path d="M18 7a8 8 0 0 1 0 10" />
         </svg>
@@ -73,18 +76,24 @@ function subjectFromPrompt(prompt: string) {
 }
 
 export default function ImageMsg({
-    url, prompt, overlay, displayName, busy, plan, onOpen, onDescribe, onRecreate, onShare
+    url, prompt, overlay, displayName, busy, plan, onOpen, onDescribe, onRecreate, onShare,
+    canDescribe, canRecreate, onUpgrade
 }: ImageMsgProps) {
     const [status, setStatus] = useState<'idle' | 'pending' | 'ready' | 'error'>(() => (url ? 'pending' : 'idle'));
     const [displayUrl, setDisplayUrl] = useState<string | null>(null);
     const [imgLoaded, setImgLoaded] = useState(false);
-    // add near the other hooks
     const [canOpen, setCanOpen] = useState(false);
+
+    // NEW: effective gates + upgrade action (safe defaults)
+    const canDescribeEff = (typeof canDescribe === 'boolean') ? canDescribe : true;
+    const canRecreateEff = (typeof canRecreate === 'boolean') ? canRecreate : true;
+    const doUpgrade = onUpgrade ?? (() => window.open('/premium', '_blank', 'noopener,noreferrer'));
 
     // desktop (pointer: fine + hover) can open; mobile (coarse) cannot
     useEffect(() => {
-        const finePointer = typeof window !== 'undefined'
-            && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+        const finePointer =
+            typeof window !== 'undefined' &&
+            window.matchMedia('(hover: hover) and (pointer: fine)').matches;
         setCanOpen(finePointer);
     }, []);
 
@@ -99,7 +108,12 @@ export default function ImageMsg({
     const captions = useMemo(() => {
         if (overlay) return [overlay];
         const subj = subjectFromPrompt(prompt) || 'your idea';
-        const base = [`Composing scene & layout`, `Refining textures & lighting`, `Finalizing details`, `Generating image of ${subj}`];
+        const base = [
+            `Composing scene & layout`,
+            `Refining textures & lighting`,
+            `Finalizing details`,
+            `Generating image of ${subj}`,
+        ];
         if (first && Math.random() < 0.7) base.splice(1, 0, `Working on it, ${first}…`);
         return base;
     }, [overlay, prompt, first]);
@@ -107,7 +121,7 @@ export default function ImageMsg({
     const [tick, setTick] = useState(0);
     useEffect(() => {
         if (status === 'ready') return;
-        const t = setInterval(() => setTick(v => (v + 1) % captions.length), 3000);
+        const t = setInterval(() => setTick((v) => (v + 1) % captions.length), 3000);
         return () => clearInterval(t);
     }, [status, captions.length]);
 
@@ -125,7 +139,7 @@ export default function ImageMsg({
             setDisplayUrl(url);
             setStatus('ready');
             setTimeout(() => setImgLoaded(true), 20);
-            setIsRecreating(false); // new image arrived → no longer recreating
+            setIsRecreating(false);
         };
         img.onerror = () => { if (!canceled) setStatus('error'); };
         img.src = url;
@@ -133,7 +147,6 @@ export default function ImageMsg({
     }, [url]);
 
     const handleRecreate = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
-        // immediately return to skeleton state and hide actions
         setIsRecreating(true);
         setImgLoaded(false);
         setDisplayUrl(null);
@@ -158,13 +171,13 @@ export default function ImageMsg({
                 </div>
             )}
 
-            {/* Card — edge-to-edge media; overflow hidden clips to rounded corners */}
+            {/* Card */}
             <div
                 className={`relative ${CARD_RADIUS_CLASS} overflow-hidden border border-white/12 bg-white/5`}
                 style={{ width: `min(${CARD_W_PX}px, ${CARD_W_VW}vw)` }}
                 aria-busy={isLoading || !!busy}
             >
-                {/* Skeleton with exact AR to avoid any “ring” */}
+                {/* Skeleton with exact AR */}
                 {(isLoading || !imgLoaded) && (
                     <div className="w-full img-skel" style={{ aspectRatio: skelAR }} />
                 )}
@@ -179,36 +192,34 @@ export default function ImageMsg({
                             'transition-opacity duration-500',
                             imgLoaded ? 'opacity-100' : 'opacity-0',
                         ].join(' ')}
-                        onClick={canOpen ? onOpen : undefined} // ⬅️ desktop only
+                        onClick={canOpen ? onOpen : undefined}
                         draggable={false}
-                        style={{ cursor: canOpen ? 'zoom-in' : 'default' }} // ⬅️ no zoom cursor on mobile
+                        style={{ cursor: canOpen ? 'zoom-in' : 'default' }}
                         role={canOpen ? 'button' : undefined}
                         tabIndex={canOpen ? 0 : -1}
                     />
                 )}
 
-                {/* Actions: only render AFTER the image has fully loaded */}
+                {/* Actions (only after image loaded) */}
                 {status === 'ready' && displayUrl && imgLoaded && (
                     <div className="absolute top-2 right-2 z-10 flex items-center gap-1">
-                        {/* DESCRIBE — spinner shows ONLY when busy and NOT recreating */}
+                        {/* DESCRIBE (gated) */}
                         <button
                             type="button"
-                            title={busy && !isRecreating ? 'Describing…' : 'Listen (describe)'}
-                            aria-label="Listen (describe)"
-                            onClick={onDescribe}
+                            onClick={!canDescribeEff ? doUpgrade : onDescribe}
                             disabled={!!busy || !displayUrl}
+                            title={!canDescribeEff ? 'Upgrade for more listens' : (busy ? 'Describing…' : 'Listen (describe)')}
                             className="h-7 w-7 grid place-items-center rounded-full bg-black text-white/95 shadow-sm hover:bg-black/85 active:scale-95 disabled:opacity-40 disabled:pointer-events-none"
                         >
                             {busy && !isRecreating ? <Icon.Spinner fast /> : <Icon.Volume />}
                         </button>
 
-                        {/* RECREATE */}
+                        {/* RECREATE (gated) */}
                         <button
                             type="button"
-                            title="Recreate"
-                            aria-label="Recreate"
-                            onClick={handleRecreate}
+                            onClick={!canRecreateEff ? doUpgrade : handleRecreate}
                             disabled={!!busy}
+                            title={!canRecreateEff ? 'Upgrade for unlimited recreates' : 'Recreate'}
                             className="h-7 w-7 grid place-items-center rounded-full bg-black text-white/95 shadow-sm hover:bg-black/85 disabled:opacity-40"
                         >
                             <Icon.Refresh />
@@ -240,7 +251,6 @@ export default function ImageMsg({
 
             {/* Local styles */}
             <style jsx>{`
-/* Compact skeleton with shimmer */
 .img-skel {
 background:
 radial-gradient(120% 140% at 30% 20%, rgba(255,255,255,0.10), rgba(255,255,255,0.05) 40%, rgba(255,255,255,0.03) 70%, transparent),
@@ -260,7 +270,7 @@ animation: shimmer 1.4s infinite;
 
             {/* Global, defensive overrides */}
             <style jsx global>{`
-.image-msg { line-height: 0; } /* remove inline-image baseline gap */
+.image-msg { line-height: 0; }
 .image-msg img {
 display: block !important;
 width: 100% !important;

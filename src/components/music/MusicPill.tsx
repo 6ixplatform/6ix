@@ -8,6 +8,7 @@ import { fetchSongs, fetchLRC, getPlayer, getAudioGraph, subscribeSongs, supabas
 import type { Song } from '@/lib/musicTypes';
 import { fetchTotals, recordPlay } from '@/lib/musicStats';
 import { AD_PILL_ART, ADS, AdUnit } from '@/lib/ads';
+import { useLivePlan } from '@/lib/useLivePlan';
 
 const isBrowser = typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
 const safeGet = (k: string) => {
@@ -163,29 +164,10 @@ export default function MusicPill({ category, className = '' }: Props) {
         if (adActive) { ping('Your selection will play after this ad.'); return; }
         fn(...a);
     };
-    // Ads
-    const [isFreeUser, setIsFreeUser] = React.useState<boolean | null>(null); // default true for guests
 
-    // Resolve actual plan once on mount
-    React.useEffect(() => {
-        (async () => {
-            try {
-                const { data: auth } = await supabase.auth.getUser();
-                const user = auth?.user;
-                if (!user) { setIsFreeUser(true); return; } // guests are free
-
-                const { data: prof } = await supabase
-                    .from('profiles')
-                    .select('plan')
-                    .eq('id', user.id)
-                    .single();
-
-                setIsFreeUser((prof?.plan ?? 'free') === 'free');
-            } catch {
-                setIsFreeUser(true);
-            }
-        })();
-    }, []);
+    // Plan (synced with /api/profile -> effective_plan)
+    const { loading: planLoading, effPlan } = useLivePlan();
+    const isFreeUser = !planLoading && effPlan === 'free';
 
     const [adDue, setAdDue] = React.useState(false); // a break is due
     const [adActive, setAdActive] = React.useState(false);
@@ -219,7 +201,7 @@ export default function MusicPill({ category, className = '' }: Props) {
     // Persist last ad timestamp so users can't bypass by reloading
     const LAST_AD_KEY = 'six:lastAdAt';
     React.useEffect(() => {
-        if (isFreeUser !== true) return;
+        if (planLoading || !isFreeUser) return; // wait for plan; skip for pro/max
         const now = Date.now();
         const last = Number(localStorage.getItem(LAST_AD_KEY) || 0);
         const GAP = 30 * 60 * 1000; // 30 min
@@ -227,7 +209,7 @@ export default function MusicPill({ category, className = '' }: Props) {
         if (dueIn === 0) setAdDue(true);
         const t = window.setTimeout(() => setAdDue(true), dueIn || 0);
         return () => window.clearTimeout(t);
-    }, [isFreeUser]);
+    }, [planLoading, isFreeUser]);
 
 
     React.useEffect(() => setMounted(true), []);
@@ -264,7 +246,15 @@ export default function MusicPill({ category, className = '' }: Props) {
         });
     }, [category, player]);
 
-
+    React.useEffect(() => {
+        if (planLoading) return;
+        if (!isFreeUser) {
+            setAdDue(false);
+            setAdActive(false);
+            setAdUiOpen(false);
+            setActiveAd(null);
+        }
+    }, [planLoading, isFreeUser]);
     // When a video ad is active, drive playback + background audio fallback
     // Video-ad playback & teardown (runs only while a video ad is active)
     React.useEffect(() => {
@@ -511,7 +501,7 @@ export default function MusicPill({ category, className = '' }: Props) {
 
 
     async function startAd() {
-        if (isFreeUser !== true || adActive) return;
+        if (!isFreeUser || adActive) return;
 
         setAdDue(false);
         setAdActive(true);

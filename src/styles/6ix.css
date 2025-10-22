@@ -4694,3 +4694,18 @@ html[data-live="1"].modal-open video#six-live-wallpaper {
         --user-menu-nudge: 8px !important;
     }
 }
+
+/* Stop chip theming */
+:root {
+    --danger-bg: #fee2e2;
+    /* light red */
+    --danger-fg: #991b1b;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --danger-bg: #3a0f12;
+        /* deep red for dark UIs */
+        --danger-fg: #ff9090;
+    }
+}

@@ -10,17 +10,29 @@ import type { Plan } from '@/lib/planRules';
 import { supabaseBrowser } from '@/lib/supabaseBrowser';
 import ConfirmGlass from '@/components/ConfirmGlass';
 
+/** Get effective plan + display name via your API (respects expiry/renewals). */
 async function getPlanAndName(): Promise<{ plan: Plan; name: string }> {
     try {
         const supa = supabaseBrowser();
-        const { data: { user } } = await supa.auth.getUser();
-        if (!user) return { plan: 'free', name: 'Guest' };
-        const p = await supa.from('profiles')
-            .select('plan, display_name, username, email')
-            .eq('id', user.id).single();
-        const name = p.data?.display_name || p.data?.username || (p.data?.email?.split('@')[0]) || 'Guest';
-        return { plan: (p.data?.plan as Plan) || 'free', name };
-    } catch { return { plan: 'free', name: 'Guest' }; }
+        const { data: { session } } = await supa.auth.getSession();
+        const jwt = session?.access_token;
+        if (!jwt) return { plan: 'free', name: 'Guest' };
+
+        const r = await fetch('/api/profile', {
+            headers: { Authorization: `Bearer ${jwt}` },
+            cache: 'no-store',
+        });
+        const j = await r.json().catch(() => ({}));
+        const plan = (j?.plan ?? j?.effective_plan ?? 'free') as Plan;
+        const name =
+            j?.display_name ||
+            j?.username ||
+            (j?.email ? String(j.email).split('@')[0] : '') ||
+            'Guest';
+        return { plan, name };
+    } catch {
+        return { plan: 'free', name: 'Guest' };
+    }
 }
 
 export default function HistoryOverlay({
@@ -39,7 +51,9 @@ export default function HistoryOverlay({
         (async () => {
             const local = loadHistory();
             setItems(local);
+
             getPlanAndName().then(({ plan, name }) => { setPlan(plan); setName(name); });
+
             const cloud = await fetchCloudHistory();
             if (cloud.length) {
                 const map = new Map<string, ChatHistoryItem>();

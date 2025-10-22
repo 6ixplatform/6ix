@@ -9,6 +9,8 @@ const URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
+type Plan = 'free' | 'pro' | 'max';
+
 function J(data: any, status = 200, extra?: HeadersInit) {
     return new NextResponse(JSON.stringify(data), {
         status,
@@ -21,10 +23,28 @@ function getJWT(req: Request) {
     return a.toLowerCase().startsWith('bearer ') ? a.slice(7).trim() : '';
 }
 
+// --- helpers -------------------------------------------------------------
+
 async function getProfileAnyShape(supa: SupabaseClient, id: string) {
-    // Select '*' so we never fail if optional columns don't exist.
+    // '*' so we never fail if optional columns don't exist.
     return supa.from('profiles').select('*').eq('id', id).maybeSingle();
 }
+
+/** Compute the effective plan purely from the row, no special view needed. */
+function computeEffectivePlan(row: Record<string, any> | null | undefined): Plan {
+    const raw = String(row?.plan || 'free').toLowerCase();
+    const base: Plan = raw === 'pro' || raw === 'max' ? (raw as Plan) : 'free';
+
+    // If there are no status/expiry columns, treat as active (old rows keep working).
+    const status = String(row?.plan_status ?? 'active').toLowerCase();
+    const exp = row?.plan_expires_at ? new Date(row.plan_expires_at).getTime() : undefined;
+    const notExpired = exp == null ? true : exp > Date.now();
+    const isActive = status === 'active' && notExpired;
+
+    return isActive ? base : 'free';
+}
+
+// --- routes -------------------------------------------------------------
 
 export async function GET(req: Request) {
     try {
@@ -42,6 +62,9 @@ export async function GET(req: Request) {
         const { data, error } = await getProfileAnyShape(supa, user.id);
         if (error) return J({ ok: false, error: error.message }, 500);
 
+        const plan = computeEffectivePlan(data);
+
+        // Keep old shape, add useful fields for plan syncing.
         return J({
             ok: true,
             id: data?.id ?? user.id,
@@ -49,9 +72,13 @@ export async function GET(req: Request) {
             username: data?.username ?? null,
             email: data?.email ?? user.email ?? null,
             avatar_url: data?.avatar_url ?? null,
-            plan: data?.plan ?? 'free',
+            plan, // effective plan used by the app
+            plan_status: data?.plan_status ?? null,
+            plan_expires_at: data?.plan_expires_at ?? null,
             credits: data?.credits ?? null,
             wallet: data?.wallet ?? null,
+            effective_plan: plan, // alias for clarity
+            is_premium: plan !== 'free',
         });
     } catch (e: any) {
         return J({ ok: false, error: e?.message || 'server_error' }, 500);
@@ -82,9 +109,13 @@ export async function POST(req: Request) {
             avatar_url: body.avatar_url ?? null,
             updated_at: new Date().toISOString(),
         };
+
+        // Optional: allow setting these; RLS should block non-admin updates anyway.
         if (typeof body.plan !== 'undefined') row.plan = body.plan;
         if (typeof body.credits !== 'undefined') row.credits = body.credits;
         if (typeof body.wallet !== 'undefined') row.wallet = body.wallet;
+        if (typeof body.plan_status !== 'undefined') row.plan_status = body.plan_status;
+        if (typeof body.plan_expires_at !== 'undefined') row.plan_expires_at = body.plan_expires_at;
 
         if (SERVICE) {
             const admin = createClient(URL, SERVICE, { auth: { persistSession: false } });

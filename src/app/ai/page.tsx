@@ -43,13 +43,13 @@ import { persistChat, restoreChat } from '@/lib/chatPersist';
 import { buildStopReply } from '@/lib/stopReply';
 import { buildFeedback } from '@/components/FeedbackTicker';
 import LandingOrb from '@/components/LandingOrb';
-import { upsertCloudItem } from '@/lib/historyCloud';
+import { fetchCloudCount, upsertCloudItem } from '@/lib/historyCloud';
 import { saveFromMessages, type ChatMessage as HistMsg } from '@/lib/history';
 import HistoryOverlay from '@/components/HistoryOverlay';
 import NextDynamic from 'next/dynamic';
 import ImageMsg from '@/components/ImageMsg';
 import FloatingComposer from '@/components/FloatingComposer';
-import { effectivePlan, fetchSubscription } from '@/lib/planState';
+import { effectivePlan, fetchSubscription } from '@/lib/planRules';
 import { updateProfileAvatar } from '@/lib/profileAvatar';
 import AvatarEditorModal from '@/components/AvatarEditorModal';
 import UserMenuPortal from '@/components/UserMenuPortal';
@@ -60,6 +60,7 @@ import UserFileMsg from '@/components/UserFileMsg';
 import { analyzeFiles } from '@/lib/analyzer';
 import MobileBottomNav from '@/components/MobileBottomNav';
 import { useStickyScroll } from '@/hooks/useStickyScroll';
+import STTLimitToast from '@/components/STTLimitToast';
 const HelpOverlay = NextDynamic(() => import('@/components/HelpOverlay'), { ssr: false });
 
 // --- Control tag parsers (COLOR_PICKER / SWATCH_GRID) ---
@@ -149,75 +150,6 @@ function SwatchGrid({
             </div>
         </div>
     );
-}
-// ===== History helpers (local + cloud) =====
-type HistoryItem = {
-    id: string;
-    title: string;
-    preview: string;
-    createdAt: string;
-    count: number;
-    messages: HistMsg[]; // from '@/lib/history'
-};
-
-function firstUserText(ms: ChatMessage[]) {
-    return (ms.find(m => m.role === 'user')?.content || '').trim();
-}
-function firstAssistantText(ms: ChatMessage[]) {
-    return (ms.find(m => m.role === 'assistant')?.content || '').trim();
-}
-function slugTitle(s: string) {
-    const t = s.replace(/\s+/g, ' ').trim();
-    if (!t) return 'New chat';
-    return t.length > 60 ? t.slice(0, 57) + '…' : t;
-}
-
-// Convert our runtime messages into the HistMsg shape we already use
-function toHistMsgs(ms: ChatMessage[]): HistMsg[] {
-    return ms.map(m => ({
-        role: m.role,
-        content: m.content,
-        kind: m.kind || 'text',
-        url: m.url,
-        prompt: m.prompt,
-        attachments: (m.attachments || []).map(a => ({
-            id: a.id, name: a.name, mime: a.mime, size: a.size, kind: a.kind, url: a.url
-        }))
-    })) as unknown as HistMsg[];
-}
-
-async function saveChatToHistory(raw: ChatMessage[], plan: Plan) {
-    // need at least a user + an assistant message
-    const ms = raw.filter(m => m.role !== 'system');
-    const hasUser = ms.some(m => m.role === 'user');
-    const hasAssistant = ms.some(m => m.role === 'assistant');
-    if (!(hasUser && hasAssistant)) return;
-
-    // If free plan is "out of room" (your 60/60), don't save new items.
-    if (plan === 'free' && chatUsed() >= CHAT_LIMITS.free) return;
-
-    const title = slugTitle(firstUserText(ms));
-    const preview = (firstAssistantText(ms) || '').replace(/\s+/g, ' ').slice(0, 140);
-    const item: HistoryItem = {
-        id: safeUUID(),
-        title,
-        preview,
-        createdAt: new Date().toISOString(),
-        count: ms.length,
-        messages: toHistMsgs(ms),
-    };
-
-    // 1) local history list (fast)
-    try {
-        const KEY = '6ix:history:v1';
-        const arr = JSON.parse(localStorage.getItem(KEY) || '[]');
-        const max = plan === 'free' ? 60 : 1000;
-        arr.unshift(item);
-        localStorage.setItem(KEY, JSON.stringify(arr.slice(0, max)));
-    } catch { }
-
-    // 2) cloud (survives browser clear)
-    try { await upsertCloudItem(item as any); } catch { }
 }
 
 
@@ -797,6 +729,8 @@ function AIPageInner() {
     const [recreatingId, setRecreatingId] = React.useState<string | null>(null);
     const [overlay, setOverlay] = React.useState<{ open: boolean; text: string }>({ open: false, text: '' });
     const didInitialScrollRef = React.useRef(false);
+    const [showSttToast, setShowSttToast] = useState(false);
+    const [sttResetAt, setSttResetAt] = useState<string | undefined>();
     const afterBootScrollTimersRef = React.useRef<number[]>([]);
     const [speakingFor, setSpeakingFor] = React.useState<string | null>(null);
     const mbnavRef = React.useRef<HTMLDivElement | null>(null);
@@ -1015,6 +949,8 @@ function AIPageInner() {
     const search = useSearchParams();
     const showHistory = search?.get('overlay') === 'history';
 
+
+
     // Live system steering (plan + prefs)
     const systemRef = useRef<string>('');
     useEffect(() => {
@@ -1090,22 +1026,7 @@ function AIPageInner() {
         return () => { alive = false; clearAfterBootScrollTimers(); };
     }, []); // run ONCE
 
-    // Save on page hide/unload too (best-effort, local is instant; cloud may fire in time)
-    const lastMessagesRef = React.useRef<ChatMessage[]>([]);
-    React.useEffect(() => { lastMessagesRef.current = messages; }, [messages]);
 
-    React.useEffect(() => {
-        const onHide = () => {
-            const ms = (lastMessagesRef.current || []).filter(m => m.role !== 'system');
-            if (ms.length >= 2) { try { saveChatToHistory(ms, plan); } catch { } }
-        };
-        document.addEventListener('visibilitychange', onHide);
-        window.addEventListener('pagehide', onHide);
-        return () => {
-            document.removeEventListener('visibilitychange', onHide);
-            window.removeEventListener('pagehide', onHide);
-        };
-    }, [plan]);
 
     const [descAt, setDescAt] = React.useState<number | null>(null);
 
@@ -1259,7 +1180,9 @@ function AIPageInner() {
     const avatarBtnRef = useRef<HTMLButtonElement | null>(null) as MutableRefObject<HTMLButtonElement | null>;
 
     /* ---- TTS usage (per day) ---- */
-    const [ttsLimitOpen, setTtsLimitOpen] = useState(false);
+    // TTS limit (free users)
+    const [ttsLimitHit, setTtsLimitHit] = useState(false);
+    const [ttsLimitOpen, setTtsLimitOpen] = useState(false); // you already had this
     const [lastNudgeAt, setLastNudgeAt] = useState<number>(() => {
         try { return Number(localStorage.getItem('6ix:lastNudgeTs') || 0); } catch { return 0; }
     });
@@ -1356,7 +1279,7 @@ function AIPageInner() {
     const expiredTimerRef = useRef<number | null>(null);
     const [subStatus, setSubStatus] = useState<any>(null); // subscription snapshot
     const effPlan = React.useMemo(
-        () => effectivePlan(plan, subStatus, { graceDays: 2 }),
+        () => effectivePlan(plan, subStatus, { graceDays: 6 }),
         [plan, subStatus]
     );
     useEffect(() => {
@@ -1466,6 +1389,61 @@ function AIPageInner() {
         } as Profile;
     }, [profile, miniSeed, plan]);
 
+    // -------- History autosave (local + cloud; free users capped at 60) --------
+    const cloudCountRef = React.useRef<number>(0);
+
+    // keep an up-to-date cloud count for free-plan cap (cross-device)
+    React.useEffect(() => {
+        let alive = true;
+        (async () => {
+            if (plan !== 'free') { cloudCountRef.current = 0; return; }
+            try {
+                const n = await fetchCloudCount();
+                if (alive) cloudCountRef.current = n;
+            } catch { /* ignore */ }
+        })();
+        return () => { alive = false; };
+    }, [plan, profile?.id]);
+
+    async function saveTranscriptNow(ms: ChatMessage[]) {
+        // ignore system-only / empty threads
+        const nonSystem = (ms || []).filter(m => m.role !== 'system');
+        if (nonSystem.length < 2) return;
+
+        // local first (dedupe/merge; respects 60-cap for free incl. cloud count)
+        const { item } = saveFromMessages(
+            nonSystem as unknown as HistMsg[],
+            plan,
+            { cloudCount: cloudCountRef.current }
+        );
+
+        // if a brand-new item was created locally, push to cloud too
+        if (item) {
+            await upsertCloudItem(item, plan); // <-- pass plan (fixes your TS error)
+            if (plan === 'free') cloudCountRef.current += 1; // keep counter in sync
+        }
+    }
+
+    // autosave whenever messages settle (light debounce)
+    React.useEffect(() => {
+        const t = window.setTimeout(() => { void saveTranscriptNow(messages); }, 200);
+        return () => window.clearTimeout(t);
+    }, [messages, plan]);
+
+    // also save on tab hide / page unload (best effort)
+    const lastMessagesRef = React.useRef<ChatMessage[]>([]);
+    React.useEffect(() => { lastMessagesRef.current = messages; }, [messages]);
+    React.useEffect(() => {
+        const onHide = () => { void saveTranscriptNow(lastMessagesRef.current); };
+        document.addEventListener('visibilitychange', onHide);
+        window.addEventListener('pagehide', onHide);
+        return () => {
+            document.removeEventListener('visibilitychange', onHide);
+            window.removeEventListener('pagehide', onHide);
+        };
+    }, []);
+
+
     /* hard guard: if not authenticated, redirect to sign-in */
     // Resilient auth guard — never redirect on transient nulls
     useEffect(() => {
@@ -1482,6 +1460,8 @@ function AIPageInner() {
                 router.replace('/auth/signin?next=/ai');
             }
         }).data.subscription;
+
+
 
         // final sanity check after hydration settles
         const t = window.setTimeout(async () => {
@@ -1981,24 +1961,18 @@ function AIPageInner() {
     };
 
     function startNewChat() {
+        try { Object.keys(imageTimersRef.current).forEach((id) => stopHud(id)); } catch { }
+
         try {
-            Object.keys(imageTimersRef.current).forEach((id) => stopHud(id));
-        } catch { }
-        try {
-            // 1) Save the current transcript to History (only if there’s something meaningful)
             const nonSystem = messages.filter(m => m.role !== 'system');
-            if (nonSystem.length >= 2) {
-                saveChatToHistory(nonSystem, plan);
-            }
-            // 2) Clear only the working chat (refresh should NOT clear)
-            localStorage.removeItem('6ixai:chat:v3');
+            if (nonSystem.length >= 2) { void saveTranscriptNow(nonSystem); }
+            localStorage.removeItem('6ixai:chat:v3'); // clear only the working chat
         } catch { }
 
         setMessages([]);
         chatKeyRef.current = safeUUID();
         scrollToBottom(false);
     }
-
     const [sharingIndex, setSharingIndex] = useState<number | null>(null);
 
 
@@ -2138,19 +2112,48 @@ function AIPageInner() {
         mr.onstop = async () => {
             // turn chunks into a single blob
             const blob = new Blob(chunksRef.current, { type: mr.mimeType || 'audio/webm' });
+
             try {
                 setTranscribing(true);
-                // send to STT API
+
+                // Wrap as a File with a sane filename & extension
+                const mime = blob.type || mr.mimeType || 'audio/webm';
+                const ext =
+                    mime.includes('mp4') ? 'mp4' :
+                        mime.includes('ogg') ? 'ogg' :
+                            mime.includes('wav') ? 'wav' : 'webm';
+                const file = new File([blob], `voice.${ext}`, { type: mime });
+
+                // send to STT API — PLAN HEADER HERE
                 const fd = new FormData();
-                fd.append('file', blob, (mr.mimeType || '').includes('mp4') ? 'voice.mp4' : 'voice.webm');
-                const r = await fetch('/api/stt', { method: 'POST', body: fd });
+                fd.append('file', file);
+
+                const r = await fetch('/api/stt', {
+                    method: 'POST',
+                    headers: { 'x-plan': plan }, // ⬅️ gate by plan
+                    body: fd
+                });
+
+                if (r.status === 429) {
+                    // free daily limit reached — show upgrade toast
+                    const { resetAt } = await r.json().catch(() => ({}));
+                    setSttResetAt(resetAt);
+                    setShowSttToast(true);
+                    return;
+                }
+
+                if (!r.ok) throw new Error('stt_failed');
+
                 const j = await r.json();
                 if (j?.text) setInput(v => (v ? v + ' ' : '') + j.text);
-                bumpSttCount();
-            } catch {
+
+                // optional: bump analytics
+                // bumpSttCount?.();
+            } catch (e) {
                 alert('Could not transcribe. Please try again.');
             } finally {
                 setTranscribing(false);
+                chunksRef.current = []; // reset for next recording
             }
         };
 
@@ -2168,18 +2171,21 @@ function AIPageInner() {
 
 
     async function playTTS(text: string, plan: Plan, displayName?: string | null) {
-        const FREE_MAX = 6;
         const k = `6ix:tts:${todayKey()}`;
+        const FREE_MAX = 6;
+
+        // local soft guard
         try {
             const used = Number(localStorage.getItem(k) || '0');
             if (plan === 'free' && used >= FREE_MAX) {
-                setPremiumModal({ open: true, required: 'pro' });
+                setTtsLimitHit(true);
+                setTtsLimitOpen(true);
                 maybeNudge('feature_locked');
                 return;
             }
         } catch { }
 
-        // pick voice (same as before)
+        // pick a voice (unchanged)
         const guessGender = (name?: string | null) => {
             const n = (name || '').trim().toLowerCase();
             const females = ['grace', 'mary', 'sophia', 'fatima', 'chioma', 'ada', 'linda', 'princess', 'ayesha', 'esther', 'oluchi'];
@@ -2188,26 +2194,31 @@ function AIPageInner() {
             if (males.some(x => n.includes(x))) return 'male';
             return 'unknown';
         };
-        const g = guessGender(displayName);
-        const voice = g === 'female' ? 'alloy' : 'verse';
+        const voice = guessGender(displayName) === 'female' ? 'alloy' : 'verse';
 
-        // fetch MP3 bytes
+        // server call — **plan header** + 429 handling
         const res = await fetch('/api/tts', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'x-plan': plan },
             body: JSON.stringify({ text, voice })
         });
+
+        if (res.status === 429) {
+            setTtsLimitHit(true);
+            setTtsLimitOpen(true);
+            maybeNudge('tts_limit');
+            return;
+        }
         if (!res.ok) {
             alert('Could not play audio (server).');
             return;
         }
+
         const blob = await res.blob();
         const url = URL.createObjectURL(blob);
 
-        // reuse one <audio> element (helps iOS)
         try { audioRef.current?.pause(); } catch { }
         if (!audioRef.current) audioRef.current = new Audio();
-
         const a = audioRef.current!;
         a.src = url;
         a.preload = 'auto';
@@ -2215,26 +2226,20 @@ function AIPageInner() {
 
         try {
             await a.play();
-        } catch (err: any) {
-            // Most common: iOS silent switch or missing gesture
+        } catch {
             alert('If you don’t hear anything, turn off Silent Mode and try again.');
-            console.warn('Audio play blocked:', err);
             return;
         }
 
-        // bump free quota locally + (optional) server
+        // bump local usage + optional server metric
         if (plan === 'free') {
             try {
                 const used = Number(localStorage.getItem(k) || '0');
                 localStorage.setItem(k, String(used + 1));
             } catch { }
         }
-        try {
-            const supabase = supabaseBrowser();
-            await supabase.rpc('bump_tts_play');
-        } catch { }
+        try { await supabaseBrowser().rpc('bump_tts_play'); } catch { }
     }
-
 
     function copyText(s: string) {
         try { navigator.clipboard.writeText(s); } catch { }
@@ -3654,6 +3659,9 @@ function AIPageInner() {
                                         >
                                             <ImageMsg
                                                 plan={plan}
+                                                canDescribe={true}
+                                                canRecreate={plan !== 'free'} // free => gated; pro/max => allowed
+                                                onUpgrade={() => setPremiumModal({ open: true, required: 'pro' })}
                                                 url={m.url}
                                                 prompt={m.prompt || ''}
                                                 overlay={m.meta?.overlay}
@@ -3871,6 +3879,13 @@ function AIPageInner() {
                 onGoPremium={() => { setPremiumModal({ ...premiumModal, open: false }); router.push('/premium'); }}
             />
 
+            <STTLimitToast
+                open={showSttToast}
+                resetAt={sttResetAt}
+                onClose={() => setShowSttToast(false)}
+                onUpgrade={() => window.open('/premium', '_blank', 'noopener,noreferrer')}
+            />
+
             {/* Image viewer (mobile friendly) */}
             {lightbox?.open && (
                 <div
@@ -4021,7 +4036,7 @@ margin-right: 8px;
 max-width: 100%;
 }
 `}</style>
-<style jsx global>{`
+                    <style jsx global>{`
 .chat-list .typing-bubble{
 background: transparent !important;
 backdrop-filter: none !important;

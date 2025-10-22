@@ -3,6 +3,7 @@
 
 import * as React from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { useLivePlan } from '@/lib/useLivePlan';
 
 type Plan = 'free' | 'pro' | 'max';
 
@@ -12,14 +13,14 @@ export type VoiceRow = {
     name: string; // display name
     style: string | null; // e.g. 'warm', 'calm'
     tts_voice_key: string; // OpenAI voice key
-    tier: 'free' | 'pro' | 'max';
+    tier: Plan;
 };
 
 type Props = {
     open: boolean;
     onClose: () => void;
     onPick: (voice: VoiceRow) => void;
-    plan: Plan;
+    plan?: Plan; // optional; falls back to effective plan
     autoCloseOnPick?: boolean; // default true
 };
 
@@ -28,6 +29,12 @@ type ProfilePrefs = {
     assistant_voice_id: string | null;
     assistant_voice_gender_pref: 'male' | 'female' | null;
     last_voice: string | null; // tts_voice_key
+};
+
+const TIERS_BY_PLAN: Record<Plan, Plan[]> = {
+    free: ['free'],
+    pro: ['free', 'pro'],
+    max: ['free', 'pro', 'max'],
 };
 
 /** Tiny "Recommended" badge */
@@ -52,10 +59,13 @@ export default function VoiceQuickPicker({
     open,
     onClose,
     onPick,
-    plan,
+    plan: planProp,
     autoCloseOnPick = true,
 }: Props) {
     const supabase = createClientComponentClient();
+    const { effPlan } = useLivePlan(); // ← single source of truth
+    const plan = (planProp ?? effPlan) as Plan;
+    const allowedTiers = TIERS_BY_PLAN[plan] ?? ['free'];
 
     // ----- state -----
     const [voices, setVoices] = React.useState<VoiceRow[]>([]);
@@ -111,19 +121,19 @@ export default function VoiceQuickPicker({
                 setLoading(true);
                 setErrorMsg(null);
 
-                const allowed = plan === 'free'
-                    ? ['free']
-                    : plan === 'pro'
-                        ? ['free', 'pro']
-                        : ['free', 'pro', 'max'];
-
-                const { data, error } = await supabase
+                // Server-side filter by the **effective** plan tiers
+                let query = supabase
                     .from('assistant_voices')
                     .select('id, code, name, style, tts_voice_key, tier')
                     .eq('active', true)
-                    .in('tier', allowed)
+                    .in('tier', allowedTiers)
                     .order('tier', { ascending: true })
                     .order('name', { ascending: true });
+
+                // If you want to strictly cap Free to two voices in the catalog:
+                if (plan === 'free') query = query.limit(2);
+
+                const { data, error } = await query;
 
                 if (cancelled) return;
 
@@ -139,7 +149,7 @@ export default function VoiceQuickPicker({
         })();
 
         return () => { cancelled = true; };
-    }, [open, plan, supabase]);
+    }, [open, plan, allowedTiers, supabase]);
 
     React.useEffect(() => {
         if (!voices.length) { setRecommendedId(null); return; }
@@ -174,19 +184,27 @@ export default function VoiceQuickPicker({
 
     if (!open) return null;
 
+    // Free view helpers
     const male = voices.find(v => v.code === 'young_male') || null;
     const female = voices.find(v => v.code === 'young_female') || null;
+    // Fallback for Free if those codes don’t exist: take first 2 voices
+    const freeFallbackA = !male && voices[0] ? voices[0] : null;
+    const freeFallbackB = !female && voices[1] ? voices[1] : null;
 
     const persistPick = async (v: VoiceRow) => {
         try {
             if (!userId) return;
+            // Always safe to store last_voice; only store assistant_voice_id for Pro/Max
             const payload: any = { last_voice: v.tts_voice_key };
             if (plan !== 'free') payload.assistant_voice_id = v.id;
             await supabase.from('profiles').update(payload).eq('id', userId);
         } catch { }
     };
 
+    // Hard gate on selection too (defense in depth)
+    const canUse = (v: VoiceRow) => allowedTiers.includes(v.tier);
     const handlePick = async (v: VoiceRow) => {
+        if (!canUse(v)) return; // optionally show a toast
         await persistPick(v);
         onPick(v);
         if (autoCloseOnPick) onClose();
@@ -233,41 +251,53 @@ export default function VoiceQuickPicker({
                 ) : plan === 'free' ? (
                     <div className="grid grid-cols-2 gap-2">
                         <button
-                            disabled={!male}
-                            onClick={() => male && handlePick(male)}
+                            disabled={!male && !freeFallbackA}
+                            onClick={() => handlePick((male || freeFallbackA)!)}
                             className="px-3 py-2 rounded-xl text-sm active:scale-95 disabled:opacity-60 relative"
                             style={{ background: 'var(--btn-bg)', color: 'var(--btn-fg)' }}
                         >
-                            {male ? `${male.name} · Male` : 'Male'}
-                            {male && recommendedId === male.id && <RecBadge />}
+                            {(male || freeFallbackA) ? `${(male || freeFallbackA)!.name} · Male` : 'Male'}
+                            {(male && recommendedId === male.id) || (freeFallbackA && recommendedId === freeFallbackA.id)
+                                ? <RecBadge /> : null}
                         </button>
                         <button
-                            disabled={!female}
-                            onClick={() => female && handlePick(female)}
+                            disabled={!female && !freeFallbackB}
+                            onClick={() => handlePick((female || freeFallbackB)!)}
                             className="px-3 py-2 rounded-xl text-sm active:scale-95 disabled:opacity-60 relative"
                             style={{ background: 'var(--btn-bg)', color: 'var(--btn-fg)' }}
                         >
-                            {female ? `${female.name} · Female` : 'Female'}
-                            {female && recommendedId === female.id && <RecBadge />}
+                            {(female || freeFallbackB) ? `${(female || freeFallbackB)!.name} · Female` : 'Female'}
+                            {(female && recommendedId === female.id) || (freeFallbackB && recommendedId === freeFallbackB.id)
+                                ? <RecBadge /> : null}
                         </button>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-[50vh] overflow-auto pr-1 custom-scroll">
-                        {sortedVoices.map(v => (
-                            <button
-                                key={v.id}
-                                onClick={() => handlePick(v)}
-                                className="px-3 py-2 rounded-xl text-sm text-left active:scale-95 relative"
-                                style={{ background: 'var(--btn-bg)', color: 'var(--btn-fg)' }}
-                                title={`${v.name}${v.style ? ` · ${v.style}` : ''}`}
-                            >
-                                <div className="font-medium">{v.name}</div>
-                                <div className="text-[11px] opacity-70">
-                                    {v.style ? `${v.style} · ` : ''}{v.tier}
-                                </div>
-                                {recommendedId === v.id && <RecBadge />}
-                            </button>
-                        ))}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h=[50vh] overflow-auto pr-1 custom-scroll">
+                        {voices.map(v => {
+                            const disabled = !canUse(v);
+                            return (
+                                <button
+                                    key={v.id}
+                                    onClick={() => handlePick(v)}
+                                    className="px-3 py-2 rounded-xl text-sm text-left active:scale-95 relative"
+                                    style={{
+                                        background: 'var(--btn-bg)',
+                                        color: 'var(--btn-fg)',
+                                        opacity: disabled ? .5 : 1,
+                                        pointerEvents: disabled ? 'none' : 'auto',
+                                    }}
+                                    aria-disabled={disabled}
+                                    title={`${v.name}${v.style ? ` · ${v.style}` : ''}`}
+                                    data-tier={v.tier}
+                                >
+                                    <div className="font-medium">{v.name}</div>
+                                    <div className="text-[11px] opacity-70">
+                                        {v.style ? `${v.style} · ` : ''}{v.tier}
+                                    </div>
+                                    {recommendedId === v.id && <RecBadge />}
+                                </button>
+                            );
+                        })}
                     </div>
                 )}
 

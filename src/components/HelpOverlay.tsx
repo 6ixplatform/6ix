@@ -137,29 +137,65 @@ export default function HelpOverlay({ onClose, preset }: Props) {
             </div>
 
             <style jsx>{`
-.six-help__wrap{position:fixed;inset:0;background:rgba(0,0,0,.5);display:grid;place-items:center;z-index:1000;}
-.six-help__card{width:min(92vw,560px);background:var(--btn-bg,#111);color:var(--btn-fg,#fff);
-border:1px solid var(--th-border,rgba(255,255,255,.15));border-radius:16px;padding:14px 14px 12px;
-box-shadow:0 20px 60px rgba(0,0,0,.35);}
+/* Dim + blur everything behind the overlay */
+.six-help__wrap{
+position:fixed; inset:0; z-index:1000;
+background: rgba(0,0,0,.55);
+-webkit-backdrop-filter: blur(6px);
+backdrop-filter: blur(6px);
+display:grid; place-items:center;
+}
+
+/* Dark, readable back-glass card */
+.six-help__card{
+width:min(92vw,560px);
+background: rgba(16,16,16,.92); /* ← solid dark glass */
+-webkit-backdrop-filter: saturate(110%) blur(12px);
+backdrop-filter: saturate(110%) blur(12px);
+color: #fff;
+border: 1px solid rgba(255,255,255,.12);
+border-radius: 16px;
+padding: 14px 14px 12px;
+box-shadow: 0 20px 60px rgba(0,0,0,.45), inset 0 0 1px rgba(255,255,255,.08);
+}
+
 header{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
 .t{font-weight:700}
-.x{background:transparent;border:none;font-size:18px;opacity:.7;cursor:pointer}
+.x{background:transparent;border:none;font-size:18px;opacity:.75;cursor:pointer}
 .x:hover{opacity:1}
 .fields{display:grid;gap:10px;margin:8px 0 12px}
 .row{display:grid;gap:6px}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 @media (max-width: 520px){ .row2{grid-template-columns:1fr} }
-label{font-size:12px;opacity:.7}
-input,textarea{background:rgba(255,255,255,.06);border:1px solid var(--th-border,rgba(255,255,255,.15));
-color:inherit;border-radius:10px;padding:10px;font:inherit}
-input::placeholder,textarea::placeholder{opacity:.6}
+
+label{font-size:12px;opacity:.8}
+
+/* Inputs: slightly darker fill for readability on glass */
+input,textarea{
+background: rgba(255,255,255,.06);
+border: 1px solid rgba(255,255,255,.16);
+color: inherit;
+border-radius: 10px;
+padding: 10px;
+font: inherit;
+}
+input::placeholder,textarea::placeholder{opacity:.7}
+
 .note{font-size:12px;border-radius:10px;padding:8px 10px;margin-bottom:8px}
-.ok{background:rgba(40,180,120,.15);border:1px solid rgba(40,180,120,.35)}
-.err{background:rgba(220,80,80,.15);border:1px solid rgba(220,80,80,.35)}
+.ok{background:rgba(40,180,120,.16);border:1px solid rgba(40,180,120,.38)}
+.err{background:rgba(220,80,80,.16);border:1px solid rgba(220,80,80,.38)}
 .mt2{margin-top:6px}
+
 footer{display:flex;gap:8px;justify-content:flex-end;margin-top:4px}
-.ghost{background:transparent;border:1px solid var(--th-border,rgba(255,255,255,.18));color:inherit;padding:8px 12px;border-radius:10px;cursor:pointer}
-.primary{background:var(--th-text,#000);color:var(--th-bg,#fff);border:none;padding:8px 12px;border-radius:10px;font-weight:700;cursor:pointer}
+.ghost{
+background:transparent;
+border:1px solid rgba(255,255,255,.22);
+color:inherit; padding:8px 12px; border-radius:10px; cursor:pointer
+}
+.primary{
+background:#fff; color:#000; border:none;
+padding:8px 12px; border-radius:10px; font-weight:700; cursor:pointer
+}
 .primary[disabled]{opacity:.6;cursor:not-allowed}
 `}</style>
         </div>

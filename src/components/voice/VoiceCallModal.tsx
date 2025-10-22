@@ -3,7 +3,8 @@
 import * as React from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import VoiceCatalogPicker from './VoiceCatalogPicker';
-import { buildSixAIInstructions } from '@/app/instructions/6ixai'; // <-- adjust path if needed
+import { buildSixAIInstructions } from '@/app/instructions/6ixai';
+import { useLivePlan } from '@/lib/useLivePlan'; // ← SYNC: single source of truth
 
 /* ----------------------------- Voice Mapping ----------------------------- */
 const OPENAI_VOICES = new Set(['alloy', 'ash', 'ballad', 'coral', 'echo', 'sage', 'shimmer', 'verse', 'marin', 'cedar']);
@@ -79,12 +80,21 @@ function waitForIceGatheringComplete(pc: RTCPeerConnection, timeoutMs = 2000) {
     });
 }
 
+/* ------------------------- Realtime model by plan ------------------------ */
+const RT_MODEL_BY_PLAN: Record<Plan, string> = {
+    free: process.env.NEXT_PUBLIC_RT_MODEL_FREE || 'gpt-4o-realtime-mini',
+    pro: process.env.NEXT_PUBLIC_RT_MODEL_PRO || 'gpt-4o-realtime-preview-2024-12-17',
+    max: process.env.NEXT_PUBLIC_RT_MODEL_MAX || 'gpt-4o-realtime-preview-2024-12-17',
+};
+
 /* -------------------------------- Component ------------------------------ */
 export default function VoiceCallModal({
-    open, onClose, voice, plan, displayName: fallbackName = 'there',
-}: { open: boolean; onClose: () => void; voice: VoiceRow | null; plan: Plan; displayName?: string; }) {
+    open, onClose, voice, plan: planProp, displayName: fallbackName = 'there',
+}: { open: boolean; onClose: () => void; voice: VoiceRow | null; plan?: Plan; displayName?: string; }) {
 
     const supabase = createClientComponentClient();
+    const { loading: planLoading, effPlan } = useLivePlan(); // ← SYNC
+    const plan: Plan = (planProp ?? effPlan) as Plan; // ← trust effective_plan
 
     const [status, setStatus] = React.useState<'idle' | 'connecting' | 'live' | 'reconnecting' | 'ending' | 'error'>('idle');
     const [err, setErr] = React.useState<string | undefined>();
@@ -102,7 +112,7 @@ export default function VoiceCallModal({
 
     // visuals
     const [assistantSpeaking, setAssistantSpeaking] = React.useState(false);
-    const [assistantLevel, setAssistantLevel] = React.useState(0); // 0..1 – drives orb ring
+    const [assistantLevel, setAssistantLevel] = React.useState(0);
     const waveCanvasRef = React.useRef<HTMLCanvasElement | null>(null);
 
     // WebRTC & audio
@@ -112,7 +122,7 @@ export default function VoiceCallModal({
     const remoteAudioRef = React.useRef<HTMLAudioElement | null>(null);
     const tokenRef = React.useRef<string | null>(null);
     const baseUrlRef = React.useRef<string>('https://api.openai.com/v1/realtime');
-    const modelRef = React.useRef<string>('gpt-4o-realtime-preview-2024-12-17');
+    const modelRef = React.useRef<string>(RT_MODEL_BY_PLAN.free); // default; will switch per plan on connect
 
     // timers / raf
     const countdownRef = React.useRef<number | null>(null);
@@ -129,10 +139,8 @@ export default function VoiceCallModal({
     const localAnalyserRef = React.useRef<AnalyserNode | null>(null);
     const localBufRef = React.useRef<Uint8Array>(new Uint8Array(0));
 
-    // continuity
+    // continuity / stability
     const greetedOnceRef = React.useRef(false);
-
-    // stability
     const iceRestartsRef = React.useRef(0);
 
     /* ------------------------- profile personalization ---------------------- */
@@ -207,6 +215,9 @@ export default function VoiceCallModal({
             const argsRaw = data?.arguments || data?.args || '{}';
             const args = typeof argsRaw === 'string' ? JSON.parse(argsRaw) : argsRaw;
 
+            // ---- PLAN GATES (client-side + pass plan to API) ----
+            const headersWithPlan = { 'x-6ix-plan': plan, 'cache': 'no-store' as const };
+
             if (toolName === 'save_progress') {
                 await supabase.rpc('save_lesson_progress', { p_topic: args.topic, p_summary: args.summary ?? null, p_cursor: args.cursor ?? {} });
                 dcSend(dcRef.current, { type: 'tool.output', tool_call_id: toolCallId, output: JSON.stringify({ ok: true }) });
@@ -219,9 +230,13 @@ export default function VoiceCallModal({
             }
 
             if (toolName === 'web_search') {
+                if (plan === 'free') { // free -> upgrade
+                    dcSend(dcRef.current, { type: 'tool.output', tool_call_id: toolCallId, output: JSON.stringify({ results: [], error: 'Web search is a Pro feature.' }) });
+                    return;
+                }
                 const q = (args?.query ?? '').toString(); const n = Math.min(Math.max(Number(args?.n || 6), 1), 10);
                 try {
-                    const res = await fetch(`/api/search?q=${encodeURIComponent(q)}&n=${n}`, { cache: 'no-store' });
+                    const res = await fetch(`/api/search?q=${encodeURIComponent(q)}&n=${n}`, { headers: headersWithPlan });
                     const hits = await res.json();
                     dcSend(dcRef.current, { type: 'tool.output', tool_call_id: toolCallId, output: JSON.stringify({ results: hits }) });
                 } catch (e: any) {
@@ -231,9 +246,13 @@ export default function VoiceCallModal({
             }
 
             if (toolName === 'stock_quotes') {
+                if (plan === 'free') {
+                    dcSend(dcRef.current, { type: 'tool.output', tool_call_id: toolCallId, output: JSON.stringify({ quotes: [], error: 'Live stock quotes are a Pro feature.' }) });
+                    return;
+                }
                 const symbols = (args?.symbols ?? '').toString();
                 try {
-                    const res = await fetch(`/api/stocks?s=${encodeURIComponent(symbols)}`, { cache: 'no-store' });
+                    const res = await fetch(`/api/stocks?s=${encodeURIComponent(symbols)}`, { headers: headersWithPlan });
                     const rows = await res.json();
                     dcSend(dcRef.current, { type: 'tool.output', tool_call_id: toolCallId, output: JSON.stringify({ quotes: rows }) });
                 } catch (e: any) {
@@ -245,7 +264,7 @@ export default function VoiceCallModal({
             if (toolName === 'weather_forecast') {
                 const lat = args?.lat, lon = args?.lon;
                 try {
-                    const res = await fetch(`/api/weather?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`, { cache: 'no-store' });
+                    const res = await fetch(`/api/weather?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`, { headers: headersWithPlan });
                     const j = await res.json();
                     dcSend(dcRef.current, { type: 'tool.output', tool_call_id: toolCallId, output: JSON.stringify({ weather: j }) });
                 } catch (e: any) {
@@ -254,7 +273,7 @@ export default function VoiceCallModal({
                 return;
             }
         } catch { }
-    }, [supabase]);
+    }, [supabase, plan]);
 
     /* --------------------------- user wave drawing -------------------------- */
     const drawUserWave = React.useCallback(() => {
@@ -288,7 +307,7 @@ export default function VoiceCallModal({
         const step = Math.max(1, Math.floor(view.length / width));
         for (let x = 0, i = 0; x < width; x += 1, i += step) {
             const v = (view[i] - 128) / 128;
-            const y = height / 2 + v * (height * 0.45); // ↑ taller waveform
+            const y = height / 2 + v * (height * 0.45);
             if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
         }
         ctx.stroke();
@@ -370,6 +389,18 @@ export default function VoiceCallModal({
         setErr(undefined);
         if (!isReconnect) setStatus('connecting');
 
+        // ----- PLAN ENFORCEMENT BEFORE CONNECT -----
+        // If a Pro/Max voice was preselected but the plan doesn't allow it, ignore it (fallback to default OpenAI voice).
+        const tier = voice?.tier;
+        const voiceAllowed =
+            !voice || tier === 'free' ||
+            (tier === 'pro' && (plan === 'pro' || plan === 'max')) ||
+            (tier === 'max' && plan === 'max');
+        const mappedVoice = voiceAllowed ? mapToOpenAIVoice(voice?.tts_voice_key) : undefined;
+
+        // choose realtime model default by plan (server may override)
+        modelRef.current = RT_MODEL_BY_PLAN[plan];
+
         // mic
         let mic: MediaStream;
         const existing = localStreamRef.current;
@@ -392,12 +423,15 @@ export default function VoiceCallModal({
             } catch { }
         }
 
-        // token + ICE list (STUN only; from your /api/voice/rt-token)
+        // token + ICE list from your backend — SEND PLAN HEADER
         const rt = await fetch('/api/voice/rt-token', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                'x-6ix-plan': plan, // ← SYNC: let server pick limits/model by plan
+            },
             body: JSON.stringify({
-                voiceKey: voice?.tts_voice_key,
+                voiceKey: voiceAllowed ? voice?.tts_voice_key : null,
                 name: nameHint, language: langHint, locale: localeHint,
                 city: cityHint, state: stateHint, countryCode: countryHint,
             }),
@@ -412,7 +446,7 @@ export default function VoiceCallModal({
 
         tokenRef.current = token;
         baseUrlRef.current = baseUrl || baseUrlRef.current;
-        modelRef.current = model || modelRef.current;
+        modelRef.current = model || modelRef.current; // server override if provided
 
         // fresh peer (STUN only)
         try { pcRef.current?.close(); } catch { }
@@ -522,11 +556,9 @@ export default function VoiceCallModal({
                 city: cityHint,
                 state: stateHint,
                 countryCode: countryHint,
-                webSearchPolicy: (process.env.NEXT_PUBLIC_WEB_SEARCH_POLICY?.toLowerCase() as 'on' | 'off') ?? 'on',
+                webSearchPolicy: plan === 'free' ? 'off' : ((process.env.NEXT_PUBLIC_WEB_SEARCH_POLICY?.toLowerCase() as 'on' | 'off') ?? 'on'),
             });
 
-            // plus an explicit first-turn rule to force a named greeting
-            const mappedVoice = mapToOpenAIVoice(voice?.tts_voice_key);
             const sessionPatch: any = {
                 ...(mappedVoice ? { voice: mappedVoice } : {}),
                 turn_detection: { type: 'server_vad', silence_duration_ms: 1800 },
@@ -544,7 +576,7 @@ export default function VoiceCallModal({
             }
         };
 
-        // SDP offer/answer (wait for ICE gather to reduce reconnect churn)
+        // SDP offer/answer (wait for ICE gather)
         const offer = await pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: false });
         await pc.setLocalDescription(offer);
         await waitForIceGatheringComplete(pc, 2000);
@@ -563,7 +595,8 @@ export default function VoiceCallModal({
         if (pc.signalingState !== 'closed') await pc.setRemoteDescription({ type: 'answer', sdp: sdpText });
 
         setStatus('live');
-    }, [voice?.tts_voice_key, nameHint, langHint, cityHint, stateHint, countryHint, localeHint, handleServerEvent, drawUserWave, monitorAssistantAudio, stopRemoteAnalyser, supabase]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [voice?.tts_voice_key, voice?.tier, nameHint, langHint, cityHint, stateHint, countryHint, localeHint, handleServerEvent, drawUserWave, monitorAssistantAudio, stopRemoteAnalyser, supabase, plan]);
 
     /* -------------------------------- lifecycle ----------------------------- */
     React.useEffect(() => {
@@ -573,7 +606,7 @@ export default function VoiceCallModal({
             setErr(undefined);
             setStatus('connecting');
 
-            // optional DB logging
+            // optional DB logging — server should already honor effective plan
             let call: any = { id: undefined, allowed_seconds: null };
             try {
                 const { data: start, error: startErr } = await supabase.rpc('start_voice_call', {
@@ -627,7 +660,7 @@ export default function VoiceCallModal({
             greetedOnceRef.current = false;
             tokenRef.current = null;
         };
-    }, [open, supabase, voice?.id, connect, teardown, stopAllAnalysers]);
+    }, [open, supabase, voice?.id, connect, teardown, stopAllAnalysers, renegotiateIce]);
 
     if (!open) return null;
 
@@ -652,11 +685,10 @@ export default function VoiceCallModal({
                     </svg>
                 </button>
 
-                {/* Centered orb + user wave BELOW the orb with ample gap */}
+                {/* Centered orb + user wave */}
                 <div className="h-full w-full flex flex-col items-center justify-center pt-20 gap-12">
-                    {/* Orb (assistant speaking) */}
+                    {/* Orb */}
                     <div className="relative w-[260px] h-[260px]">
-                        {/* base ring */}
                         <div
                             className="absolute inset-0 rounded-full"
                             style={{
@@ -664,13 +696,12 @@ export default function VoiceCallModal({
                                 boxShadow: 'inset 0 0 25px rgba(255,255,255,0.08), inset 0 0 1px rgba(255,255,255,0.5), 0 0 1px rgba(255,255,255,0.25)',
                             }}
                         />
-                        {/* live ring that expands with level (more visible) */}
                         <div
                             className="absolute inset-0 rounded-full pointer-events-none"
                             style={{
-                                transform: `scale(${1 + assistantLevel * 0.18})`, // ↑ bigger “breath”
+                                transform: `scale(${1 + assistantLevel * 0.18})`,
                                 transition: 'transform 70ms linear',
-                                boxShadow: assistantSpeaking ? '0 0 60px 16px rgba(255,255,255,0.30)' : 'none', // ↑ stronger glow
+                                boxShadow: assistantSpeaking ? '0 0 60px 16px rgba(255,255,255,0.30)' : 'none',
                                 border: assistantSpeaking ? '2px solid rgba(255,255,255,0.35)' : '1px solid transparent',
                             }}
                         />
@@ -679,16 +710,15 @@ export default function VoiceCallModal({
                         </div>
                     </div>
 
-                    {/* User live wave (taller) */}
+                    {/* User live wave */}
                     <div className="w-[min(90vw,560px)]">
                         <canvas
                             ref={waveCanvasRef}
-                            className="h-[80px] w-full" // ↑ taller waveform
+                            className="h-[80px] w-full"
                             style={{ display: 'block', filter: 'drop-shadow(0 0 12px rgba(255,255,255,0.18))' }}
                         />
                     </div>
 
-\
                     {/* Status */}
                     <div className="text-white/90 text-sm">
                         {status === 'connecting' && 'Connecting…'}

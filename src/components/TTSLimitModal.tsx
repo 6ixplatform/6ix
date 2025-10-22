@@ -1,6 +1,5 @@
 // components/TTSLimitModal.tsx
 'use client';
-
 import * as React from 'react';
 
 type Props = {
@@ -34,7 +33,6 @@ export default function TTSLimitModal({ open, displayName, onClose, onUpgrade }:
     const eta = new Date(resetAt).toLocaleString();
     const first = (displayName || 'Friend').split(' ')[0];
 
-    // Render nothing when closed (after hooks have run)
     if (!open) return null;
 
     return (
@@ -52,20 +50,24 @@ export default function TTSLimitModal({ open, displayName, onClose, onUpgrade }:
                 <div className="mb-1 text-[15px] leading-snug">
                     <b>{first}</b>, that feature needs a <b>Pro</b> plan.
                 </div>
+
                 <div className="space-y-2 text-[13px] text-black/70">
                     <p>
                         You’ve reached today’s free speaker limit. It resets in{' '}
                         <b>
-                            {String(h).padStart(2, '0')}:{String(m).padStart(2, '0')}:{String(s).padStart(2, '0')}
+                            {String(h).padStart(2, '0')}:
+                            {String(m).padStart(2, '0')}:
+                            {String(s).padStart(2, '0')}
                         </b>{' '}
                         ({eta}).
                     </p>
                     <p>
-                        <b>Why upgrade?</b> Pro/Max unlock HD images, faster responses, unlimited TTS, and a
-                        verified check once approved. You can also earn by publishing high-quality prompts,
+                        <b>Why upgrade?</b> Pro/Max unlock HD images, faster responses, <b>unlimited TTS</b>,
+                        and a verified check once approved. You can also earn by publishing high-quality prompts,
                         lessons and assets on 6IX (rev-share enabled).
                     </p>
                 </div>
+
                 <div className="mt-4 flex justify-end gap-2">
                     <button className="btn btn-water" onClick={onClose}>Close</button>
                     <button className="btn btn-water font-semibold" onClick={onUpgrade}>

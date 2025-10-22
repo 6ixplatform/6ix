@@ -1,8 +1,11 @@
 // components/UserFileMsg.tsx
 'use client';
+
 import React from 'react';
+import { useLivePlan } from '@/lib/useLivePlan';
 
 export type Plan = 'free' | 'pro' | 'max';
+
 export type Attachment = {
     id: string;
     name: string;
@@ -18,10 +21,16 @@ type Props = {
     attachments: Attachment[];
     disabledUntilReplyDone: boolean; // streaming || hasPendingUpload
     busyId?: string | null; // id currently being described
-    plan: Plan;
-    onDescribe: (a: Attachment) => void; // SPEAK ONLY
+
+    /** Optional overrides/wiring */
+    plan?: Plan; // if omitted, we read from useLivePlan()
+    canDescribe?: boolean; // if omitted, derived from plan (free=>true, pro/max=>true)
+    onUpgrade?: () => void; // called when user hits the gate
+
+    onDescribe: (a: Attachment) => void; // SPEAK ONLY (fires your TTS flow)
 };
 
+/* ───────── icons ───────── */
 function VolumeIcon() {
     return (
         <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
@@ -41,13 +50,50 @@ function Spinner() {
 }
 
 export default function UserFileMsg({
-    attachments, disabledUntilReplyDone, busyId, plan, onDescribe
+    attachments,
+    disabledUntilReplyDone,
+    busyId,
+    plan: planProp,
+    canDescribe: canDescribeProp,
+    onUpgrade,
+    onDescribe,
 }: Props) {
+    // ---- PLAN SYNC (single source of truth) ----
+    const { effPlan } = useLivePlan();
+    const plan = (planProp ?? effPlan ?? 'free') as Plan;
+
+    // If parent didn’t pass canDescribe, derive a sensible default from plan:
+    // - free: allowed (server enforces 1/day); parent can flip to false after 429
+    // - pro/max: always allowed
+    const canDescribe =
+        typeof canDescribeProp === 'boolean'
+            ? canDescribeProp
+            : plan === 'pro' || plan === 'max'
+                ? true
+                : true; // free default true; server will gate
+
     return (
         <div className="mt-2 flex flex-wrap gap-2">
             {attachments.map(a => {
                 const fileUrl = a.url || a.remoteUrl || '';
                 const ready = !!fileUrl; // message attachments have URL only
+                const isBusy = busyId === a.id;
+
+                // Click handler respects plan gate
+                const onClickDescribe = () => {
+                    if (!ready || disabledUntilReplyDone || isBusy) return;
+                    if (!canDescribe && onUpgrade) {
+                        onUpgrade();
+                        return;
+                    }
+                    onDescribe(a);
+                };
+
+                const title = !canDescribe
+                    ? 'Upgrade to unlock unlimited listens'
+                    : isBusy
+                        ? 'Describing…'
+                        : 'Listen (describe)';
 
                 return (
                     <div
@@ -58,7 +104,6 @@ export default function UserFileMsg({
                         {/* PREVIEW — no forced aspect ratio = no cutting */}
                         <div className="p-1 bg-black/15 rounded-2xl">
                             {/^image\//.test(a.mime) ? (
-                                // keep full image; never crop
                                 // eslint-disable-next-line @next/next/no-img-element
                                 <img
                                     src={fileUrl}
@@ -80,18 +125,28 @@ export default function UserFileMsg({
                             )}
                         </div>
 
-                        {/* SPEAKER — same black circular fill as ImageMsg */}
+                        {/* SPEAKER — same black circular fill as ImageMsg; plan-gated */}
                         {ready && (
                             <button
                                 type="button"
-                                className="absolute right-2 top-2 h-7 w-7 grid place-items-center rounded-full bg-black text-white/95 shadow-sm hover:bg-black/85 active:scale-95 disabled:opacity-40"
-                                title={busyId === a.id ? 'Describing…' : 'Listen (describe)'}
+                                className={[
+                                    'absolute right-2 top-2 h-7 w-7 grid place-items-center rounded-full',
+                                    'bg-black text-white/95 shadow-sm hover:bg-black/85 active:scale-95',
+                                    (disabledUntilReplyDone || isBusy) ? 'opacity-40 pointer-events-none' : '',
+                                ].join(' ')}
+                                title={title}
                                 aria-label="Listen (describe)"
-                                onClick={() => onDescribe(a)}
-                                disabled={disabledUntilReplyDone || busyId === a.id}
+                                onClick={onClickDescribe}
                             >
-                                {busyId === a.id ? <Spinner /> : <VolumeIcon />}
+                                {isBusy ? <Spinner /> : <VolumeIcon />}
                             </button>
+                        )}
+
+                        {/* Optional corner badge when gated (purely visual, doesn’t block clicks) */}
+                        {!isBusy && ready && !canDescribe && (
+                            <div className="absolute left-2 top-2 text-[10px] px-1.5 py-0.5 rounded bg-white/90 text-black/90">
+                                Upgrade
+                            </div>
                         )}
                     </div>
                 );

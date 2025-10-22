@@ -1,127 +1,132 @@
 // app/api/ai/image/route.ts
 import { NextResponse } from 'next/server';
 
-// ---- simple built-in plan config so this file is self-contained ----
-export type Plan = 'free' | 'pro' | 'max';
-type Cfg = {
-    model: 'gpt-image-1' | 'dall-e-3';
-    size: '1024x1024' | '1792x1024' | '1024x1792';
-    // quality/style are only used when model === 'dall-e-3'
-    quality?: 'standard' | 'hd';
-    style?: 'vivid' | 'natural';
+export const runtime = 'nodejs';
+
+type Plan = 'free' | 'pro' | 'max';
+type Model = 'gpt-image-1' | 'dall-e-3';
+type Size = '1024x1024' | '1792x1024' | '1024x1792';
+type Quality = 'standard' | 'hd';
+type Style = 'vivid' | 'natural';
+
+type Req = {
+    prompt: string;
+    plan?: Plan;
+    size?: Size;
+    model?: Model;
+    quality?: Quality;
+    style?: Style;
 };
-function imagePlanFor(plan: Plan): Cfg {
+
+function defaultsFor(plan: Plan): { model: Model; size: Size; quality?: Quality; style?: Style } {
     switch (plan) {
         case 'max':
             return { model: 'dall-e-3', size: '1792x1024', quality: 'hd', style: 'vivid' };
         case 'pro':
             return { model: 'dall-e-3', size: '1024x1024', quality: 'standard', style: 'natural' };
-        case 'free':
         default:
-            // Use gpt-image-1 for Free (stable & cheaper); it ignores quality/style.
             return { model: 'gpt-image-1', size: '1024x1024' };
     }
 }
 
-export const runtime = 'nodejs';
-
-type Req = {
-    prompt: string;
-    // optional overrides (rarely used – we mostly trust plan)
-    plan?: Plan; // 'free' | 'pro' | 'max'
-    size?: '1024x1024' | '1792x1024' | '1024x1792';
-    model?: 'gpt-image-1' | 'dall-e-3';
-    quality?: 'standard' | 'hd';
-    style?: 'vivid' | 'natural';
-};
-
 export async function POST(req: Request) {
     try {
-        const body: Req = await req.json().catch(() => ({} as Req));
-        const prompt = (body?.prompt || '').trim();
-
-        if (!prompt) {
-            return NextResponse.json({ ok: false, error: 'no_prompt' }, { status: 400 });
-        }
-
+        const body = (await req.json().catch(() => ({}))) as Req;
         const key = process.env.OPENAI_API_KEY;
-        if (!key) {
-            return NextResponse.json({ ok: false, error: 'no_openai_key' }, { status: 500 });
+        if (!key) return NextResponse.json({ ok: false, error: 'no_openai_key' }, { status: 500 });
+
+        const prompt = (body?.prompt || '').trim();
+        if (!prompt) return NextResponse.json({ ok: false, error: 'no_prompt' }, { status: 400 });
+
+        // Effective plan: header > body > free
+        const hdrPlan = (req.headers.get('x-6ix-plan') || req.headers.get('x-plan') || '').toLowerCase() as Plan;
+        const effPlan: Plan = (hdrPlan === 'free' || hdrPlan === 'pro' || hdrPlan === 'max')
+            ? hdrPlan
+            : ((body?.plan as Plan) || 'free');
+
+        // Start with plan defaults, allow request to suggest overrides
+        const planDef = defaultsFor(effPlan);
+
+        let requestedModel: Model = (body.model as Model) || planDef.model;
+        let requestedSize: Size = (body.size as Size) || planDef.size;
+        let requestedQuality: Quality | undefined = (body.quality as Quality) ?? planDef.quality;
+        let requestedStyle: Style | undefined = (body.style as Style) ?? planDef.style;
+
+        const downgraded: string[] = [];
+
+        // Free is always gpt-image-1
+        if (effPlan === 'free' && requestedModel !== 'gpt-image-1') {
+            downgraded.push(`model:${requestedModel}->gpt-image-1`);
+            requestedModel = 'gpt-image-1';
         }
 
-        // ----- plan defaults (header > body > free) -----
-        const planHeader = (req.headers.get('x-plan') || body.plan || 'free') as Plan;
-        const planCfg = imagePlanFor(planHeader);
+        // Only Max can use 1792 sizes
+        if (effPlan !== 'max' && (requestedSize === '1792x1024' || requestedSize === '1024x1792')) {
+            downgraded.push(`size:${requestedSize}->1024x1024`);
+            requestedSize = '1024x1024';
+        }
 
-        const model = (body.model as Cfg['model']) || planCfg.model;
-        const size = (body.size as Cfg['size']) || planCfg.size;
-        const quality = (body.quality as NonNullable<Cfg['quality']>) ?? planCfg.quality;
-        const style = (body.style as NonNullable<Cfg['style']>) ?? planCfg.style;
+        // gpt-image-1 ignores quality/style — strip them to avoid 400s
+        if (requestedModel === 'gpt-image-1') {
+            if (requestedQuality) downgraded.push(`quality:${requestedQuality}->(none)`);
+            if (requestedStyle) downgraded.push(`style:${requestedStyle}->(none)`);
+            requestedQuality = undefined;
+            requestedStyle = undefined;
+        }
 
-        // ----- Build payload with **fix guard**:
-        // Only DALL·E 3 accepts quality/style here. gpt-image-1 will 400 if we send them.
+        // Build OpenAI payload
         const payload: any = {
-            model,
+            model: requestedModel,
             prompt: prompt.slice(0, 4000),
-            size,
+            size: requestedSize,
             n: 1,
+            ...(requestedModel === 'dall-e-3'
+                ? {
+                    response_format: 'b64_json',
+                    ...(requestedQuality ? { quality: requestedQuality } : {}),
+                    ...(requestedStyle ? { style: requestedStyle } : {}),
+                }
+                : {}),
         };
 
-        if (model === 'dall-e-3') {
-            payload.response_format = 'b64_json';
-            if (quality) payload.quality = quality; // 'standard' | 'hd'
-            if (style) payload.style = style; // 'vivid' | 'natural'
-        }
-
-        const response = await fetch('https://api.openai.com/v1/images/generations', {
+        const r = await fetch('https://api.openai.com/v1/images/generations', {
             method: 'POST',
-            headers: {
-                Authorization: `Bearer ${key}`,
-                'Content-Type': 'application/json',
-            },
+            headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),
             cache: 'no-store',
         });
 
-        // ----- richer upstream error surfacing -----
-        if (!response.ok) {
-            const text = await response.text().catch(() => '');
+        if (!r.ok) {
+            const text = await r.text().catch(() => '');
             let detail: any = text;
             try { detail = JSON.parse(text); } catch { }
             const message =
                 (detail && detail.error && (detail.error.message || detail.error.type)) ||
-                response.statusText ||
-                'upstream_error';
+                r.statusText || 'upstream_error';
 
             return NextResponse.json(
-                {
-                    ok: false,
-                    error: 'upstream_fail',
-                    status: response.status,
-                    statusText: response.statusText,
-                    message,
-                    detail,
-                },
-                { status: 502 },
+                { ok: false, error: 'upstream_fail', status: r.status, statusText: r.statusText, message, detail },
+                { status: 502 }
             );
         }
 
-        const data = await response.json().catch(() => null as any);
+        const data = await r.json().catch(() => null as any);
         const b64 = data?.data?.[0]?.b64_json;
-        if (!b64) {
-            return NextResponse.json({ ok: false, error: 'no_image' }, { status: 502 });
-        }
+        if (!b64) return NextResponse.json({ ok: false, error: 'no_image' }, { status: 502 });
 
-        // Return a data-URL so the client can drop it straight into <img src="">
         return NextResponse.json({
             ok: true,
             url: `data:image/png;base64,${b64}`,
-            meta: { model, size, plan: planHeader },
+            meta: {
+                plan: effPlan,
+                model: requestedModel,
+                size: requestedSize,
+                quality: requestedQuality ?? null,
+                style: requestedStyle ?? null,
+                downgraded, // useful for logs/UI debugging
+            },
         });
-    } catch (err: any) {
-        return NextResponse.json(
-            { ok: false, error: 'server_error', message: err?.message || 'unknown' },
-            { status: 500 },
-        );
+    } catch (e: any) {
+        return NextResponse.json({ ok: false, error: 'server_error', message: e?.message || 'unknown' }, { status: 500 });
     }
 }
