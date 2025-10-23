@@ -1,6 +1,6 @@
 // src/app/checkout/page.tsx
 import { Suspense } from 'react';
-import CheckoutClient from './CheckoutClient';
+import CheckoutClient from './checkoutClient';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
