@@ -1,8 +1,10 @@
 {
     "crons": [
         {
-            "path": "/api/billing/cron/expiry",
-            "schedule": "0 9 * * *"
+        "path": "/api/billing/cron/expiry", "schedule": "0 9 * * *"
+        },
+        {"path": "/api/gen/topup?secret=@GEN_SECRET", "schedule": "0 8 * * *"
+
         }
     ]
 }
