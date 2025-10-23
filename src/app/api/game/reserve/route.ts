@@ -12,7 +12,7 @@ type Body = {
     language?: string; // default 'en'
     difficulties?: Array<'easy' | 'medium' | 'hard'>; // default ['easy','medium','hard']
     count?: number; // default 10
-    session_id?: string; // optional; created if missing
+    session_id?: string; 
 };
 
 function envReq(n: string) {

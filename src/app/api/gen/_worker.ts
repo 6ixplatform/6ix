@@ -212,7 +212,7 @@ export async function runGeneration(params: GenParams) {
     }).select('id').single();
     const jobId = jobIns?.id as string | undefined;
 
-    // ---------- FIXED: no .catch() on the builder; just await and ignore errors ----------
+    // ------- FIXED: no .catch() on the builder; just await and ignore errors ------
     async function log(level: 'info' | 'warn' | 'error', msg: string, meta?: any) {
         if (!jobId) return;
         try {
