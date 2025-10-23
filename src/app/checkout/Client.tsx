@@ -52,7 +52,7 @@ function Spinner() {
     );
 }
 
-export default function CheckoutClient() {
+export default function Client() {
     const router = useRouter();
     const qp = useSearchParams();
 
