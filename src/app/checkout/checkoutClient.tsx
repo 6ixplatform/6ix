@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
+
 type Plan = 'pro' | 'max';
 type Billing = 'monthly' | 'yearly';
 
