@@ -139,6 +139,23 @@ export default function FloatingComposer(props: Props) {
     const isSendingOrBusy = streaming || transcribing || hasPendingUpload || isBusy;
     const canSend = input.trim().length > 0 && !isSendingOrBusy;
 
+    // Disable backdrop blur on iOS while the virtual keyboard is open
+    const [keyboardOpen, setKeyboardOpen] = useState(false);
+    const isIOS = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent);
+
+    useEffect(() => {
+        const vv = (window as any).visualViewport as VisualViewport | undefined;
+        const detect = () => {
+            const full = window.innerHeight;
+            const current = vv?.height ?? full;
+            setKeyboardOpen(full - current > 120); // threshold ~ keyboard height
+        };
+        vv?.addEventListener('resize', detect);
+        window.addEventListener('resize', detect);
+        detect();
+        return () => { vv?.removeEventListener('resize', detect); window.removeEventListener('resize', detect); };
+    }, []);
+
     // shape + expand button logic
     const [isMultiline, setIsMultiline] = useState(false);
     const [showExpandBtn, setShowExpandBtn] = useState(false);
@@ -289,6 +306,12 @@ export default function FloatingComposer(props: Props) {
     }, [recState, stopVu]);
 
     useEffect(() => { if (transcribing) stopVu(); }, [transcribing, stopVu]);
+    // NEW: show spinner immediately after user taps Stop (before parent flips `transcribing`)
+    const [showTranscribing, setShowTranscribing] = useState(false);
+    useEffect(() => {
+        if (!transcribing) setShowTranscribing(false); // clear when parent finishes STT
+    }, [transcribing]);
+
 
     return (
         <>
@@ -397,8 +420,11 @@ export default function FloatingComposer(props: Props) {
 ${isMultiline || input.trim().length ? 'rounded-2xl md:rounded-3xl' : 'rounded-[9999px] md:rounded-3xl'}
 min-h-[40px] overflow-hidden ring-0 border-0 shadow-none`}
                         style={{
-                            background: 'var(--surface-1, rgba(17,17,17,.50))',
-                            backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)',
+                            background: (isIOS && keyboardOpen)
+                                ? 'var(--surface-1, rgba(17,17,17,.85))'
+                                : 'var(--surface-1, rgba(17,17,17,.50))',
+                            backdropFilter: (isIOS && keyboardOpen) ? 'none' : 'blur(14px)',
+                            WebkitBackdropFilter: (isIOS && keyboardOpen) ? 'none' : 'blur(14px)',
                             border: '0', outline: 'none', boxShadow: 'none',
                             backgroundClip: 'padding-box', WebkitBackgroundClip: 'padding-box',
                             WebkitMaskImage: '-webkit-radial-gradient(white, black)'
@@ -510,7 +536,7 @@ ${recState === 'recording' ? 'px-2 min-w-[66px] md:min-w-[72px] justify-start' :
                                         className="h-6 w-6 md:h-8 md:w-8 rounded-full grid place-items-center active:scale-95"
                                         title="Stop recording"
                                         aria-label="Stop recording"
-                                        onClick={stopRecording}
+                                        onClick={() => { setShowTranscribing(true); stopRecording(); }}
                                         style={chipStyle}
                                     >
                                         <StopIcon />
@@ -518,7 +544,7 @@ ${recState === 'recording' ? 'px-2 min-w-[66px] md:min-w-[72px] justify-start' :
                                 )}
 
                                 {/* transcribing spinner */}
-                                {transcribing && (
+                                {(showTranscribing || transcribing) && (
                                     <span className="hidden md:inline-flex h-8 px-3 rounded-full text-[12px] items-center gap-2" style={chipStyle}>
                                         <svg width="14" height="14" viewBox="0 0 24 24" className="animate-spin opacity-80" fill="none" stroke="currentColor" strokeWidth="2">
                                             <path d="M12 2a10 10 0 1 1-7.07 2.93" />
@@ -615,7 +641,8 @@ ${recState === 'recording' ? 'px-2 min-w-[66px] md:min-w-[72px] justify-start' :
                                         className={`h-9 rounded-full active:scale-95 flex items-center gap-2 px-2 ${recState === 'recording' ? 'min-w-[80px]' : 'w-9 justify-center'}`}
                                         title={recState === 'recording' ? 'Stop recording' : 'Record voice'}
                                         aria-label="Record voice"
-                                        onClick={recState === 'recording' ? stopRecording : startRecording}
+                                        onClick={recState === 'recording' ? (() => { setShowTranscribing(true); stopRecording(); }) : startRecording}
+
                                         disabled={transcribing}
                                         style={chipStyle}
                                     >
@@ -635,7 +662,7 @@ ${recState === 'recording' ? 'px-2 min-w-[66px] md:min-w-[72px] justify-start' :
                                     </button>
 
                                     {/* transcribing pill */}
-                                    {transcribing && (
+                                    {(showTranscribing || transcribing) && (
                                         <span className="h-9 px-3 rounded-full text-[12px] inline-flex items-center gap-2" style={chipStyle}>
                                             <svg width="14" height="14" viewBox="0 0 24 24" className="animate-spin opacity-80" fill="none" stroke="currentColor" strokeWidth="2">
                                                 <path d="M12 2a10 10 0 1 1-7.07 2.93" />
@@ -743,6 +770,7 @@ pointer-events: none;
 box-shadow: inset 0 0 0 0 transparent;
 }
 `}</style>
+
 
             {/* Voice quick picker (male/female or catalog by plan) */}
             <VoiceQuickPicker
