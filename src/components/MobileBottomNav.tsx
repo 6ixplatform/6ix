@@ -7,9 +7,9 @@ type Item = { id: string; label: string; onClick?: () => void; active?: boolean 
 
 export default function MobileBottomNav({
     items = [
-        { id: 'feed', label: '6FEED' },
-        { id: 'ai', label: '6IXAI', active: true },
-        { id: 'game', label: '6GAME' },
+        //{ id: 'feed', label: '6FEED' },
+        //{ id: 'ai', label: '6IXAI', active: true },
+        //{ id: 'game', label: '6GAME' },
     ],
 }: { items?: Item[] }) {
     return (

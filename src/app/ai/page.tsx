@@ -4024,11 +4024,11 @@ max-width: min(660px, 62%);
 /* pin to the correct side with a tiny side gap so it doesn't touch the rail */
 .chat-list .msg-bubble.--in{ /* assistant (left) */
 margin-right: auto;
-margin-left: 8px;
+margin-left: -18px;
 }
 .chat-list .msg-bubble.--out{ /* user (right) */
 margin-left: auto;
-margin-right: 8px;
+margin-right: -18px;
 }
 
 /* ensure inner content never overflow past the bubble cap */

@@ -295,7 +295,7 @@ export default function FloatingComposer(props: Props) {
             {/* Floating pill */}
             <div
                 ref={compRef}
-                className="fixed z-40 left-1/2 -translate-x-1/2 mb-8 px-2 sm:px-3 pr-4 pointer-events-none w-[98vw] md:w-[96vw] lg:w-[92vw] max-w-[1100px]"
+                className="fixed z-40 left-1/2 -translate-x-1/2 mb-0 px-0 sm:px-3 pr-1 pointer-events-none w-[98vw] md:w-[96vw] lg:w-[92vw] max-w-[1100px]"
                 style={{ bottom: `calc(env(safe-area-inset-bottom, 0px) + 12px)` }}
             >
                 {/* attachments row */}

@@ -285,7 +285,7 @@ export default function UserMenuPortal({
 
                 {/* Items */}
                 <ul className="sheet-list" role="none">
-                    {/* 6chat */}
+                    {/* 6chat 
                     <li>
                         <button
                             type="button"
@@ -295,7 +295,7 @@ export default function UserMenuPortal({
                         >
                             6chat
                         </button>
-                    </li>
+                    </li>*/}
 
                     {/* Change photo… */}
                     <li>
