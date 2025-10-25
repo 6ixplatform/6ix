@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import crypto from 'crypto';  
 
 /* ---------- Voice mapping (unchanged behavior) ---------- */
 const OPENAI_VOICES = new Set([
@@ -8,8 +9,8 @@ function mapToOpenAIVoice(input?: string | null): string | undefined {
     if (!input) return undefined;
     const k = String(input).toLowerCase().trim().replace(/^tts[_-]/, '');
     const ALIASES: Record<string, string> = { kai: 'verse', lola: 'alloy', nina: 'coral', felix: 'ash', amber: 'sage' };
-    const candidate = ALIASES[k] ?? k;
-    return OPENAI_VOICES.has(candidate) ? candidate : undefined;
+    const cand = ALIASES[k] ?? k;
+    return OPENAI_VOICES.has(cand) ? cand : undefined;
 }
 
 /* --- normalize Whisper language to 2-letter codes to avoid 'en-US' error -- */
@@ -29,7 +30,7 @@ function normalizeWhisperLanguage(lang?: string) {
 }
 
 /* ---------- Public STUN only (free) ---------- */
-function buildFreeStunServers() {
+function buildFreeStunServers(): RTCIceServer[] {
     return [
         { urls: 'stun:stun.l.google.com:19302' },
         { urls: 'stun:stun1.l.google.com:19302' },
