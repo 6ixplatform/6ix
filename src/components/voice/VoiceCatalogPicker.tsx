@@ -67,7 +67,7 @@ export default function VoiceCatalogPicker({
 
     if (!open) return null;
 
-    // Client-side search (keeps server query simple and cached)
+    // Client--side search (keeps server query simple and cached)
     const list = voices.filter(v =>
         `${v.name} ${v.code} ${v.description ?? ''}`.toLowerCase().includes(q.toLowerCase())
     );

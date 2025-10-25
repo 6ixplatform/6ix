@@ -301,7 +301,7 @@ export default function VoiceQuickPicker({
                     </div>
                 )}
 
-                {/* Footer */}
+                {/* Footer  */}
                 <div className="mt-2 flex items-center justify-end">
                     <button className="text-xs opacity-80 hover:opacity-100 px-2 py-1" onClick={onClose}>
                         Cancel
