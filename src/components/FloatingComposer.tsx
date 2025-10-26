@@ -243,10 +243,10 @@ export default function FloatingComposer(props: Props) {
 
     /* Theme-adaptive chip */
     const chipStyle: React.CSSProperties = {
-        background: 'var(--btn-bg)',
-        color: 'var(--btn-fg)',
-        border: 'none',
-        boxShadow: '0 0 0 0 transparent'
+        background: 'transparent',
+        color: 'var(--btn-fg, var(--th-text))',
+        border: '1px solid transparent',
+        boxShadow: 'none'
     };
 
     // ── VU meter ──
@@ -420,13 +420,14 @@ export default function FloatingComposer(props: Props) {
 ${isMultiline || input.trim().length ? 'rounded-2xl md:rounded-3xl' : 'rounded-[9999px] md:rounded-3xl'}
 min-h-[40px] overflow-hidden ring-0 border-0 shadow-none`}
                         style={{
-                            background: (isIOS && keyboardOpen)
-                                ? 'var(--surface-1, rgba(17,17,17,.85))'
-                                : 'var(--surface-1, rgba(17,17,17,.50))',
-                            backdropFilter: (isIOS && keyboardOpen) ? 'none' : 'blur(14px)',
-                            WebkitBackdropFilter: (isIOS && keyboardOpen) ? 'none' : 'blur(14px)',
-                            border: '0', outline: 'none', boxShadow: 'none',
-                            backgroundClip: 'padding-box', WebkitBackgroundClip: 'padding-box',
+                            background: 'transparent',
+                            backdropFilter: 'none',
+                            WebkitBackdropFilter: 'none',
+                            border: '0',
+                            outline: 'none',
+                            boxShadow: 'none',
+                            backgroundClip: 'padding-box',
+                            WebkitBackgroundClip: 'padding-box',
                             WebkitMaskImage: '-webkit-radial-gradient(white, black)'
                         }}
                     >
@@ -768,6 +769,28 @@ inset: 0;
 border-radius: inherit;
 pointer-events: none;
 box-shadow: inset 0 0 0 0 transparent;
+}
+`}</style>
+            <style jsx global>{`
+/* Floating composer: remove any fill, glow, or halo */
+.composer-shell{ background:transparent !important; box-shadow:none !important; }
+.composer-shell::after{ box-shadow:none !important; background:transparent !important; }
+
+/* All action chips inside the composer are clear */
+.composer-shell button{
+background:transparent !important;
+box-shadow:none !important;
+border-color:transparent !important;
+-webkit-backdrop-filter:none !important;
+backdrop-filter:none !important;
+}
+
+/* safeguard for size-utility buttons */
+.composer-shell .h-6.w-6,
+.composer-shell .h-7.w-7,
+.composer-shell .h-8.w-8,
+.composer-shell .h-9.w-9{
+background:transparent !important;
 }
 `}</style>
 

@@ -13,7 +13,6 @@ type LastUser = {
     id?: string;
     handle?: string;
     display_name?: string;
-    avatar_url?: string;
     email?: string;
 };
 
@@ -57,7 +56,7 @@ export default function SignInClient() {
                 if (!p) return;
                 const u: LastUser = {
                     id: p.id, email: p.email, handle: p.handle,
-                    display_name: p.display_name, avatar_url: p.avatar_url
+                    display_name: p.display_name
                 };
                 setLastUser(u);
                 setHintVerified(true);
@@ -95,7 +94,7 @@ export default function SignInClient() {
                 if (fresh) {
                     const u: LastUser = {
                         id: fresh.id, email: fresh.email, handle: fresh.handle,
-                        display_name: fresh.display_name, avatar_url: fresh.avatar_url
+                        display_name: fresh.display_name
                     };
                     setLastUser(u);
                     setHintVerified(true);
@@ -127,7 +126,7 @@ export default function SignInClient() {
                 if (p) {
                     const u: LastUser = {
                         id: p.id, email: p.email, handle: p.handle,
-                        display_name: p.display_name, avatar_url: p.avatar_url
+                        display_name: p.display_name
                     };
                     setLastUser(u);
                     try { localStorage.setItem('6ix:last_user', JSON.stringify(u)); } catch { }
@@ -146,23 +145,7 @@ export default function SignInClient() {
         try { const e = localStorage.getItem('6ix:last_email'); if (e) setEmail(e); } catch { }
     }, [email]);
 
-    // Fallback: reuse AI profile avatar *only if* we still don't have one and email is verified
-    useEffect(() => {
-        if (!hintVerified || !lastUser?.email || lastUser?.avatar_url) return;
-        try {
-            const raw = localStorage.getItem('6ixai:profile');
-            if (!raw) return;
-            const p = JSON.parse(raw) as { displayName?: string; avatarUrl?: string };
-            const merged = {
-                ...lastUser,
-                display_name: lastUser.display_name || p?.displayName,
-                avatar_url: lastUser.avatar_url || p?.avatarUrl,
-            };
-            setLastUser(merged);
-            localStorage.setItem('6ix:last_user', JSON.stringify(merged));
-        } catch { }
-    }, [hintVerified, lastUser?.email, lastUser?.avatar_url]);
-
+    
     const emailOk = useMemo(() => /\S+@\S+\.\S+/.test(email), [email]);
     const canSend = emailOk && agree && !loading;
 
@@ -264,7 +247,7 @@ export default function SignInClient() {
         try {
             const { data, error } = await supabase
                 .from('profiles')
-                .select('id,email,handle,display_name,avatar_url')
+                .select('id,email,handle,display_name')
                 .eq('email', addr.trim().toLowerCase())
                 .single();
             if (error) return null;
@@ -316,7 +299,7 @@ export default function SignInClient() {
                         const row = payload?.new || {};
                         const u: LastUser = {
                             id: row.id, email: row.email, handle: row.handle,
-                            display_name: row.display_name, avatar_url: row.avatar_url
+                            display_name: row.display_name
                         };
                         setLastUser(u);
                         try { localStorage.setItem('6ix:last_user', JSON.stringify(u)); } catch { }
@@ -354,13 +337,7 @@ export default function SignInClient() {
                                 <div className="mt-2 text-lg text-zinc-400 break-all">{(email || lastUser?.email)}</div>
                             )}
 
-                            {/* Only show avatar when the email is verified (fresh) */}
-                            {hintVerified && lastUser?.avatar_url && (
-                                <div className="absolute right-0 top-1/2 -translate-y-1/2 w-20 h-20 md:w-24 md:h-24 rounded-full overflow-hidden border border-white/15 signin-avatar">
-                                    <Image src={lastUser.avatar_url} alt="" width={96} height={96} className="w-full h-full object-cover" />
-                                </div>
-                            )}
-
+                            
                             <p className="mt-4 text-zinc-300 max-w-2xl">
                                 <span className="font-medium">Content Creator&apos;s Edition</span> — where <span style={{ color: 'var(--gold)' }}>earnings</span> and growth are transparent for all.
                             </p>
@@ -400,12 +377,6 @@ export default function SignInClient() {
                             <div className="mt-1 text-base text-zinc-400 break-all">{(email || lastUser?.email)}</div>
                         )}
 
-                        {/* gate avatar with verified flag to avoid stale localStorage */}
-                        {hintVerified && lastUser?.avatar_url && (
-                            <div className="absolute right-6 -top-6 w-12 h-12 rounded-full overflow-hidden border border-white/15 signin-avatar">
-                                <Image src={lastUser.avatar_url} alt="" width={48} height={48} className="w-full h-full object-cover" />
-                            </div>
-                        )}
 
                         <p className="mt-2 text-zinc-300">
                             <span className="font-medium">Content Creator&apos;s Edition</span> — where <span style={{ color: 'var(--gold)' }}>earnings</span> and growth are transparent for all.
