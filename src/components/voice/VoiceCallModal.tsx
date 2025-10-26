@@ -352,12 +352,13 @@ export default function VoiceCallModal({
             cache: 'no-store',
         });
 
-        const { client_secret, iceServers, baseUrl, wsUrl, model, error } = await rt.json();
+        const { client_secret, iceServers, baseUrl, model, error } = await rt.json();
         if (error) throw new Error(error);
-
-        tokenRef.current = client_secret; // <- plain string
+        const token: string =
+            typeof client_secret === 'string' ? client_secret : client_secret?.value;
+        if (!token) throw new Error('Missing realtime token');
+        tokenRef.current = token;
         baseUrlRef.current = baseUrl || baseUrlRef.current;
-        wsBaseRef.current = wsUrl || baseUrlRef.current.replace('https', 'wss');
         modelRef.current = model || modelRef.current;
 
         // For FREE: skip RTC entirely (mobile networks + STUN-only often fail)
@@ -439,11 +440,16 @@ export default function VoiceCallModal({
         audioEl.autoplay = true; audioEl.setAttribute('playsinline', 'true'); audioEl.setAttribute('webkit-playsinline', 'true');
         audioEl.onerror = () => setErr('Audio playback failed.');
 
-        pc.ontrack = (e: RTCTrackEvent) => {
+        pc.ontrack = (e) => {
             const [stream] = e.streams;
+            const audioEl = remoteAudioRef.current!;
             audioEl.srcObject = stream;
-            audioEl.play().catch(() => { audioEl.muted = true; audioEl.play().finally(() => { audioEl.muted = false; }); });
-
+            audioEl.autoplay = true;
+            audioEl.setAttribute('playsinline', 'true');
+            audioEl.setAttribute('webkit-playsinline', 'true');
+            audioEl.muted = true;
+            audioEl.play().catch(() => { });
+            setTimeout(() => { audioEl.muted = false; audioEl.play().catch(() => { }); }, 50);
             // analyser for assistant speaking
             stopRemoteAnalyser();
             try {
