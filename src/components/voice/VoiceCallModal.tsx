@@ -102,6 +102,7 @@ export default function VoiceCallModal({
 
     const tokenRef = React.useRef<string | null>(null);
     const baseUrlRef = React.useRef<string>('https://api.openai.com/v1/realtime');
+    const wsBaseRef = React.useRef<string>('wss://api.openai.com/v1/realtime');
     const modelRef = React.useRef<string>(RT_MODEL_BY_PLAN.free);
 
     const countdownRef = React.useRef<number | null>(null);
@@ -191,45 +192,39 @@ export default function VoiceCallModal({
         pcRef.current = null;
 
         const token = tokenRef.current!;
-        const url = `${baseUrlRef.current.replace('https', 'wss')}?model=${encodeURIComponent(modelRef.current)}`;
+        const url = `${wsBaseRef.current}?model=${encodeURIComponent(modelRef.current)}`;
 
+        // Important: pass the bearer token as a subprotocol
         const ws = new WebSocket(url, ['openai-bearer.' + token]);
         wsRef.current = ws;
 
         setStatus('connecting');
 
         ws.onopen = async () => {
-            // session.update (voice + VAD + whisper)
             const mappedVoice = voice ? mapToOpenAIVoice(voice.tts_voice_key) : undefined;
-
-            const longInstructions = buildSixAIInstructions({
-                name: nameHint, language: langHint, locale: localeHint,
-                city: cityHint, state: stateHint, countryCode: countryHint,
-                webSearchPolicy: 'off',
-            });
 
             ws.send(JSON.stringify({
                 type: 'session.update',
                 session: {
                     ...(mappedVoice ? { voice: mappedVoice } : {}),
-                    // Let server handle VAD, we only stream audio frames
                     turn_detection: { type: 'server_vad', silence_duration_ms: 1200 },
                     input_audio_transcription: { model: 'whisper-1' },
-                    instructions: `${longInstructions}\n\nFIRST-TURN: Greet the user by the provided name (“${nameHint}”).`,
+                    instructions: `Hi ${nameHint}. I’ll listen and respond naturally.`,
                 }
             }));
 
-            // Mic → WS streaming
+            // Mic -> WS (your helper should stream PCM16 frames)
             wsMicRef.current = await startMicToWS(ws, () => { });
-            // Output player
+
+            // Speaker: small jitter buffer
             wsPlayerRef.current = createWSAudioPlayer();
 
-            // Kick off a first greeting
+            // Initial greeting
             if (!greetedOnceRef.current) {
                 greetedOnceRef.current = true;
                 ws.send(JSON.stringify({
                     type: 'response.create',
-                    response: { instructions: `Hi ${nameHint}! I’m here with you. Tell me what you need and I’ll listen.` }
+                    response: { instructions: `Hi ${nameHint}! What do you need?` }
                 }));
             }
 
@@ -239,26 +234,18 @@ export default function VoiceCallModal({
         ws.onmessage = (m) => {
             try {
                 const msg = JSON.parse(m.data);
-                // tool calls (if any)
-                if (msg?.type === 'tool_call') { handleServerEvent(msg); }
-                // assistant audio chunks
+                if (msg?.type === 'tool_call') handleServerEvent(msg);
                 if (msg?.type === 'response.output_audio.delta' && typeof msg.delta === 'string') {
                     wsPlayerRef.current?.enqueuePcm16Base64(msg.delta);
                 }
             } catch {
-                // Pass raw string to handler if it happens
                 handleServerEvent(m.data);
             }
         };
 
-        ws.onclose = () => {
-            if (status !== 'ending') setStatus('reconnecting');
-        };
+        ws.onclose = () => { if (status !== 'ending') setStatus('reconnecting'); };
+        ws.onerror = () => { setStatus('error'); setErr('WebSocket error'); };
 
-        ws.onerror = () => {
-            setStatus('error');
-            setErr('WebSocket error');
-        };
     }, [voice, nameHint, langHint, cityHint, stateHint, countryHint, localeHint, handleServerEvent, status]);
 
     /* ============================ WebRTC path ============================ */
@@ -364,24 +351,36 @@ export default function VoiceCallModal({
             credentials: 'include',
             cache: 'no-store',
         });
-        const { client_secret, iceServers, baseUrl, model, error } = await rt.json();
-        if (error) throw new Error(error);
-        const token: string | undefined = typeof client_secret === 'string' ? client_secret : client_secret?.value;
-        if (!token) throw new Error('Missing realtime token');
 
-        tokenRef.current = token;
+        const { client_secret, iceServers, baseUrl, wsUrl, model, error } = await rt.json();
+        if (error) throw new Error(error);
+
+        tokenRef.current = client_secret; // <- plain string
         baseUrlRef.current = baseUrl || baseUrlRef.current;
+        wsBaseRef.current = wsUrl || baseUrlRef.current.replace('https', 'wss');
         modelRef.current = model || modelRef.current;
+
+        // For FREE: skip RTC entirely (mobile networks + STUN-only often fail)
+        if (plan === 'free') {
+            await connectWS();
+            return;
+        }
 
         // fresh peer
         try { pcRef.current?.close(); } catch { }
         const pc = new RTCPeerConnection({
             iceServers: (iceServers as RTCIceServer[]) || [{ urls: 'stun:stun.l.google.com:19302' }],
-            iceTransportPolicy: 'all', bundlePolicy: 'max-bundle', rtcpMuxPolicy: 'require',
-            iceCandidatePoolSize: 2,
+            bundlePolicy: 'max-bundle',
+            // (rtcpMuxPolicy is deprecated; omit it)
         });
-        pc.addTransceiver('audio', { direction: 'sendrecv' });
         pcRef.current = pc;
+
+        // Make sure the SDP is unified-plan and Opus is preferred
+        const trans = pc.addTransceiver('audio', { direction: 'sendrecv' });
+        const caps = RTCRtpSender.getCapabilities('audio')?.codecs || [];
+        const opus = caps.find(c => /opus/i.test(c.mimeType));
+        if (opus) trans.setCodecPreferences([opus]);
+
 
         const markReconnectingSoon = () => {
             if (!reconnectIndicatorTimerRef.current) {
@@ -392,14 +391,13 @@ export default function VoiceCallModal({
             }
         };
 
-        // ======= give RTC a short window, then WS fallback =======
+        // Give RTC a *short* window, then fall back to WS
         const rtcConnectWindow = window.setTimeout(() => {
             if (pc.connectionState !== 'connected') {
-                console.warn('[voice] RTC connect window elapsed — switching to WS fallback');
                 try { pc.close(); } catch { }
-                connectWS(); // <- fallback
+                connectWS(); // robust fallback
             }
-        }, 4500);
+        }, 2500);
 
         pc.onconnectionstatechange = async () => {
             const s = pc.connectionState;

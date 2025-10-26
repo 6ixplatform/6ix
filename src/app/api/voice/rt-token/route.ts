@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import crypto from 'crypto';  
+import crypto from 'crypto';
 
 /* ---------- Voice mapping (unchanged behavior) ---------- */
 const OPENAI_VOICES = new Set([
@@ -38,145 +38,64 @@ function buildFreeStunServers(): RTCIceServer[] {
         { urls: 'stun:stun3.l.google.com:19302' },
         { urls: 'stun:stun4.l.google.com:19302' },
         { urls: 'stun:stun.cloudflare.com:3478' },
-        { urls: 'stun:global.stun.twilio.com:3478?transport=udp' },
     ];
 }
 
 export async function POST(req: Request) {
-    try {
-        const apiKey = process.env.OPENAI_API_KEY!;
-        if (!apiKey) {
-            return NextResponse.json({ error: 'Missing OPENAI_API_KEY' }, { status: 500 });
-        }
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) return NextResponse.json({ error: 'Missing OPENAI_API_KEY' }, { status: 500 });
 
-        const body = await req.json().catch(() => ({} as any));
-        const {
-            voiceKey,
-            name, // preferred display name (from profiles)
-            language, // may be 'en-US' etc.; we normalize for Whisper below
-            locale,
-            city,
-            state,
-            countryCode,
-        } = body || {};
+    const body = await req.json().catch(() => ({}));
+    const { voiceKey, language, name, locale, city, state, countryCode } = body || {};
 
-        const model =
-            process.env.OPENAI_REALTIME_MODEL ||
-            'gpt-4o-realtime-preview-2024-12-17';
+    const model =
+        process.env.OPENAI_REALTIME_MODEL ||
+        'gpt-4o-realtime-preview-2024-12-17';
 
-        const voice = mapToOpenAIVoice(voiceKey);
-        const lang2 = normalizeWhisperLanguage(language);
-
-        // Minimal personalization so the model ALWAYS uses the user’s name on first turn.
-        // (Your long “flow” still lives client-side; this just guarantees name usage.)
-        const localeLine = [countryCode, state, city].filter(Boolean).join(', ');
-        const instructions = `
-You are 6IXAI — a friendly, emotionally intelligent, real-time voice companion.
-The user's preferred name is: ${name || 'there'}.
-Always greet the user by this name in your first reply, and use it naturally and professionally (not in every sentence).
-If a language preference is provided, default to it; otherwise mirror the user's language.
-Locale hints: ${[locale, localeLine].filter(Boolean).join('; ')}.
+    const instructions = `
+You are 6IXAI. Greet the user by name (${name || 'there'}) in your first turn. Mirror the user's language if none is provided.
+Locale hints: ${[countryCode, state, city, locale].filter(Boolean).join(', ')}.
 `.trim();
 
-        const payload: any = {
-            model,
-            modalities: ['text', 'audio'],
-            ...(voice ? { voice } : {}),
-            // Robust, low-latency VAD
-            turn_detection: { type: 'server_vad', silence_duration_ms: 1100 },
-            input_audio_transcription: lang2
-                ? { model: 'whisper-1', language: lang2 }
-                : { model: 'whisper-1' },
-            instructions,
-            tools: [
-                {
-                    type: 'function',
-                    name: 'end_call',
-                    description: 'End the current voice call when the user is done.',
-                    parameters: { type: 'object', properties: { reason: { type: 'string' } } },
-                },
-                {
-                    type: 'function',
-                    name: 'save_progress',
-                    description: 'Save lesson progress for this user.',
-                    parameters: {
-                        type: 'object',
-                        properties: {
-                            topic: { type: 'string' },
-                            summary: { type: 'string' },
-                            cursor: { type: 'object' },
-                        },
-                        required: ['topic'],
-                    },
-                },
-                {
-                    type: 'function',
-                    name: 'get_progress',
-                    description: 'Fetch lesson progress so we can resume.',
-                    parameters: {
-                        type: 'object',
-                        properties: { topic: { type: 'string' } },
-                        required: ['topic'],
-                    },
-                },
-                {
-                    type: 'function',
-                    name: 'web_search',
-                    description: 'Search the web for fresh information (short results list).',
-                    parameters: {
-                        type: 'object',
-                        properties: { query: { type: 'string' }, n: { type: 'number' } },
-                        required: ['query'],
-                    },
-                },
-                {
-                    type: 'function',
-                    name: 'stock_quotes',
-                    description: 'Fetch stock quotes for comma-separated symbols, e.g., "AAPL,MSFT".',
-                    parameters: {
-                        type: 'object',
-                        properties: { symbols: { type: 'string' } },
-                        required: ['symbols'],
-                    },
-                },
-                {
-                    type: 'function',
-                    name: 'weather_forecast',
-                    description: 'Get weather by coordinates.',
-                    parameters: {
-                        type: 'object',
-                        properties: { lat: { type: 'number' }, lon: { type: 'number' } },
-                        required: ['lat', 'lon'],
-                    },
-                },
-            ],
-        };
+    const payload: any = {
+        model,
+        // voice is optional; include it only if you map the key
+        ...(voiceKey ? { voice: String(voiceKey) } : {}),
+        turn_detection: { type: 'server_vad', silence_duration_ms: 1100 },
+        input_audio_transcription: { model: 'whisper-1' },
+        instructions,
+    };
 
-        const r = await fetch('https://api.openai.com/v1/realtime/sessions', {
-            method: 'POST',
-            headers: {
-                Authorization: `Bearer ${apiKey}`,
-                'Content-Type': 'application/json',
-                'OpenAI-Beta': 'realtime=v1',
-            },
-            body: JSON.stringify(payload),
-        });
+    const r = await fetch('https://api.openai.com/v1/realtime/sessions', {
+        method: 'POST',
+        headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+            'OpenAI-Beta': 'realtime=v1',
+        },
+        body: JSON.stringify(payload),
+    });
 
-        const data = await r.json();
-        if (!r.ok) {
-            return NextResponse.json({ error: data?.error ?? data }, { status: r.status });
-        }
-
-        // STUN only — no TURN in this flow
-        const iceServers = buildFreeStunServers();
-
-        return NextResponse.json({
-            client_secret: data.client_secret,
-            iceServers,
-            baseUrl: 'https://api.openai.com/v1/realtime',
-            model,
-        });
-    } catch (e: any) {
-        return NextResponse.json({ error: e?.message ?? 'Unknown error' }, { status: 500 });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) {
+        return NextResponse.json({ error: data?.error?.message || JSON.stringify(data) }, { status: r.status });
     }
+
+    const secret =
+        typeof data.client_secret === 'string'
+            ? data.client_secret
+            : data.client_secret?.value;
+
+    if (!secret) {
+        return NextResponse.json({ error: 'No client_secret in OpenAI response' }, { status: 500 });
+    }
+
+    return NextResponse.json({
+        client_secret: secret, // <- always a plain string now
+        iceServers: buildFreeStunServers(), // still STUN only
+        baseUrl: 'https://api.openai.com/v1/realtime',
+        wsUrl: 'wss://api.openai.com/v1/realtime',
+        model,
+    });
 }
+
