@@ -269,7 +269,7 @@ export default function AboutPage() {
                         <Card title="Feedback loop">
                             <p>
                                 Accessibility feedback is prioritized alongside safety reports. Contact{" "}
-                                <a className="underline" href="mailto:hello@6ixapp.com">hello@6ixapp.com</a>.
+                                <a className="underline" href="mailto:support@6ixapp.com">support@6ixapp.com</a>.
                             </p>
                         </Card>
                     </div>
@@ -386,7 +386,7 @@ export default function AboutPage() {
                             <p><a className="underline" href="mailto:careers@6ixapp.com">careers@6ixapp.com</a></p>
                         </Card>
                         <Card title="General">
-                            <p><a className="underline" href="mailto:hello@6ixapp.com">hello@6ixapp.com</a></p>
+                            <p><a className="underline" href="mailto:support@6ixapp.com">support@6ixapp.com</a></p>
                         </Card>
                     </div>
                     <p className="text-zinc-400 text-sm mt-2">

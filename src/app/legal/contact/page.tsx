@@ -48,7 +48,7 @@ export default function ContactPage() {
                         <ContactCard
                             title="Talk to us"
                             lines={[
-                                { label: "Email", value: "hello@6ixapp.com", href: "mailto:hello@6ixapp.com?subject=Hello%20from%20the%206ix%20site" },
+                                { label: "Email", value: "support@6ixapp.com", href: "mailto:support@6ixapp.com?subject=Hello%20from%20the%206ix%20site" },
                             ]}
                             note="Product questions, feedback, partnerships you’re not sure where to route."
                         />

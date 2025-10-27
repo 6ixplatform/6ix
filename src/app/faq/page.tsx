@@ -348,7 +348,7 @@ export default function FAQPage() {
                 <Section id="accessibility" title="Accessibility & Inclusion">
                     <FAQ q="What accessibility features do you support?">
                         We aim for readable typography, reduced motion options, captions, and screen-reader-friendly layouts. Feedback:
-                        <a className="underline" href="mailto:hello@6ixapp.com"> hello@6ixapp.com</a>.
+                        <a className="underline" href="mailto:support@6ixapp.com"> support@6ixapp.com</a>.
                     </FAQ>
 
                     <FAQ q="Can I request additional accommodations?">
@@ -373,7 +373,7 @@ export default function FAQPage() {
                 {/* Contact */}
                 <Section id="contact" title="Contact & Support">
                     <FAQ q="How can I contact 6ix?">
-                        General: <a className="underline" href="mailto:hello@6ixapp.com">hello@6ixapp.com</a> ·
+                        General: <a className="underline" href="mailto:support@6ixapp.com">support@6ixapp.com</a> ·
                         Safety: <a className="underline" href="mailto:safety@6ixapp.com">safety@6ixapp.com</a> ·
                         Privacy: <a className="underline" href="mailto:privacy@6ixapp.com">privacy@6ixapp.com</a> ·
                         Press: <a className="underline" href="mailto:press@6ixapp.com">press@6ixapp.com</a> ·
