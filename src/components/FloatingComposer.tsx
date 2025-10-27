@@ -312,6 +312,11 @@ export default function FloatingComposer(props: Props) {
     useEffect(() => {
         if (!transcribing) setShowTranscribing(false); // clear when parent finishes STT
     }, [transcribing]);
+    useEffect(() => {
+        if (!isIOS) return;
+        document.documentElement.classList.toggle('kb-open', keyboardOpen);
+        return () => document.documentElement.classList.remove('kb-open');
+    }, [keyboardOpen, isIOS]);
 
 
     return (
@@ -319,7 +324,7 @@ export default function FloatingComposer(props: Props) {
             {/* Floating pill */}
             <div
                 ref={compRef}
-                className="fixed z-40 left-1/2 -translate-x-1/2 mb-0 px-0 sm:px-3 pr-1 pointer-events-none w-[98vw] md:w-[96vw] lg:w-[92vw] max-w-[1100px]"
+                className="floating-composer fixed z-40 left-1/2 -translate-x-1/2 mb-0 px-0 sm:px-3 pr-1 pointer-events-none w-[98vw] md:w-[96vw] lg:w-[92vw] max-w-[1100px]"
                 style={{ bottom: `calc(env(safe-area-inset-bottom, 0px) + 12px)` }}
             >
                 {/* attachments row */}
