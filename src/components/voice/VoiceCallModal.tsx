@@ -209,10 +209,14 @@ export default function VoiceCallModal({
                 type: 'session.update',
                 session: {
                     ...(mappedVoice ? { voice: mappedVoice } : {}),
+                    input_audio_format: 'pcm16',
                     output_audio_format: 'pcm16',
-                    turn_detection: { type: 'server_vad', silence_duration_ms: 1200 },
-                    input_audio_transcription: { model: 'whisper-1' },
-                    instructions: `Hi ${nameHint}. I’ll listen and respond naturally.`,
+                    turn_detection: { type: 'server_vad', silence_duration_ms: 1100 },
+                    input_audio_transcription: {
+                        model: 'gpt-4o-transcribe',
+                        ...(langHint ? { language: langHint } : {})
+                    },
+                    instructions: `Hi ${nameHint}. I’ll listen and respond naturally.`
                 }
             }));
 
@@ -233,6 +237,11 @@ export default function VoiceCallModal({
         ws.onmessage = (m) => {
             try {
                 const msg = JSON.parse(m.data);
+                if (msg?.type === 'error') {
+                    setErr(msg?.error?.message || 'Realtime error');
+                    setStatus('error');
+                    return;
+                }
                 if (msg?.type === 'tool_call') handleServerEvent(msg);
                 if (msg?.type === 'response.output_audio.delta' && typeof msg.delta === 'string') {
                     wsPlayerRef.current?.enqueuePcm16Base64(msg.delta);
@@ -242,8 +251,17 @@ export default function VoiceCallModal({
             }
         };
 
-        ws.onclose = () => { if (status !== 'ending') setStatus('reconnecting'); };
-        ws.onerror = () => { setStatus('error'); setErr('WebSocket error'); };
+        ws.onclose = (e) => {
+            if (status !== 'ending') {
+                setErr(e.reason ? `WS closed ${e.code} – ${e.reason}` : `WS closed ${e.code}`);
+                setStatus('reconnecting');
+            }
+        };
+        ws.onerror = () => {
+            setErr('WebSocket failed to open');
+            setStatus('error');
+        };
+
 
     }, [voice, nameHint, langHint, cityHint, stateHint, countryHint, localeHint, handleServerEvent, status]);
 
@@ -322,6 +340,7 @@ export default function VoiceCallModal({
 
     const connect = React.useCallback(async (isReconnect = false) => {
         setErr(undefined);
+        try { await (window as any)?.resumeAudioContext?.(); } catch { }
         if (!isReconnect) setStatus('connecting');
 
         const tier = voice?.tier;

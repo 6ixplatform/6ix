@@ -72,21 +72,32 @@ Locale hints: ${[locale, localeLine].filter(Boolean).join('; ')}.
         const payload: any = {
             model,
             modalities: ['text', 'audio'],
+
             ...(voice ? { voice } : {}),
-            output_audio_format: 'pcm16', // streamable & low-latency
+
+            // Tell Realtime what we stream in/out
+            input_audio_format: 'pcm16',
+            output_audio_format: 'pcm16',
+
+            // Low-latency VAD on the server
             turn_detection: { type: 'server_vad', silence_duration_ms: 1100 },
+
+            // ✅ Use the Realtime transcription model (not Whisper)
             input_audio_transcription: lang2
-                ? { model: 'whisper-1', language: lang2 }
-                : { model: 'whisper-1' },
+                ? { model: 'gpt-4o-transcribe', language: lang2 }
+                : { model: 'gpt-4o-transcribe' },
+
             instructions,
             tools: [
                 {
-                    type: 'function', name: 'end_call',
+                    type: 'function',
+                    name: 'end_call',
                     description: 'End the current voice call when the user is done.',
                     parameters: { type: 'object', properties: { reason: { type: 'string' } } }
                 },
                 {
-                    type: 'function', name: 'save_progress',
+                    type: 'function',
+                    name: 'save_progress',
                     description: 'Save lesson progress for this user.',
                     parameters: {
                         type: 'object',
@@ -95,26 +106,30 @@ Locale hints: ${[locale, localeLine].filter(Boolean).join('; ')}.
                     }
                 },
                 {
-                    type: 'function', name: 'get_progress',
+                    type: 'function',
+                    name: 'get_progress',
                     description: 'Fetch lesson progress so we can resume.',
                     parameters: { type: 'object', properties: { topic: { type: 'string' } }, required: ['topic'] }
                 },
                 {
-                    type: 'function', name: 'web_search',
+                    type: 'function',
+                    name: 'web_search',
                     description: 'Search the web for fresh information (short results list).',
                     parameters: { type: 'object', properties: { query: { type: 'string' }, n: { type: 'number' } }, required: ['query'] }
                 },
                 {
-                    type: 'function', name: 'stock_quotes',
+                    type: 'function',
+                    name: 'stock_quotes',
                     description: 'Fetch stock quotes for comma-separated symbols, e.g., "AAPL,MSFT".',
                     parameters: { type: 'object', properties: { symbols: { type: 'string' } }, required: ['symbols'] }
                 },
                 {
-                    type: 'function', name: 'weather_forecast',
+                    type: 'function',
+                    name: 'weather_forecast',
                     description: 'Get weather by coordinates.',
                     parameters: { type: 'object', properties: { lat: { type: 'number' }, lon: { type: 'number' } }, required: ['lat', 'lon'] }
-                },
-            ],
+                }
+            ]
         };
 
         const r = await fetch('https://api.openai.com/v1/realtime/sessions', {
