@@ -1,142 +1,173 @@
-// lib/voice/wsTransport.ts
-export type WSTransport = {
-    stop: () => void;
-};
+// /lib/voice/wsTransport.ts
+export type WSTransport = { stop(): void };
 
-const TARGET_RATE = 24000; // OpenAI Realtime friendly sample rate
-
-function floatTo16BitPCM(float32: Float32Array) {
-    const out = new Int16Array(float32.length);
-    for (let i = 0; i < float32.length; i++) {
-        let s = Math.max(-1, Math.min(1, float32[i]));
+function floatTo16BitPCM(src: Float32Array): Int16Array {
+    const out = new Int16Array(src.length);
+    for (let i = 0; i < src.length; i++) {
+        let s = Math.max(-1, Math.min(1, src[i]));
         out[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
     }
     return out;
 }
 
-function base64FromPCM16(int16: Int16Array) {
-    // NOTE: Avoid TextEncoder; use Buffer if available; else manual btoa
-    const bytes = new Uint8Array(int16.buffer);
-    let bin = '';
-    for (let i = 0; i < bytes.byteLength; i++) bin += String.fromCharCode(bytes[i]);
-    return typeof btoa !== 'undefined' ? btoa(bin) : Buffer.from(bytes).toString('base64');
-}
-
-function linearResample(src: Float32Array, inRate: number, outRate: number) {
-    if (inRate === outRate) return src;
-    const ratio = inRate / outRate;
-    const newLen = Math.round(src.length / ratio);
-    const out = new Float32Array(newLen);
+function downsampleTo16k(input: Float32Array, inRate: number): Float32Array {
+    if (inRate === 16000) return input;
+    const ratio = inRate / 16000;
+    const outLen = Math.floor(input.length / ratio);
+    const out = new Float32Array(outLen);
+    let i = 0;
     let pos = 0;
-    for (let i = 0; i < newLen; i++) {
-        const idx = i * ratio;
-        const i0 = Math.floor(idx);
-        const i1 = Math.min(src.length - 1, i0 + 1);
-        const t = idx - i0;
-        out[i] = (1 - t) * src[i0] + t * src[i1];
+    while (i < outLen) {
+        const start = Math.floor(pos);
+        const end = Math.min(Math.floor(pos + ratio), input.length);
+        let sum = 0, count = 0;
+        for (let j = start; j < end; j++) { sum += input[j]; count++; }
+        out[i++] = count > 0 ? (sum / count) : 0;
         pos += ratio;
     }
     return out;
 }
 
-/**
-* Mic -> WS (append PCM16 frames continuously)
-*/
-export async function startMicToWS(
-    ws: WebSocket,
-    onStop: () => void
-): Promise<WSTransport> {
-    const md = (navigator as any).mediaDevices as MediaDevices | undefined;
-    if (!md?.getUserMedia) throw new Error('Microphone not available');
+function b64FromInt16(arr: Int16Array): string {
+    const buf = new Uint8Array(arr.buffer);
+    let bin = '';
+    for (let i = 0; i < buf.length; i++) bin += String.fromCharCode(buf[i]);
+    return btoa(bin);
+}
 
-    const stream = await md.getUserMedia({ audio: true });
+/* --------- Mic → WS (PCM16 @16k) with periodic commit/response --------- */
+export async function startMicToWS(ws: WebSocket, onStop: () => void): Promise<WSTransport> {
+    const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+    });
+
     const Ctx = (window.AudioContext || (window as any).webkitAudioContext) as typeof AudioContext;
     const ctx = new Ctx();
+    const src = ctx.createMediaStreamSource(stream);
 
-    const source = ctx.createMediaStreamSource(stream);
+    // ScriptProcessor is deprecated but works everywhere. Size 2048 keeps latency low.
+    const proc = ctx.createScriptProcessor(2048, 1, 1);
+    src.connect(proc);
+    proc.connect(ctx.destination); // keep node alive
 
-    // Use ScriptProcessor for wide compatibility (including iOS)
-    const bufSize = 4096; // 4k frames @ 48kHz ≈ 85ms chunks
-    const proc = ctx.createScriptProcessor(bufSize, 1, 1);
-    source.connect(proc);
-    proc.connect(ctx.destination); // required on some browsers even if muted
-
-    const inRate = ctx.sampleRate;
-
-    let stopped = false;
+    let framesSinceLastFlush = 0;
+    let closed = false;
 
     proc.onaudioprocess = (e) => {
-        if (stopped || ws.readyState !== ws.OPEN) return;
-        const chan = e.inputBuffer.getChannelData(0);
-        // resample → 24k, then PCM16 + base64
-        const res = linearResample(chan, inRate, TARGET_RATE);
-        const pcm16 = floatTo16BitPCM(res);
-        const b64 = base64FromPCM16(pcm16);
+        if (closed || ws.readyState !== WebSocket.OPEN) return;
+        const ch = e.inputBuffer.getChannelData(0);
+        const down = downsampleTo16k(ch, ctx.sampleRate);
+        const pcm16 = floatTo16BitPCM(down);
+        const b64 = b64FromInt16(pcm16);
 
-        ws.send(JSON.stringify({
-            type: 'input_audio_buffer.append',
-            audio: b64, // PCM16 LE base64
-            // (server_vad enabled; we don't manually commit)
-        }));
+        // Stream audio into the input buffer
+        ws.send(JSON.stringify({ type: 'input_audio_buffer.append', audio: b64 }));
+        framesSinceLastFlush++;
     };
+
+    // Flush every ~900ms so server VAD can yield responses quickly
+    const flushTimer = window.setInterval(() => {
+        if (closed || ws.readyState !== WebSocket.OPEN) return;
+        if (framesSinceLastFlush === 0) return;
+        framesSinceLastFlush = 0;
+        ws.send(JSON.stringify({ type: 'input_audio_buffer.commit' }));
+        ws.send(JSON.stringify({ type: 'response.create' }));
+    }, 900);
 
     const stop = () => {
-        if (stopped) return;
-        stopped = true;
+        if (closed) return;
+        closed = true;
+        try { window.clearInterval(flushTimer); } catch { }
         try { proc.disconnect(); } catch { }
-        try { source.disconnect(); } catch { }
-        try { ctx.close(); } catch { }
+        try { src.disconnect(); } catch { }
         try { stream.getTracks().forEach(t => t.stop()); } catch { }
-        onStop?.();
+        try { ctx.close(); } catch { }
+        try { onStop(); } catch { }
     };
-
-    ws.addEventListener('close', stop);
-    ws.addEventListener('error', stop);
 
     return { stop };
 }
 
-/** Very small audio queue player that consumes PCM16 base64 deltas */
+/* --------- Minimal jitter-buffered PCM16 player --------- */
 export function createWSAudioPlayer() {
     const Ctx = (window.AudioContext || (window as any).webkitAudioContext) as typeof AudioContext;
-    const ctx = new Ctx({ sampleRate: TARGET_RATE });
-    let playing = false;
-    const queue: Float32Array[] = [];
+    const ctx = new Ctx();
+
+    // tiny jitter buffer
+    let scheduledAt = 0;
+    let closed = false;
+
+    function b64ToBytes(b64: string): Uint8Array {
+        const bin = atob(b64);
+        const out = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+        return out;
+    }
+
+    function decodePcm16(b64: string): Float32Array {
+        const bytes = b64ToBytes(b64);
+        const view = new Int16Array(bytes.buffer, bytes.byteOffset, Math.floor(bytes.byteLength / 2));
+
+        // NOTE: force the non-generic Float32Array type for older DOM signatures
+        const out = new Float32Array(view.length) as unknown as Float32Array;
+        for (let i = 0; i < view.length; i++) {
+            out[i] = Math.max(-1, Math.min(1, view[i] / 32768));
+        }
+        return out;
+    }
+
+    function playChunk(f32: Float32Array, srcRate = 24000) {
+        if (closed) return;
+        const ch = 1;
+        const buf = ctx.createBuffer(ch, f32.length, srcRate);
+
+        // TS fix: some DOM d.ts expect the old Float32Array. The cast keeps TS happy.
+        (buf.copyToChannel as any)(f32 as unknown as Float32Array, 0);
+
+        const src = ctx.createBufferSource();
+        src.buffer = buf;
+
+        // schedule ~60ms ahead to avoid underruns
+        const now = ctx.currentTime;
+        const lead = 0.06;
+        if (scheduledAt < now) scheduledAt = now + lead;
+
+        src.connect(ctx.destination);
+        src.start(scheduledAt);
+
+        // tiny cross-fade window improves clickiness between chunks
+        const fadeWindow = Math.min(128, f32.length);
+        if (fadeWindow > 3) {
+            const g = ctx.createGain();
+            src.disconnect();
+            src.connect(g);
+            g.connect(ctx.destination);
+
+            const start = scheduledAt;
+            const end = scheduledAt + buf.duration;
+
+            g.gain.setValueAtTime(0.0001, start);
+            g.gain.linearRampToValueAtTime(1.0, start + (fadeWindow / srcRate));
+            g.gain.setValueAtTime(1.0, end - (fadeWindow / srcRate));
+            g.gain.linearRampToValueAtTime(0.0001, end);
+        }
+
+        scheduledAt += buf.duration;
+    }
 
     function enqueuePcm16Base64(b64: string) {
-        const raw = typeof atob !== 'undefined' ? atob(b64) : Buffer.from(b64, 'base64').toString('binary');
-        const bytes = new Uint8Array(raw.length);
-        for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
-        const pcm = new Int16Array(bytes.buffer);
-        const f32 = new Float32Array(pcm.length);
-        for (let i = 0; i < pcm.length; i++) f32[i] = pcm[i] / 32768;
-        queue.push(f32);
-        if (!playing) playNext();
-    }
-
-    async function playNext() {
-        if (playing) return;
-        playing = true;
-        while (queue.length) {
-            const chunk = queue.shift()!;
-            const buffer = ctx.createBuffer(1, chunk.length, TARGET_RATE);
-
-            // TS 5.6+ generic typed arrays use ArrayBufferLike; copy to a fresh view so
-            // the backing buffer is a plain ArrayBuffer (what copyToChannel wants).
-            const view = new Float32Array(chunk.length);
-            view.set(chunk);
-            buffer.copyToChannel(view, 0, 0);
-
-            const src = ctx.createBufferSource();
-            src.buffer = buffer;
-            src.connect(ctx.destination);
-            await new Promise<void>(res => { src.onended = () => res(); src.start(); });
-
+        try {
+            const f32 = decodePcm16(b64);
+            playChunk(f32, 24000);
+        } catch {
+            // ignore corrupt frames
         }
-        playing = false;
     }
 
-    const stop = async () => { try { await ctx.close(); } catch { } };
+    async function stop() {
+        closed = true;
+        try { await ctx.close(); } catch { /* noop */ }
+    }
 
-    return { enqueuePcm16Base64, stop, context: ctx };
+    return { enqueuePcm16Base64, stop };
 }

@@ -194,7 +194,7 @@ export default function VoiceCallModal({
         pcRef.current = null;
 
         const token = tokenRef.current!;
-        const url = `${wsBaseRef.current}?model=${encodeURIComponent(modelRef.current)}`;
+        const url = `${baseUrlRef.current.replace('https', 'wss')}?model=${encodeURIComponent(modelRef.current)}`;
 
         // Important: pass the bearer token as a subprotocol
         const ws = new WebSocket(url, ['openai-bearer.' + token]);
