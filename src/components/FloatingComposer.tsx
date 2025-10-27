@@ -7,6 +7,7 @@ import VoiceQuickPicker, { VoiceRow } from './voice/VoiceQuickPicker';
 import VoiceCallModal from './voice/VoiceCallModal';
 import STTLimitToast from './STTLimitToast';
 import { useLivePlan } from '@/lib/useLivePlan';
+import { prewarmAudioAndMic } from '@/lib/voice/iosUnlock';
 
 /* ----- Types ----- */
 type Plan = 'free' | 'pro' | 'max';
@@ -428,7 +429,10 @@ min-h-[40px] overflow-hidden ring-0 border-0 shadow-none`}
                             boxShadow: 'none',
                             backgroundClip: 'padding-box',
                             WebkitBackgroundClip: 'padding-box',
-                            WebkitMaskImage: '-webkit-radial-gradient(white, black)'
+                            WebkitMaskImage: 'none',
+                            willChange: 'transform',
+                            transform: isIOS && keyboardOpen ? 'translateZ(0)' : undefined,
+                            backfaceVisibility: 'hidden'
                         }}
                     >
                         {/* Expand (<>), only when 4+ lines */}
@@ -463,7 +467,6 @@ min-h-[40px] overflow-hidden ring-0 border-0 shadow-none`}
                                 </svg>
                             </button>
 
-                            {/* textarea */}
                             <textarea
                                 ref={textRef}
                                 value={input}
@@ -471,6 +474,12 @@ min-h-[40px] overflow-hidden ring-0 border-0 shadow-none`}
                                 placeholder="Message 6IX AI"
                                 rows={1}
                                 className="block w-full bg-transparent appearance-none border-0 ring-0 outline-none focus:outline-none focus:ring-0 text-[15px] md:text-[16px] leading-[20px] pl-[12px] md:pl-[52px] pr-[112px] md:pr-[132px] py-[10px] resize-none shadow-none"
+                                autoComplete="off"
+                                inputMode="text"
+                                autoCorrect="on"
+                                autoCapitalize="sentences"
+                                enterKeyHint="send"
+                                spellCheck
                                 onFocus={() => { focusLockRef.current = true; }}
                                 onBlur={() => {
                                     if (!pickerOpenRef.current && focusLockRef.current) {
@@ -496,7 +505,18 @@ min-h-[40px] overflow-hidden ring-0 border-0 shadow-none`}
                                     className="h-6 w-6 md:h-8 md:w-8 rounded-full grid place-items-center active:scale-95"
                                     title="Start voice call"
                                     aria-label="Start voice call"
-                                    onClick={() => setOpenPicker(true)}
+                                    onClick={async () => {
+                                        try {
+                                            await prewarmAudioAndMic(); // ← unlocks iOS autoplay + asks for mic, *in this tap*
+                                            setOpenPicker(true);
+                                        } catch (e: any) {
+                                            alert(
+                                                e?.name === 'NotAllowedError'
+                                                    ? 'Microphone permission is blocked. Allow the mic for this site in Safari > Website Settings.'
+                                                    : `Could not access microphone: ${e?.message || 'unknown error'}`
+                                            );
+                                        }
+                                    }}
                                     style={chipStyle}
                                 >
                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -584,8 +604,8 @@ ${recState === 'recording' ? 'px-2 min-w-[66px] md:min-w-[72px] justify-start' :
                 <div
                     role="dialog"
                     aria-modal="true"
-                    className="fixed inset-0 z-[70] backdrop-blur-sm grid place-items-center"
-                    style={{ background: 'var(--overlay-bg)' }}
+                    className="fixed inset-0 z-[70] grid place-items-center"
+                    style={{ background: 'transparent' }}
                     onClick={closeMax}
                 >
                     <div
