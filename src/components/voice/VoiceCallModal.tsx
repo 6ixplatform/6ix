@@ -8,7 +8,6 @@ export type VoiceRow = { id: string; code: string; name: string; tts_voice_key?:
 type Props = {
     open: boolean;
     onClose: () => void;
-    /** Optional: selected catalog voice (not required by /api/voice/turn but kept for future) */
     voice?: VoiceRow | null;
     plan?: Plan;
     displayName?: string;
@@ -24,26 +23,35 @@ export default function VoiceCallModal({
     const [status, setStatus] = React.useState<'idle' | 'recording' | 'sending' | 'playing' | 'error'>('idle');
     const [err, setErr] = React.useState<string | null>(null);
 
-    // Mic / recording
+    // mic stream/recorder
     const mediaStreamRef = React.useRef<MediaStream | null>(null);
     const mediaRecorderRef = React.useRef<MediaRecorder | null>(null);
     const chunksRef = React.useRef<Blob[]>([]);
-    const [userLevel, setUserLevel] = React.useState(0);
 
-    // Assistant playback + level
-    const audioElRef = React.useRef<HTMLAudioElement | null>(null);
+    // live meters
+    const [userLevel, setUserLevel] = React.useState(0);
     const [assistantLevel, setAssistantLevel] = React.useState(0);
 
-    // Analysers & rafs
+    // analysers
     const micCtxRef = React.useRef<AudioContext | null>(null);
     const micAnalyserRef = React.useRef<AnalyserNode | null>(null);
     const micRafRef = React.useRef<number | null>(null);
 
     const outCtxRef = React.useRef<AudioContext | null>(null);
     const outAnalyserRef = React.useRef<AnalyserNode | null>(null);
-    const outRafRef = React.useRef<number | null>(null);
     const outNodeRef = React.useRef<MediaElementAudioSourceNode | null>(null);
+    const outRafRef = React.useRef<number | null>(null);
 
+    // assistant audio element
+    const audioElRef = React.useRef<HTMLAudioElement | null>(null);
+
+    // silence auto-send
+    const lastVoiceTsRef = React.useRef<number>(Date.now());
+    const stoppingRef = React.useRef(false);
+    const SILENCE_MS = 2000;
+    const MIC_THRESH = 0.035; // tweakable
+
+    /* ---------------------- cleanup helpers ---------------------- */
     const cleanupMicAnalyser = React.useCallback(() => {
         if (micRafRef.current) cancelAnimationFrame(micRafRef.current);
         micRafRef.current = null;
@@ -72,16 +80,17 @@ export default function VoiceCallModal({
         cleanupMicAnalyser();
         cleanupOutAnalyser();
         setStatus('idle');
+        stoppingRef.current = false;
     }, [cleanupMicAnalyser, cleanupOutAnalyser]);
 
-    // ---- live meters (no generic typed-array errors) ----
+    /* ---------------------- meters (RMS) ---------------------- */
     const tickMic = React.useCallback(() => {
         const a = micAnalyserRef.current;
         if (!a) { micRafRef.current = requestAnimationFrame(tickMic); return; }
-        // Allocate a fresh array with the exact fftSize – avoids TS generics mismatch
+
         const view = new Uint8Array(a.fftSize);
-        a.getByteTimeDomainData(view); // [0..255]
-        // RMS in [-1..1] domain
+        a.getByteTimeDomainData(view);
+
         let sum = 0;
         for (let i = 0; i < view.length; i++) {
             const v = (view[i] - 128) / 128;
@@ -89,14 +98,26 @@ export default function VoiceCallModal({
         }
         const rms = Math.sqrt(sum / view.length);
         setUserLevel(Math.min(1, Math.max(0, (rms - 0.02) / 0.28)));
+
+        const now = Date.now();
+        if (rms > MIC_THRESH) lastVoiceTsRef.current = now;
+
+        // auto-stop after 2s of silence
+        if (!stoppingRef.current && status === 'recording' && now - lastVoiceTsRef.current >= SILENCE_MS) {
+            stoppingRef.current = true;
+            void stopAndSend();
+        }
+
         micRafRef.current = requestAnimationFrame(tickMic);
-    }, []);
+    }, [status]);
 
     const tickAssistant = React.useCallback(() => {
         const a = outAnalyserRef.current;
         if (!a) { outRafRef.current = requestAnimationFrame(tickAssistant); return; }
+
         const view = new Uint8Array(a.fftSize);
         a.getByteTimeDomainData(view);
+
         let sum = 0;
         for (let i = 0; i < view.length; i++) {
             const v = (view[i] - 128) / 128;
@@ -104,27 +125,30 @@ export default function VoiceCallModal({
         }
         const rms = Math.sqrt(sum / view.length);
         setAssistantLevel(Math.min(1, Math.max(0, (rms - 0.01) / 0.25)));
+
         outRafRef.current = requestAnimationFrame(tickAssistant);
     }, []);
 
-    // ---- start mic + meters & recording ----
+    /* ---------------------- start recording ---------------------- */
     const startRecording = React.useCallback(async () => {
         setErr(null);
         setStatus('recording');
+        lastVoiceTsRef.current = Date.now();
+        stoppingRef.current = false;
 
-        // 1) get mic
         const md = navigator.mediaDevices as MediaDevices | undefined;
         if (!md?.getUserMedia) {
             setErr('Microphone not available (use HTTPS and allow mic).');
             setStatus('error');
             return;
         }
+
         const stream = await md.getUserMedia({
             audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } as MediaTrackConstraints
         });
         mediaStreamRef.current = stream;
 
-        // 2) mic analyser
+        // mic analyser
         try {
             const Ctx = (window.AudioContext || (window as any).webkitAudioContext) as typeof AudioContext;
             const ctx = new Ctx(); await ctx.resume().catch(() => { });
@@ -135,15 +159,12 @@ export default function VoiceCallModal({
             micCtxRef.current = ctx;
             micAnalyserRef.current = analyser;
             tickMic();
-        } catch {
-            // analyser is optional; keep recording even if it fails
-        }
+        } catch { /* analyser optional */ }
 
-        // 3) recorder
+        // recorder
         const mime =
             MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' :
-                MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' :
-                    'audio/mp4'; // iOS fallback (Safari 17+)
+                MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4';
 
         const rec = new MediaRecorder(stream, { mimeType: mime });
         mediaRecorderRef.current = rec;
@@ -152,16 +173,15 @@ export default function VoiceCallModal({
         rec.ondataavailable = (e: BlobEvent) => {
             if (e.data && e.data.size > 0) chunksRef.current.push(e.data);
         };
-        rec.start(250); // small chunks
-
+        rec.start(250);
     }, [tickMic]);
 
+    /* ---------------------- stop & send ---------------------- */
     const stopAndSend = React.useCallback(async () => {
         if (status !== 'recording') return;
         setStatus('sending');
 
         try {
-            // 1) stop recorder & mic
             await new Promise<void>((resolve) => {
                 const rec = mediaRecorderRef.current;
                 if (!rec || rec.state === 'inactive') return resolve();
@@ -173,12 +193,10 @@ export default function VoiceCallModal({
             mediaStreamRef.current = null;
             cleanupMicAnalyser();
 
-            // 2) build one blob from chunks
             const firstType = chunksRef.current[0] ? (chunksRef.current[0] as Blob).type : 'audio/webm';
             const blob: Blob = new Blob(chunksRef.current, { type: firstType || 'audio/webm' });
             chunksRef.current = [];
 
-            // 3) POST to your turn route → MP3 bytes back
             const fd = new FormData();
             fd.append('audio', new File([blob], 'speech.webm', { type: blob.type || 'audio/webm' }));
             if (voice?.tts_voice_key) fd.append('voice', voice.tts_voice_key);
@@ -190,29 +208,35 @@ export default function VoiceCallModal({
             }
             const buf = await res.arrayBuffer();
 
-            // 4) play MP3 and hook analyser
+            // play assistant reply (AUDIBLE)
             const outBlob = new Blob([buf], { type: 'audio/mpeg' });
             const url = URL.createObjectURL(outBlob);
             const el = audioElRef.current!;
             el.src = url;
+            el.defaultMuted = false;
+            el.muted = false;
+            el.volume = 1;
+            el.autoplay = true as any;
+            el.setAttribute('playsinline', 'true');
+            (el as any).webkitPlaysInline = true;
 
-            // connect analyser
+            // connect to destination + analyser (ensures sound on iOS)
             try {
                 const Ctx = (window.AudioContext || (window as any).webkitAudioContext) as typeof AudioContext;
                 const ctx = new Ctx();
+                await ctx.resume().catch(() => { });
                 const analyser = ctx.createAnalyser(); analyser.fftSize = 512;
                 const node = outNodeRef.current ?? ctx.createMediaElementSource(el);
                 outNodeRef.current = node;
                 node.connect(analyser);
-                analyser.connect(ctx.destination); // ensure audible
+                analyser.connect(ctx.destination); // <- make it audible
                 outCtxRef.current = ctx; outAnalyserRef.current = analyser;
                 tickAssistant();
-            } catch { /* if analyser fails, still play */ }
+            } catch { /* still audible via native path */ }
 
-            await el.play().catch(() => { });
+            try { await el.play(); } catch { /* best effort */ }
             setStatus('playing');
 
-            // restart recording automatically after playback ends (push-to-talk feel)
             el.onended = () => {
                 cleanupOutAnalyser();
                 if (open) startRecording().catch(() => { });
@@ -223,27 +247,28 @@ export default function VoiceCallModal({
         }
     }, [voice?.tts_voice_key, cleanupMicAnalyser, cleanupOutAnalyser, tickAssistant, startRecording, open, status]);
 
-    // lifecycle
+    /* ---------------------- lifecycle ---------------------- */
     React.useEffect(() => {
         if (!open) return;
         setStatus('idle'); setErr(null);
+
+        // ensure audio contexts are “warm” due to the user gesture that opened the modal
+        try { (window as any).AudioContext && new (window as any).AudioContext().resume().catch(() => { }); } catch { }
+
+        // start listening immediately
         (async () => {
-            try {
-                // iOS audio unlock
-                try { (window as any).AudioContext && new (window as any).AudioContext().resume().catch(() => { }); } catch { }
-                await startRecording();
-            } catch (e: any) {
-                setErr(e?.message || 'Could not start microphone');
-                setStatus('error');
-            }
+            try { await startRecording(); }
+            catch (e: any) { setErr(e?.message || 'Could not start microphone'); setStatus('error'); }
         })();
 
         return () => {
             stopAll();
-            const el = audioElRef.current; if (el) { try { el.pause(); } catch { } el.src = ''; }
+            const el = audioElRef.current;
+            if (el) { try { el.pause(); } catch { } el.src = ''; }
         };
     }, [open, startRecording, stopAll]);
 
+    /* ---------------------- UI ---------------------- */
     if (!open) return null;
 
     const endOrClose = () => {
@@ -266,7 +291,7 @@ export default function VoiceCallModal({
                 </svg>
             </button>
 
-            {/* Center: orb (assistant) + mic meter */}
+            {/* Center: orb + meters */}
             <div className="h-full w-full flex flex-col items-center justify-center pt-20 gap-12">
                 {/* Assistant orb with live glow */}
                 <div className="relative w-[260px] h-[260px]">
@@ -284,15 +309,12 @@ export default function VoiceCallModal({
                     </div>
                 </div>
 
-                {/* User mic “bars” */}
+                {/* User mic bars */}
                 <div className="h-[18px] flex items-end gap-[3px] text-white/90 opacity-95">
                     {Array.from({ length: 16 }).map((_, i) => {
-                        // simple stagger + level mapping
                         const base = 0.2 + 0.8 * userLevel;
                         const h = 4 + Math.round(28 * base * (0.6 + 0.4 * Math.sin((i * 1.3) + userLevel * 8)));
-                        return <i key={i} style={{
-                            width: 3, height: h, display: 'inline-block', background: 'currentColor', borderRadius: 2
-                        }} />;
+                        return <i key={i} style={{ width: 3, height: h, display: 'inline-block', background: 'currentColor', borderRadius: 2 }} />;
                     })}
                 </div>
 
@@ -304,8 +326,13 @@ export default function VoiceCallModal({
                 </div>
             </div>
 
-            {/* Hidden audio for assistant playback */}
-            <audio ref={audioElRef} className="hidden" />
+            {/* Assistant audio element (off-screen but real, not hidden) */}
+            <audio
+                ref={audioElRef}
+                style={{ position: 'absolute', left: '-9999px', width: 1, height: 1 }}
+                autoPlay
+                playsInline
+            />
 
             {/* Bottom bar */}
             <div className="fixed left-0 right-0 bottom-0 px-4 pb-[env(safe-area-inset-bottom,12px)]">

@@ -302,21 +302,32 @@ export default function ProfileSetupProfileClient() {
             // 3) Save via API
 
 
-            // 3) Save profile DIRECTLY via Supabase (bypass API during onboarding)
-            const { error: upErr } = await supabase
-                .from('profiles')
-                .upsert(
-                    {
-                        id: me.id, // <- satisfies WITH CHECK (auth.uid() = id)
-                        ...payload,
-                        updated_at: new Date().toISOString(),
-                    },
-                    { onConflict: 'id' } // upsert my own row
-                )
-                .select('id') // force PostgREST to execute/return one row
-                .single();
+            const uid = me?.id;
+            if (!uid) {
+                setErr('Unauthorized. Please sign in again.');
+                setSaving(false);
+                return;
+            }
 
-            if (upErr) throw new Error(upErr.message);
+            // Refresh-once retry in case the access token is stale
+            async function upsertProfileOnce(userId: string) {
+                const { error } = await supabase
+                    .from('profiles')
+                    .upsert(
+                        { id: userId, ...payload, updated_at: new Date().toISOString() },
+                        { onConflict: 'id' }
+                    )
+                    .select('id')
+                    .single();
+                return error;
+            }
+
+            let upErr = await upsertProfileOnce(uid);
+            if (upErr?.message?.toLowerCase().includes('unauthorized')) {
+                try { await supabase.auth.refreshSession(); } catch { }
+                upErr = await upsertProfileOnce(uid);
+            }
+            if (upErr) throw new Error(upErr.message || 'Failed to save profile');
 
             // 4) Seed the AI page avatar immediately
             const publicAvatar = toPublicUrl(avatar_storage_path);

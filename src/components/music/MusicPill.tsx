@@ -755,11 +755,6 @@ export default function MusicPill({ category, className = '' }: Props) {
                                                             {s.verified_badge === 'blue' && <span className="badge badge-blue">✓</span>}
                                                         </div>
                                                         <div className="text-xs opacity-70 truncate">{(s.album || '—')}{s.year ? ` • ${s.year}` : ''}{s.label ? ` • ${s.label}` : ''}</div>
-
-                                                        {/* stats row like the screenshot */}
-                                                        <div className="mt-2 flex items-center gap-5 text-[13px] opacity-90">
-                                                            <div className="inline-flex items-center gap-1.5"><IcnCountPlay /> {fmt(st.plays || 0)}</div>
-                                                        </div>
                                                     </>
                                                 ) : (
                                                     <>

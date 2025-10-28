@@ -406,13 +406,13 @@ export default function FloatingComposer(props: Props) {
                     {/* + BEFORE composer (mobile only) */}
                     <button
                         type="button"
-                        className="md:hidden h-9 w-9 rounded-full grid place-items-center active:scale-95"
+                        className="md:hidden h-9 w-9  rounded-full grid place-items-center active:scale-95"
                         title="Add files"
                         aria-label="Add files"
                         onClick={openFiles}
-                        style={chipStyle}
+                        style={{ ...chipStyle, background: 'black', color: 'white' }}
                     >
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
                             <path d="M12 5v14M5 12h14" />
                         </svg>
                     </button>
@@ -423,12 +423,13 @@ export default function FloatingComposer(props: Props) {
 ${isMultiline || input.trim().length ? 'rounded-2xl md:rounded-3xl' : 'rounded-[9999px] md:rounded-3xl'}
 min-h-[40px] overflow-hidden ring-0 border-0 shadow-none`}
                         style={{
-                            background: 'transparent',
-                            backdropFilter: 'none',
-                            WebkitBackdropFilter: 'none',
-                            border: '0',
+                            // glassy black background that works on light pages too
+                            background: 'var(--composer-bg, rgba(0, 0, 0, 1))',
+                            backdropFilter: 'blur(12px) saturate(115%)',
+                            WebkitBackdropFilter: 'blur(12px) saturate(115%)',
+                            border: '1px solid rgba(0, 0, 0, 1)',
                             outline: 'none',
-                            boxShadow: 'none',
+                            boxShadow: 'var(--composer-shadow, 0 10px 30px rgba(0,0,0,.18))',
                             backgroundClip: 'padding-box',
                             WebkitBackgroundClip: 'padding-box',
                             WebkitMaskImage: 'none',
@@ -462,9 +463,9 @@ min-h-[40px] overflow-hidden ring-0 border-0 shadow-none`}
                                 title="Add files"
                                 aria-label="Add files"
                                 onClick={openFiles}
-                                style={chipStyle}
+                                style={{ ...chipStyle, background: 'black', color: 'white' }}
                             >
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
                                     <path d="M12 5v14M5 12h14" />
                                 </svg>
                             </button>
@@ -795,17 +796,37 @@ box-shadow: inset 0 0 0 0 transparent;
 }
 `}</style>
             <style jsx global>{`
-/* Floating composer: remove any fill, glow, or halo */
-.composer-shell{ background:transparent !important; box-shadow:none !important; }
-.composer-shell::after{ box-shadow:none !important; background:transparent !important; }
+/* Composer glass theme (light/dark aware) */
+html:not(.dark) .composer-shell{
+--composer-bg: rgba(0,0,0,.62);
+--composer-shadow: 0 10px 30px rgba(0,0,0,.18);
+}
+html.dark .composer-shell{
+--composer-bg: rgba(0,0,0,.48);
+--composer-shadow: 0 10px 30px rgba(0,0,0,.25);
+}
 
-/* All action chips inside the composer are clear */
+.composer-shell{
+background: var(--composer-bg) !important;
+box-shadow: var(--composer-shadow) !important;
+border: 1px solid rgba(255,255,255,.08) !important;
+backdrop-filter: blur(12px) saturate(115%) !important;
+-webkit-backdrop-filter: blur(12px) saturate(115%) !important;
+}
+
+/* keep the inner halo off, but allow subtle inner highlight */
+.composer-shell::after{
+box-shadow: inset 0 1px 0 rgba(255,255,255,.05) !important;
+background: transparent !important;
+}
+
+/* action chips stay clear on top of the glass */
 .composer-shell button{
-background:transparent !important;
-box-shadow:none !important;
-border-color:transparent !important;
--webkit-backdrop-filter:none !important;
-backdrop-filter:none !important;
+background: transparent !important;
+box-shadow: none !important;
+border-color: transparent !important;
+-webkit-backdrop-filter: none !important;
+backdrop-filter: none !important;
 }
 
 /* safeguard for size-utility buttons */
@@ -813,8 +834,9 @@ backdrop-filter:none !important;
 .composer-shell .h-7.w-7,
 .composer-shell .h-8.w-8,
 .composer-shell .h-9.w-9{
-background:transparent !important;
+background: transparent !important;
 }
+
 `}</style>
 
 
