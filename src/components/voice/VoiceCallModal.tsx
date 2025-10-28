@@ -1,689 +1,327 @@
-// components/voice/VoiceCallModal.tsx
 'use client';
 
 import * as React from 'react';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-import { buildSixAIInstructions } from '@/app/instructions/6ixai';
-import { useLivePlan } from '@/lib/useLivePlan';
-import { startMicToWS, createWSAudioPlayer, WSTransport } from '@/lib/voice/wsTransport';
-import { isPrewarmed, prewarmAudioAndMic } from '@/lib/voice/iosUnlock';
-
-const OPENAI_VOICES = new Set(['alloy', 'ash', 'ballad', 'coral', 'echo', 'sage', 'shimmer', 'verse', 'marin', 'cedar']);
-function mapToOpenAIVoice(input?: string | null): string | undefined {
-    if (!input) return undefined;
-    const k = String(input).toLowerCase().trim().replace(/^tts[_-]/, '');
-    const ALIASES: Record<string, string> = { kai: 'verse', lola: 'alloy', nina: 'coral', felix: 'ash', amber: 'sage' };
-    const cand = ALIASES[k] ?? k;
-    return OPENAI_VOICES.has(cand) ? cand : undefined;
-}
 
 type Plan = 'free' | 'pro' | 'max';
-export type VoiceRow = { id: string; code: string; name: string; tts_voice_key: string; tier: Plan; };
+export type VoiceRow = { id: string; code: string; name: string; tts_voice_key?: string | null; tier?: Plan };
 
-type ProfileRow = {
-    id: string; username?: string | null; first_name?: string | null; last_name?: string | null;
-    display_name?: string | null; nickname?: string | null; city?: string | null; state?: string | null; country_code?: string | null;
-    language?: string | null; languages?: any; locale?: string | null;
-};
-const COUNTRY_LANGUAGE_DEFAULT: Record<string, string> = {
-    US: 'en-US', GB: 'en-GB', CA: 'en-CA', AU: 'en-AU',
-    NG: 'en-NG', GH: 'en-GH', ZA: 'en-ZA',
-    FR: 'fr-FR', CI: 'fr-CI', SN: 'fr-SN',
-    ES: 'es-ES', MX: 'es-MX', CO: 'es-CO', AR: 'es-AR',
-    BR: 'pt-BR', PT: 'pt-PT', IT: 'it-IT', DE: 'de-DE', NL: 'nl-NL',
-    IN: 'en-IN', KE: 'en-KE', UG: 'en-UG', TZ: 'sw-TZ', JP: 'ja-JP', KR: 'ko-KR',
-    CN: 'zh-CN', TW: 'zh-TW',
-};
-function first<T>(...vals: (T | undefined | null)[]) { for (const v of vals) { if (v != null && String(v).trim() !== '') return v as T; } }
-function pickDisplayName(p?: ProfileRow | null) {
-    const full = [p?.first_name, p?.last_name].filter(Boolean).join(' ').trim();
-    return first(p?.display_name, p?.nickname, full, p?.first_name, p?.username) ?? 'there';
-}
-function pickLanguageFromProfile(p?: ProfileRow | null) {
-    if (!p) return;
-    if (p.language?.trim()) return p.language.trim();
-    if (p.languages) {
-        try {
-            if (Array.isArray(p.languages) && p.languages.length) return String(p.languages[0]).trim();
-            if (typeof p.languages === 'string') {
-                const s = p.languages.trim();
-                if (s.startsWith('[')) { const a = JSON.parse(s); if (Array.isArray(a) && a.length) return String(a[0]).trim(); }
-                else { const f = s.split(',')[0]; if (f?.trim()) return f.trim(); }
-            }
-        } catch { }
-    }
-    if (p.locale?.trim()) return p.locale.trim();
-    if (p.country_code && COUNTRY_LANGUAGE_DEFAULT[p.country_code]) return COUNTRY_LANGUAGE_DEFAULT[p.country_code];
-    if (typeof navigator !== 'undefined' && navigator.language) return navigator.language;
-}
-
-/* ------------------------- Realtime model by plan ------------------------ */
-const RT_MODEL_BY_PLAN: Record<Plan, string> = {
-    free: process.env.NEXT_PUBLIC_RT_MODEL_FREE || 'gpt-4o-realtime-mini',
-    pro: process.env.NEXT_PUBLIC_RT_MODEL_PRO || 'gpt-4o-realtime-preview-2024-12-17',
-    max: process.env.NEXT_PUBLIC_RT_MODEL_MAX || 'gpt-4o-realtime-preview-2024-12-17',
+type Props = {
+    open: boolean;
+    onClose: () => void;
+    /** Optional: selected catalog voice (not required by /api/voice/turn but kept for future) */
+    voice?: VoiceRow | null;
+    plan?: Plan;
+    displayName?: string;
 };
 
-/* -------------------------------- Component ------------------------------ */
 export default function VoiceCallModal({
-    open, onClose, voice, plan: planProp, displayName: fallbackName = 'there',
-}: { open: boolean; onClose: () => void; voice: VoiceRow | null; plan?: Plan; displayName?: string; }) {
+    open,
+    onClose,
+    voice = null,
+    plan = 'free',
+    displayName = 'there',
+}: Props) {
+    const [status, setStatus] = React.useState<'idle' | 'recording' | 'sending' | 'playing' | 'error'>('idle');
+    const [err, setErr] = React.useState<string | null>(null);
 
-    const supabase = createClientComponentClient();
-    const { effPlan } = useLivePlan();
-    const plan: Plan = (planProp ?? effPlan) as Plan;
+    // Mic / recording
+    const mediaStreamRef = React.useRef<MediaStream | null>(null);
+    const mediaRecorderRef = React.useRef<MediaRecorder | null>(null);
+    const chunksRef = React.useRef<Blob[]>([]);
+    const [userLevel, setUserLevel] = React.useState(0);
 
-    const [status, setStatus] = React.useState<'idle' | 'connecting' | 'live' | 'reconnecting' | 'ending' | 'error'>('idle');
-    const [err, setErr] = React.useState<string | undefined>();
-    const [callId, setCallId] = React.useState<string | undefined>();
-    const [secondsLeft, setSecondsLeft] = React.useState<number | undefined>();
-    const [catalogOpen, setCatalogOpen] = React.useState(false);
-
-    const [nameHint, setNameHint] = React.useState(fallbackName);
-    const [langHint, setLangHint] = React.useState<string | undefined>();
-    const [cityHint, setCityHint] = React.useState<string | undefined>();
-    const [stateHint, setStateHint] = React.useState<string | undefined>();
-    const [countryHint, setCountryHint] = React.useState<string | undefined>();
-    const [localeHint, setLocaleHint] = React.useState<string | undefined>();
-
-    const [assistantSpeaking, setAssistantSpeaking] = React.useState(false);
+    // Assistant playback + level
+    const audioElRef = React.useRef<HTMLAudioElement | null>(null);
     const [assistantLevel, setAssistantLevel] = React.useState(0);
-    const waveCanvasRef = React.useRef<HTMLCanvasElement | null>(null);
 
-    // WebRTC
-    const pcRef = React.useRef<RTCPeerConnection | null>(null);
-    const dcRef = React.useRef<RTCDataChannel | null>(null);
-    const localStreamRef = React.useRef<MediaStream | null>(null);
-    const remoteAudioRef = React.useRef<HTMLAudioElement | null>(null);
+    // Analysers & rafs
+    const micCtxRef = React.useRef<AudioContext | null>(null);
+    const micAnalyserRef = React.useRef<AnalyserNode | null>(null);
+    const micRafRef = React.useRef<number | null>(null);
 
-    // WS fallback
-    const wsRef = React.useRef<WebSocket | null>(null);
-    const wsMicRef = React.useRef<WSTransport | null>(null);
-    const wsPlayerRef = React.useRef<ReturnType<typeof createWSAudioPlayer> | null>(null);
+    const outCtxRef = React.useRef<AudioContext | null>(null);
+    const outAnalyserRef = React.useRef<AnalyserNode | null>(null);
+    const outRafRef = React.useRef<number | null>(null);
+    const outNodeRef = React.useRef<MediaElementAudioSourceNode | null>(null);
 
-    const tokenRef = React.useRef<string | null>(null);
-    const baseUrlRef = React.useRef<string>('https://api.openai.com/v1/realtime');
-    const wsBaseRef = React.useRef<string>('wss://api.openai.com/v1/realtime');
-    const modelRef = React.useRef<string>(RT_MODEL_BY_PLAN.free);
+    const cleanupMicAnalyser = React.useCallback(() => {
+        if (micRafRef.current) cancelAnimationFrame(micRafRef.current);
+        micRafRef.current = null;
+        try { micCtxRef.current?.close(); } catch { }
+        micCtxRef.current = null;
+        micAnalyserRef.current = null;
+        setUserLevel(0);
+    }, []);
 
+    const cleanupOutAnalyser = React.useCallback(() => {
+        if (outRafRef.current) cancelAnimationFrame(outRafRef.current);
+        outRafRef.current = null;
+        try { outCtxRef.current?.close(); } catch { }
+        outCtxRef.current = null;
+        outAnalyserRef.current = null;
+        outNodeRef.current = null;
+        setAssistantLevel(0);
+    }, []);
 
-    const countdownRef = React.useRef<number | null>(null);
-    const pingTimerRef = React.useRef<number | null>(null);
-    const reconnectTimerRef = React.useRef<number | null>(null);
-    const reconnectIndicatorTimerRef = React.useRef<number | null>(null);
-    const rafRef = React.useRef<number | null>(null);
+    const stopAll = React.useCallback(() => {
+        try { mediaRecorderRef.current?.stop(); } catch { }
+        try { mediaStreamRef.current?.getTracks().forEach(t => t.stop()); } catch { }
+        mediaStreamRef.current = null;
+        mediaRecorderRef.current = null;
+        chunksRef.current = [];
+        cleanupMicAnalyser();
+        cleanupOutAnalyser();
+        setStatus('idle');
+    }, [cleanupMicAnalyser, cleanupOutAnalyser]);
 
-    const remoteCtxRef = React.useRef<AudioContext | null>(null);
-    const remoteAnalyserRef = React.useRef<AnalyserNode | null>(null);
-    const remoteBufRef = React.useRef<Uint8Array>(new Uint8Array(0));
-    const localCtxRef = React.useRef<AudioContext | null>(null);
-    const localAnalyserRef = React.useRef<AnalyserNode | null>(null);
-    const localBufRef = React.useRef<Uint8Array>(new Uint8Array(0));
-
-    const greetedOnceRef = React.useRef(false);
-    const iceRestartsRef = React.useRef(0);
-
-    // -------- helper drawing (unchanged) ----------
-    const drawUserWave = React.useCallback(() => {
-        const analyser = localAnalyserRef.current;
-        const canvas = waveCanvasRef.current;
-        if (!analyser || !canvas) { rafRef.current = requestAnimationFrame(drawUserWave); return; }
-        const base = localBufRef.current; if (base.length === 0) { rafRef.current = requestAnimationFrame(drawUserWave); return; }
-        const ctx = canvas.getContext('2d'); if (!ctx) { rafRef.current = requestAnimationFrame(drawUserWave); return; }
-        const dpr = Math.min(2, window.devicePixelRatio || 1);
-        const width = canvas.clientWidth, height = canvas.clientHeight;
-        if (canvas.width !== Math.floor(width * dpr) || canvas.height !== Math.floor(height * dpr)) {
-            canvas.width = Math.floor(width * dpr); canvas.height = Math.floor(height * dpr);
-        }
-        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        const view = new Uint8Array(base.buffer as ArrayBuffer, base.byteOffset, base.byteLength);
-        analyser.getByteTimeDomainData(view);
-        ctx.clearRect(0, 0, width, height);
-        ctx.lineWidth = 2.2; ctx.strokeStyle = 'rgba(255,255,255,0.9)';
-        ctx.beginPath();
-        const step = Math.max(1, Math.floor(view.length / width));
-        for (let x = 0, i = 0; x < width; x += 1, i += step) {
+    // ---- live meters (no generic typed-array errors) ----
+    const tickMic = React.useCallback(() => {
+        const a = micAnalyserRef.current;
+        if (!a) { micRafRef.current = requestAnimationFrame(tickMic); return; }
+        // Allocate a fresh array with the exact fftSize – avoids TS generics mismatch
+        const view = new Uint8Array(a.fftSize);
+        a.getByteTimeDomainData(view); // [0..255]
+        // RMS in [-1..1] domain
+        let sum = 0;
+        for (let i = 0; i < view.length; i++) {
             const v = (view[i] - 128) / 128;
-            const y = height / 2 + v * (height * 0.45);
-            if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            sum += v * v;
         }
-        ctx.stroke();
-        rafRef.current = requestAnimationFrame(drawUserWave);
-    }, []);
-
-    const monitorAssistantAudio = React.useCallback(() => {
-        const analyser = remoteAnalyserRef.current;
-        if (!analyser) { rafRef.current = requestAnimationFrame(monitorAssistantAudio); return; }
-        const base = remoteBufRef.current; if (base.length === 0) { rafRef.current = requestAnimationFrame(monitorAssistantAudio); return; }
-        const view = new Uint8Array(base.buffer as ArrayBuffer, base.byteOffset, base.byteLength);
-        analyser.getByteTimeDomainData(view);
-        let sum = 0; for (let i = 0; i < view.length; i++) { const v = (view[i] - 128) / 128; sum += v * v; }
         const rms = Math.sqrt(sum / view.length);
-        const lvl = Math.min(1, Math.max(0, (rms - 0.01) / 0.25));
-        setAssistantSpeaking(lvl > 0.02); setAssistantLevel(lvl);
-        rafRef.current = requestAnimationFrame(monitorAssistantAudio);
+        setUserLevel(Math.min(1, Math.max(0, (rms - 0.02) / 0.28)));
+        micRafRef.current = requestAnimationFrame(tickMic);
     }, []);
 
-    const stopRemoteAnalyser = React.useCallback(() => {
-        if (rafRef.current) cancelAnimationFrame(rafRef.current);
-        rafRef.current = null;
-        try { remoteCtxRef.current?.close(); } catch { }
-        remoteCtxRef.current = null; remoteAnalyserRef.current = null; remoteBufRef.current = new Uint8Array(0);
-        setAssistantSpeaking(false); setAssistantLevel(0);
-    }, []);
-    const stopAllAnalysers = React.useCallback(() => {
-        stopRemoteAnalyser();
-        try { localCtxRef.current?.close(); } catch { }
-        localCtxRef.current = null; localAnalyserRef.current = null; localBufRef.current = new Uint8Array(0);
-    }, [stopRemoteAnalyser]);
-
-    /* --------------------------- tool handlers --------------------------- */
-    const handleServerEvent = React.useCallback(async (evt: any) => {
-        try {
-            const data = typeof evt === 'string' ? JSON.parse(evt) : evt;
-            const toolName = data?.type === 'tool_call' ? data?.name : (data?.tool?.name ?? data?.data?.name);
-            if (toolName === 'end_call') { await teardown('assistant_end'); return; }
-            // (add your other tools here if you want; omitted for brevity)
-        } catch { }
+    const tickAssistant = React.useCallback(() => {
+        const a = outAnalyserRef.current;
+        if (!a) { outRafRef.current = requestAnimationFrame(tickAssistant); return; }
+        const view = new Uint8Array(a.fftSize);
+        a.getByteTimeDomainData(view);
+        let sum = 0;
+        for (let i = 0; i < view.length; i++) {
+            const v = (view[i] - 128) / 128;
+            sum += v * v;
+        }
+        const rms = Math.sqrt(sum / view.length);
+        setAssistantLevel(Math.min(1, Math.max(0, (rms - 0.01) / 0.25)));
+        outRafRef.current = requestAnimationFrame(tickAssistant);
     }, []);
 
-    /* ============================ WS FALLBACK ============================ */
-    const connectWS = React.useCallback(async () => {
-        // Close any RTC leftovers
-        try { pcRef.current?.close(); } catch { }
-        pcRef.current = null;
+    // ---- start mic + meters & recording ----
+    const startRecording = React.useCallback(async () => {
+        setErr(null);
+        setStatus('recording');
 
-        const token = tokenRef.current!;
-        const url = `${baseUrlRef.current.replace('https', 'wss')}?model=${encodeURIComponent(modelRef.current)}`;
-
-        // Important: pass the bearer token as a subprotocol
-        const ws = new WebSocket(url, ['openai-bearer.' + token]);
-        wsRef.current = ws;
-
-        setStatus('connecting');
-
-        ws.onopen = async () => {
-            const mappedVoice = voice ? mapToOpenAIVoice(voice.tts_voice_key) : undefined;
-
-            ws.send(JSON.stringify({
-                type: 'session.update',
-                session: {
-                    ...(mappedVoice ? { voice: mappedVoice } : {}),
-                    input_audio_format: 'pcm16',
-                    output_audio_format: 'pcm16',
-                    turn_detection: { type: 'server_vad', silence_duration_ms: 1100 },
-                    input_audio_transcription: {
-                        model: 'gpt-4o-transcribe',
-                        ...(langHint ? { language: langHint } : {})
-                    },
-                    instructions: `Hi ${nameHint}. I’ll listen and respond naturally.`
-                }
-            }));
-
-            wsMicRef.current = await startMicToWS(ws, () => { });
-            wsPlayerRef.current = createWSAudioPlayer();
-
-            if (!greetedOnceRef.current) {
-                greetedOnceRef.current = true;
-                ws.send(JSON.stringify({
-                    type: 'response.create',
-                    response: { instructions: `Hi ${nameHint}! What do you need?` }
-                }));
-            }
-
-            setStatus('live');
-        };
-
-        ws.onmessage = (m) => {
-            try {
-                const msg = JSON.parse(m.data);
-                if (msg?.type === 'error') {
-                    setErr(msg?.error?.message || 'Realtime error');
-                    setStatus('error');
-                    return;
-                }
-                if (msg?.type === 'tool_call') handleServerEvent(msg);
-                if (msg?.type === 'response.output_audio.delta' && typeof msg.delta === 'string') {
-                    wsPlayerRef.current?.enqueuePcm16Base64(msg.delta);
-                }
-            } catch {
-                handleServerEvent(m.data);
-            }
-        };
-
-        ws.onclose = (e) => {
-            if (status !== 'ending') {
-                setErr(e.reason ? `WS closed ${e.code} – ${e.reason}` : `WS closed ${e.code}`);
-                setStatus('reconnecting');
-            }
-        };
-        ws.onerror = () => {
-            setErr('WebSocket failed to open');
+        // 1) get mic
+        const md = navigator.mediaDevices as MediaDevices | undefined;
+        if (!md?.getUserMedia) {
+            setErr('Microphone not available (use HTTPS and allow mic).');
             setStatus('error');
-        };
-
-
-    }, [voice, nameHint, langHint, cityHint, stateHint, countryHint, localeHint, handleServerEvent, status]);
-
-    const wsFallbackStartedRef = React.useRef(false);
-    const startWSFallbackOnce = React.useCallback(() => {
-        if (wsFallbackStartedRef.current) return;
-        wsFallbackStartedRef.current = true;
-        try { pcRef.current?.close(); } catch { }
-        connectWS(); // ← your existing WS transport
-    }, [connectWS]);
-
-    // prefer WS immediately on iOS + cellular (STUN-only often fails there)
-    const isiOS = typeof navigator !== 'undefined' && /iP(hone|od|ad)/.test(navigator.userAgent);
-    const netInfo: any = (navigator as any).connection || {};
-    const onCellular = (netInfo?.type || netInfo?.effectiveType || '').toString().includes('cell');
-
-
-
-    /* ============================ WebRTC path ============================ */
-    const waitForIceGatheringComplete = (pc: RTCPeerConnection, timeoutMs = 2000) => {
-        if (pc.iceGatheringState === 'complete') return Promise.resolve();
-        return new Promise<void>((resolve) => {
-            let done = false;
-            const finish = () => { if (!done) { done = true; pc.removeEventListener('icegatheringstatechange', onChange); resolve(); } };
-            const onChange = () => { if (pc.iceGatheringState === 'complete') finish(); };
-            pc.addEventListener('icegatheringstatechange', onChange);
-            setTimeout(finish, timeoutMs);
-        });
-    };
-
-    const renegotiateIce = React.useCallback(async () => {
-        const pc = pcRef.current; const token = tokenRef.current;
-        if (!pc || !token) return false;
-        try {
-            const offer = await pc.createOffer({ iceRestart: true });
-            await pc.setLocalDescription(offer);
-            await waitForIceGatheringComplete(pc, 2000);
-            const res = await fetch(`${baseUrlRef.current}?model=${encodeURIComponent(modelRef.current)}`, {
-                method: 'POST',
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    'Content-Type': 'application/sdp',
-                    'OpenAI-Beta': 'realtime=v1',
-                },
-                body: pc.localDescription?.sdp || offer.sdp,
-            });
-            const sdpText = await res.text();
-            if (!res.ok) throw new Error(sdpText || `${res.status} ${res.statusText}`);
-            if (pc.signalingState !== 'closed') await pc.setRemoteDescription({ type: 'answer', sdp: sdpText });
-            return true;
-        } catch (e) {
-            console.warn('[voice] ICE renegotiation failed', e);
-            return false;
-        }
-    }, []);
-
-    const teardown = React.useCallback(async (reason: 'hangup' | 'limit' | 'assistant_end' | 'error') => {
-        try {
-            setStatus('ending');
-            if (rafRef.current) cancelAnimationFrame(rafRef.current);
-            try { wsMicRef.current?.stop(); } catch { }
-            try { wsRef.current?.close(); } catch { }
-            try { wsPlayerRef.current?.stop(); } catch { }
-            wsMicRef.current = null; wsRef.current = null; wsPlayerRef.current = null;
-
-            try { localStreamRef.current?.getTracks().forEach(t => t.stop()); } catch { }
-            try { pcRef.current?.getSenders().forEach(s => s.track?.stop()); } catch { }
-            try { pcRef.current?.close(); } catch { }
-            stopAllAnalysers();
-        } finally {
-            pcRef.current = null; dcRef.current = null; localStreamRef.current = null; tokenRef.current = null;
-        }
-        try { if (callId) await supabase.rpc('end_voice_call', { p_call_id: callId, p_reason: reason }); } catch { }
-        setStatus('idle'); setCallId(undefined); onClose();
-    }, [callId, onClose, supabase, stopAllAnalysers]);
-
-    const connect = React.useCallback(async (isReconnect = false) => {
-        setErr(undefined);
-        try { await (window as any)?.resumeAudioContext?.(); } catch { }
-        if (!isReconnect) setStatus('connecting');
-
-        const tier = voice?.tier;
-        const voiceAllowed =
-            !voice || tier === 'free' ||
-            (tier === 'pro' && (plan === 'pro' || plan === 'max')) ||
-            (tier === 'max' && plan === 'max');
-        const mappedVoice = voiceAllowed ? mapToOpenAIVoice(voice?.tts_voice_key) : undefined;
-
-        modelRef.current = RT_MODEL_BY_PLAN[plan];
-
-        // Get a realtime session token first (needed for both RTC and WS)
-        const rt = await fetch('/api/voice/rt-token', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                voiceKey: voiceAllowed ? voice?.tts_voice_key : null,
-                name: nameHint, language: langHint, locale: localeHint,
-                city: cityHint, state: stateHint, countryCode: countryHint,
-            }),
-            credentials: 'include',
-            cache: 'no-store',
-        });
-
-        const { client_secret, iceServers, baseUrl, model, error } = await rt.json();
-        if (error) throw new Error(error);
-        const token: string = typeof client_secret === 'string' ? client_secret : client_secret?.value;
-        if (!token) throw new Error('Missing realtime token');
-
-        tokenRef.current = token;
-        baseUrlRef.current = baseUrl || baseUrlRef.current;
-        wsBaseRef.current = (baseUrl || baseUrlRef.current).replace('https', 'wss');
-        modelRef.current = model || modelRef.current;
-
-        // Prefer WS on iOS + cellular (Safari WebRTC with STUN-only is flaky)
-        if (isiOS && onCellular) {
-            try { if (!isPrewarmed()) await prewarmAudioAndMic(); } catch { }
-            startWSFallbackOnce();
             return;
         }
-
-        // For FREE plan, we go straight to WS for reliability
-        if (plan === 'free') {
-            startWSFallbackOnce();
-            return;
-        }
-
-        // Mic only now (we’re proceeding with RTC)
-        let mic: MediaStream;
-        const existing = localStreamRef.current;
-        if (existing) mic = existing;
-        else {
-            const md = (navigator as any).mediaDevices as MediaDevices | undefined;
-            if (!md?.getUserMedia) throw new Error('Microphone not available. Use HTTPS and allow mic.');
-            mic = await md.getUserMedia({
-                audio: {
-                    echoCancellation: true,
-                    noiseSuppression: true,
-                    autoGainControl: true,
-                } as MediaTrackConstraints
-            });
-            localStreamRef.current = mic;
-            try {
-                const LCtx = (window.AudioContext || (window as any).webkitAudioContext) as typeof AudioContext;
-                const lctx = new LCtx(); await lctx.resume().catch(() => { });
-                const analyser = lctx.createAnalyser(); analyser.fftSize = 1024;
-                const src = lctx.createMediaStreamSource(mic); src.connect(analyser);
-                localCtxRef.current = lctx; localAnalyserRef.current = analyser; localBufRef.current = new Uint8Array(analyser.fftSize);
-                drawUserWave();
-            } catch { }
-        }
-
-        // Fresh peer connection
-        try { pcRef.current?.close(); } catch { }
-        const pc = new RTCPeerConnection({
-            iceServers: (iceServers as RTCIceServer[]) || [{ urls: 'stun:stun.l.google.com:19302' }],
-            bundlePolicy: 'max-bundle',
+        const stream = await md.getUserMedia({
+            audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } as MediaTrackConstraints
         });
-        pcRef.current = pc;
+        mediaStreamRef.current = stream;
 
-        // Prefer Opus
-        const trans = pc.addTransceiver('audio', { direction: 'sendrecv' });
-        const caps = RTCRtpSender.getCapabilities('audio')?.codecs || [];
-        const opus = caps.find(c => /opus/i.test(c.mimeType));
-        if (opus) trans.setCodecPreferences([opus]);
+        // 2) mic analyser
+        try {
+            const Ctx = (window.AudioContext || (window as any).webkitAudioContext) as typeof AudioContext;
+            const ctx = new Ctx(); await ctx.resume().catch(() => { });
+            const analyser = ctx.createAnalyser();
+            analyser.fftSize = 1024;
+            const src = ctx.createMediaStreamSource(stream);
+            src.connect(analyser);
+            micCtxRef.current = ctx;
+            micAnalyserRef.current = analyser;
+            tickMic();
+        } catch {
+            // analyser is optional; keep recording even if it fails
+        }
 
-        const markReconnectingSoon = () => {
-            if (!reconnectIndicatorTimerRef.current) {
-                reconnectIndicatorTimerRef.current = window.setTimeout(() => {
-                    if (pcRef.current && pcRef.current.connectionState !== 'connected') setStatus('reconnecting');
-                    reconnectIndicatorTimerRef.current = null;
-                }, 2500);
-            }
+        // 3) recorder
+        const mime =
+            MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' :
+                MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' :
+                    'audio/mp4'; // iOS fallback (Safari 17+)
+
+        const rec = new MediaRecorder(stream, { mimeType: mime });
+        mediaRecorderRef.current = rec;
+        chunksRef.current = [];
+
+        rec.ondataavailable = (e: BlobEvent) => {
+            if (e.data && e.data.size > 0) chunksRef.current.push(e.data);
         };
+        rec.start(250); // small chunks
 
-        const rtcConnectWindow = window.setTimeout(() => {
-            if (pc.connectionState !== 'connected') {
-                console.warn('[voice] RTC window elapsed — switching to WS fallback');
-                startWSFallbackOnce();
-            }
-        }, 5500);
+    }, [tickMic]);
 
-        pc.onconnectionstatechange = async () => {
-            const s = pc.connectionState;
-            if (s === 'connected') {
-                window.clearTimeout(rtcConnectWindow);
-                setStatus('live');
-                iceRestartsRef.current = 0;
-                return;
-            }
-            if (s === 'disconnected') {
-                if (iceRestartsRef.current < 1) {
-                    iceRestartsRef.current += 1;
-                    const ok = await renegotiateIce();
-                    if (ok) return;
-                }
-                setStatus('reconnecting');
-                startWSFallbackOnce();
-            }
-            if (s === 'failed' || s === 'closed') {
-                window.clearTimeout(rtcConnectWindow);
-                startWSFallbackOnce();
-            }
-        };
+    const stopAndSend = React.useCallback(async () => {
+        if (status !== 'recording') return;
+        setStatus('sending');
 
-        pc.oniceconnectionstatechange = async () => {
-            const s = pc.iceConnectionState;
-            if (s === 'failed') startWSFallbackOnce();
-        };
-
-        pc.onicecandidateerror = (e: any) => { console.warn('[voice] onicecandidateerror', e); };
-
-        // Remote audio and analyser
-        const audioEl = remoteAudioRef.current ?? document.createElement('audio');
-        if (!remoteAudioRef.current) remoteAudioRef.current = audioEl;
-        audioEl.autoplay = true; audioEl.setAttribute('playsinline', 'true'); audioEl.setAttribute('webkit-playsinline', 'true');
-        audioEl.onerror = () => setErr('Audio playback failed.');
-
-        pc.ontrack = (e) => {
-            const [stream] = e.streams;
-            const audioEl = remoteAudioRef.current!;
-            audioEl.srcObject = stream;
-            audioEl.autoplay = true;
-            audioEl.setAttribute('playsinline', 'true');
-            audioEl.setAttribute('webkit-playsinline', 'true');
-            audioEl.muted = true;
-            audioEl.play().catch(() => { });
-            setTimeout(() => { audioEl.muted = false; audioEl.play().catch(() => { }); }, 50);
-
-            stopRemoteAnalyser();
-            try {
-                const RCtx = (window.AudioContext || (window as any).webkitAudioContext) as typeof AudioContext;
-                const rctx = new RCtx(); const analyser = rctx.createAnalyser(); analyser.fftSize = 512;
-                const src = rctx.createMediaStreamSource(stream); src.connect(analyser);
-                remoteCtxRef.current = rctx; remoteAnalyserRef.current = analyser; remoteBufRef.current = new Uint8Array(analyser.fftSize);
-                monitorAssistantAudio();
-            } catch { }
-        };
-
-        // Add mic
-        mic.getTracks().forEach(t => pc.addTrack(t, mic));
-
-        // Data channel
-        const dc = pc.createDataChannel('oai-events');
-        dcRef.current = dc;
-        dc.onmessage = (m) => handleServerEvent(m.data);
-        dc.onopen = () => {
-            if (pingTimerRef.current) window.clearInterval(pingTimerRef.current);
-            pingTimerRef.current = window.setInterval(() => { try { if (dc.readyState === 'open') dc.send(JSON.stringify({ type: 'ping', ts: Date.now() })); } catch { } }, 10000);
-
-            const longInstructions = buildSixAIInstructions({
-                name: nameHint, language: langHint, locale: localeHint,
-                city: cityHint, state: stateHint, countryCode: countryHint,
-                webSearchPolicy: 'off',
+        try {
+            // 1) stop recorder & mic
+            await new Promise<void>((resolve) => {
+                const rec = mediaRecorderRef.current;
+                if (!rec || rec.state === 'inactive') return resolve();
+                rec.onstop = () => resolve();
+                try { rec.stop(); } catch { resolve(); }
             });
 
-            const sessionPatch: any = {
-                ...(mappedVoice ? { voice: mappedVoice } : {}),
-                output_audio_format: 'pcm16',
-                turn_detection: { type: 'server_vad', silence_duration_ms: 1200 },
-                input_audio_transcription: { model: 'whisper-1' },
-                instructions: `${longInstructions}\n\nFIRST-TURN: Greet the user by the provided name (“${nameHint}”).`,
+            try { mediaStreamRef.current?.getTracks().forEach(t => t.stop()); } catch { }
+            mediaStreamRef.current = null;
+            cleanupMicAnalyser();
+
+            // 2) build one blob from chunks
+            const firstType = chunksRef.current[0] ? (chunksRef.current[0] as Blob).type : 'audio/webm';
+            const blob: Blob = new Blob(chunksRef.current, { type: firstType || 'audio/webm' });
+            chunksRef.current = [];
+
+            // 3) POST to your turn route → MP3 bytes back
+            const fd = new FormData();
+            fd.append('audio', new File([blob], 'speech.webm', { type: blob.type || 'audio/webm' }));
+            if (voice?.tts_voice_key) fd.append('voice', voice.tts_voice_key);
+
+            const res = await fetch('/api/voice/turn', { method: 'POST', body: fd, cache: 'no-store', credentials: 'include' });
+            if (!res.ok) {
+                const txt = await res.text().catch(() => '');
+                throw new Error(txt || `Turn failed (${res.status})`);
+            }
+            const buf = await res.arrayBuffer();
+
+            // 4) play MP3 and hook analyser
+            const outBlob = new Blob([buf], { type: 'audio/mpeg' });
+            const url = URL.createObjectURL(outBlob);
+            const el = audioElRef.current!;
+            el.src = url;
+
+            // connect analyser
+            try {
+                const Ctx = (window.AudioContext || (window as any).webkitAudioContext) as typeof AudioContext;
+                const ctx = new Ctx();
+                const analyser = ctx.createAnalyser(); analyser.fftSize = 512;
+                const node = outNodeRef.current ?? ctx.createMediaElementSource(el);
+                outNodeRef.current = node;
+                node.connect(analyser);
+                analyser.connect(ctx.destination); // ensure audible
+                outCtxRef.current = ctx; outAnalyserRef.current = analyser;
+                tickAssistant();
+            } catch { /* if analyser fails, still play */ }
+
+            await el.play().catch(() => { });
+            setStatus('playing');
+
+            // restart recording automatically after playback ends (push-to-talk feel)
+            el.onended = () => {
+                cleanupOutAnalyser();
+                if (open) startRecording().catch(() => { });
             };
-            try { dc.send(JSON.stringify({ type: 'session.update', session: sessionPatch })); } catch { }
+        } catch (e: any) {
+            setErr(e?.message || 'Failed to process voice turn');
+            setStatus('error');
+        }
+    }, [voice?.tts_voice_key, cleanupMicAnalyser, cleanupOutAnalyser, tickAssistant, startRecording, open, status]);
 
-            if (!greetedOnceRef.current) {
-                greetedOnceRef.current = true;
-                try {
-                    dc.send(JSON.stringify({
-                        type: 'response.create',
-                        response: { instructions: `Hi ${nameHint}! I’m here with you. Tell me what you need and I’ll listen.` }
-                    }));
-                } catch { }
-            }
-        };
-
-        // SDP offer/answer
-        const offer = await pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: false });
-        await pc.setLocalDescription(offer);
-        await waitForIceGatheringComplete(pc, 2000);
-        const sdpRes = await fetch(`${baseUrlRef.current}?model=${encodeURIComponent(modelRef.current)}`, {
-            method: 'POST',
-            headers: {
-                Authorization: `Bearer ${tokenRef.current!}`,
-                'Content-Type': 'application/sdp',
-                'OpenAI-Beta': 'realtime=v1',
-            },
-            body: pc.localDescription?.sdp || offer.sdp,
-        });
-        const sdpText = await sdpRes.text();
-        if (!sdpRes.ok) throw new Error(sdpText || `${sdpRes.status} ${sdpRes.statusText}`);
-        if (pc.signalingState !== 'closed') await pc.setRemoteDescription({ type: 'answer', sdp: sdpText });
-    }, [voice?.tts_voice_key, voice?.tier, nameHint, langHint, cityHint, stateHint, countryHint, localeHint, handleServerEvent, drawUserWave, monitorAssistantAudio, stopRemoteAnalyser, plan, renegotiateIce]);
-
-    /* -------------------------------- lifecycle ----------------------------- */
+    // lifecycle
     React.useEffect(() => {
         if (!open) return;
-
+        setStatus('idle'); setErr(null);
         (async () => {
-            setErr(undefined);
-            setStatus('connecting');
-
-            // optional DB logging
-            let call: any = { id: undefined, allowed_seconds: null };
             try {
-                const { data: start } = await supabase.rpc('start_voice_call', {
-                    p_assistant_voice_id: voice?.id ?? null,
-                    p_locale: typeof navigator !== 'undefined' ? navigator.language : null,
-                    p_device_info: { ua: typeof navigator !== 'undefined' ? navigator.userAgent : '' },
-                });
-                if (start) {
-                    call = start as any;
-                    setCallId(call.id);
-                    setSecondsLeft(typeof call.allowed_seconds === 'number' ? call.allowed_seconds : undefined);
-                }
-            } catch { }
-
-            try {
-                await connect(false);
-                if (typeof call.allowed_seconds === 'number' && call.allowed_seconds > 0) {
-                    const started = Date.now();
-                    setSecondsLeft(call.allowed_seconds);
-                    countdownRef.current = window.setInterval(() => {
-                        const elapsed = Math.floor((Date.now() - started) / 1000);
-                        const left = Math.max(0, call.allowed_seconds - elapsed);
-                        setSecondsLeft(left);
-                        if (left <= 0) { if (countdownRef.current) window.clearInterval(countdownRef.current); teardown('limit'); }
-                    }, 1000);
-                }
+                // iOS audio unlock
+                try { (window as any).AudioContext && new (window as any).AudioContext().resume().catch(() => { }); } catch { }
+                await startRecording();
             } catch (e: any) {
-                setErr(e?.message || 'Failed to start call');
+                setErr(e?.message || 'Could not start microphone');
                 setStatus('error');
             }
         })();
 
-        const onVisibility = () => { if (document.visibilityState === 'visible') { try { remoteCtxRef.current?.resume(); localCtxRef.current?.resume(); } catch { } } };
-        document.addEventListener('visibilitychange', onVisibility);
-        const onOnline = () => { renegotiateIce(); };
-        window.addEventListener('online', onOnline);
-
         return () => {
-            document.removeEventListener('visibilitychange', onVisibility);
-            window.removeEventListener('online', onOnline);
-            if (countdownRef.current) window.clearInterval(countdownRef.current);
-            if (pingTimerRef.current) window.clearInterval(pingTimerRef.current);
-            if (reconnectTimerRef.current) window.clearTimeout(reconnectTimerRef.current!);
-            if (reconnectIndicatorTimerRef.current) window.clearTimeout(reconnectIndicatorTimerRef.current!);
-            stopAllAnalysers();
-            try { pcRef.current?.close(); } catch { }
-            try { localStreamRef.current?.getTracks().forEach(t => t.stop()); } catch { }
-            try { wsMicRef.current?.stop(); } catch { }
-            try { wsRef.current?.close(); } catch { }
-            try { wsPlayerRef.current?.stop(); } catch { }
-            pcRef.current = null; dcRef.current = null; localStreamRef.current = null;
-            greetedOnceRef.current = false;
-            tokenRef.current = null; wsRef.current = null; wsMicRef.current = null; wsPlayerRef.current = null;
+            stopAll();
+            const el = audioElRef.current; if (el) { try { el.pause(); } catch { } el.src = ''; }
         };
-    }, [open, supabase, voice?.id, connect, teardown, stopAllAnalysers, renegotiateIce]);
+    }, [open, startRecording, stopAll]);
 
     if (!open) return null;
 
-    const closeBarClick = () => {
-        if (status === 'live' || status === 'connecting' || status === 'reconnecting') teardown('hangup');
-        else onClose();
+    const endOrClose = () => {
+        if (status === 'recording') { void stopAndSend(); return; }
+        stopAll();
+        onClose();
     };
 
-    /* ------------------------------ UI (unchanged) ------------------------------ */
+    const assistantPulse = 1 + assistantLevel * 0.22;
+
     return (
-        <>
-            <div className="fixed inset-0 z-[90]" role="dialog" aria-modal="true" style={{ background: '#000' }}>
-                {/* End (X) */}
-                <button
-                    className="absolute top-3 right-3 h-10 w-10 rounded-full grid place-items-center bg-white/10 hover:bg-white/20"
-                    onClick={() => teardown('hangup')}
-                    aria-label="End call"
-                    title="End call"
-                >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M6 6L18 18M18 6L6 18" />
-                    </svg>
-                </button>
+        <div className="fixed inset-0 z-[90]" role="dialog" aria-modal="true" style={{ background: '#000' }}>
+            {/* End (X) */}
+            <button
+                className="absolute top-3 right-3 h-10 w-10 rounded-full grid place-items-center bg-white/10 hover:bg-white/20"
+                onClick={endOrClose} aria-label="End call" title="End call"
+            >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M6 6L18 18M18 6L6 18" />
+                </svg>
+            </button>
 
-                {/* Centered orb + user wave */}
-                <div className="h-full w-full flex flex-col items-center justify-center pt-20 gap-12">
-                    <div className="relative w-[260px] h-[260px]">
-                        <div className="absolute inset-0 rounded-full"
-                            style={{ border: '1px solid rgba(255,255,255,0.20)', boxShadow: 'inset 0 0 25px rgba(255,255,255,0.08), inset 0 0 1px rgba(255,255,255,0.5), 0 0 1px rgba(255,255,255,0.25)' }} />
-                        <div className="absolute inset-0 rounded-full pointer-events-none"
-                            style={{
-                                transform: `scale(${1 + assistantLevel * 0.18})`, transition: 'transform 70ms linear',
-                                boxShadow: assistantSpeaking ? '0 0 60px 16px rgba(255,255,255,0.30)' : 'none',
-                                border: assistantSpeaking ? '2px solid rgba(255,255,255,0.35)' : '1px solid transparent'
-                            }} />
-                        <div className="absolute inset-0 grid place-items-center">
-                            <div className="text-white/90 text-xl font-semibold tracking-widest">6IXAI</div>
-                        </div>
-                    </div>
-
-                    <div className="w-[min(90vw,560px)]">
-                        <canvas ref={waveCanvasRef} className="h-[80px] w-full"
-                            style={{ display: 'block', filter: 'drop-shadow(0 0 12px rgba(255,255,255,0.18))' }} />
-                    </div>
-
-                    <div className="text-white/90 text-sm">
-                        {status === 'connecting' && 'Connecting…'}
-                        {status === 'reconnecting' && 'Reconnecting…'}
-                        {status === 'live' && (secondsLeft != null ? `Live · ${secondsLeft}s left` : 'Live')}
-                        {status === 'ending' && 'Ending…'}
-                        {status === 'error' && `Error: ${err ?? 'Unknown error'}`}
+            {/* Center: orb (assistant) + mic meter */}
+            <div className="h-full w-full flex flex-col items-center justify-center pt-20 gap-12">
+                {/* Assistant orb with live glow */}
+                <div className="relative w-[260px] h-[260px]">
+                    <div className="absolute inset-0 rounded-full"
+                        style={{ border: '1px solid rgba(255,255,255,0.20)', boxShadow: 'inset 0 0 25px rgba(255,255,255,0.08), inset 0 0 1px rgba(255,255,255,0.5), 0 0 1px rgba(255,255,255,0.25)' }} />
+                    <div className="absolute inset-0 rounded-full pointer-events-none"
+                        style={{
+                            transform: `scale(${assistantPulse})`,
+                            transition: 'transform 70ms linear',
+                            boxShadow: assistantLevel > 0.02 ? '0 0 60px 16px rgba(255,255,255,0.30)' : 'none',
+                            border: assistantLevel > 0.02 ? '2px solid rgba(255,255,255,0.35)' : '1px solid transparent'
+                        }} />
+                    <div className="absolute inset-0 grid place-items-center">
+                        <div className="text-white/90 text-xl font-semibold tracking-widest">6IXAI</div>
                     </div>
                 </div>
 
-                <audio ref={remoteAudioRef} className="hidden" />
+                {/* User mic “bars” */}
+                <div className="h-[18px] flex items-end gap-[3px] text-white/90 opacity-95">
+                    {Array.from({ length: 16 }).map((_, i) => {
+                        // simple stagger + level mapping
+                        const base = 0.2 + 0.8 * userLevel;
+                        const h = 4 + Math.round(28 * base * (0.6 + 0.4 * Math.sin((i * 1.3) + userLevel * 8)));
+                        return <i key={i} style={{
+                            width: 3, height: h, display: 'inline-block', background: 'currentColor', borderRadius: 2
+                        }} />;
+                    })}
+                </div>
 
-                <div className="fixed left-0 right-0 bottom-0 px-4 pb-[env(safe-area-inset-bottom,12px)]">
-                    <div className="mx-auto max-w-[520px] rounded-2xl h-12 grid place-items-center"
-                        style={{ background: 'rgba(255,255,255,0.06)', color: '#fff', backdropFilter: 'blur(10px)' }}>
-                        <button onClick={closeBarClick} className="w-full h-full flex items-center justify-center rounded-2xl active:scale-[.99]">
-                            {status === 'live' || status === 'connecting' || status === 'reconnecting' ? 'End Call' : 'Close'}
-                        </button>
-                    </div>
+                <div className="text-white/90 text-sm">
+                    {status === 'recording' && `Listening${displayName ? ` — talk to me, ${displayName}` : ''}…`}
+                    {status === 'sending' && 'Thinking…'}
+                    {status === 'playing' && 'Speaking…'}
+                    {status === 'error' && (err || 'Error')}
                 </div>
             </div>
-        </>
+
+            {/* Hidden audio for assistant playback */}
+            <audio ref={audioElRef} className="hidden" />
+
+            {/* Bottom bar */}
+            <div className="fixed left-0 right-0 bottom-0 px-4 pb-[env(safe-area-inset-bottom,12px)]">
+                <div className="mx-auto max-w-[520px] rounded-2xl h-12 grid place-items-center"
+                    style={{ background: 'rgba(255,255,255,0.06)', color: '#fff', backdropFilter: 'blur(10px)' }}>
+                    {status === 'recording' ? (
+                        <button onClick={() => void stopAndSend()} className="w-full h-full flex items-center justify-center rounded-2xl active:scale-[.99]">
+                            Send &amp; Reply
+                        </button>
+                    ) : (
+                        <button onClick={endOrClose} className="w-full h-full flex items-center justify-center rounded-2xl active:scale-[.99]">
+                            {status === 'playing' || status === 'sending' ? 'End' : 'Close'}
+                        </button>
+                    )}
+                </div>
+            </div>
+        </div>
     );
 }

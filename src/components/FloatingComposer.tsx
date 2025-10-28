@@ -3,11 +3,13 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import VoiceQuickPicker, { VoiceRow } from './voice/VoiceQuickPicker';
 import VoiceCallModal from './voice/VoiceCallModal';
+import { prewarmAudioAndMic } from '@/lib/audio/prewarm';
 import STTLimitToast from './STTLimitToast';
 import { useLivePlan } from '@/lib/useLivePlan';
-import { prewarmAudioAndMic } from '@/lib/voice/iosUnlock';
+import { VoiceRow } from './voice/VoiceCatalogPicker';
+import VoiceQuickPicker from './voice/VoiceQuickPicker';
+
 
 /* ----- Types ----- */
 type Plan = 'free' | 'pro' | 'max';
@@ -507,12 +509,13 @@ min-h-[40px] overflow-hidden ring-0 border-0 shadow-none`}
                                     aria-label="Start voice call"
                                     onClick={async () => {
                                         try {
-                                            await prewarmAudioAndMic(); // ← unlocks iOS autoplay + asks for mic, *in this tap*
-                                            setOpenPicker(true);
+                                            // optional:
+                                            // await prewarmAudioAndMic();
+                                            setOpenCall(true);
                                         } catch (e: any) {
                                             alert(
                                                 e?.name === 'NotAllowedError'
-                                                    ? 'Microphone permission is blocked. Allow the mic for this site in Safari > Website Settings.'
+                                                    ? 'Microphone permission is blocked. Allow the mic for this site.'
                                                     : `Could not access microphone: ${e?.message || 'unknown error'}`
                                             );
                                         }
@@ -825,10 +828,8 @@ background:transparent !important;
 
             {/* Fullscreen voice modal */}
             <VoiceCallModal
-                key={pickedVoice?.id ?? 'default'}
                 open={openCall}
-                onClose={() => { setOpenCall(false); setPickedVoice(null); }}
-                voice={pickedVoice}
+                onClose={() => setOpenCall(false)}
                 plan={plan}
                 displayName={effectiveDisplayName}
             />
