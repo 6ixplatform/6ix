@@ -27,7 +27,7 @@ type Attachment = {
 
 type Props = {
     input: string;
-    setInput: (s: string) => void;
+    setInput: React.Dispatch<React.SetStateAction<string>>;
 
     attachments: Attachment[];
     onRemoveAttachment: (id: string) => void;
@@ -162,6 +162,40 @@ export default function FloatingComposer(props: Props) {
     // shape + expand button logic
     const [isMultiline, setIsMultiline] = useState(false);
     const [showExpandBtn, setShowExpandBtn] = useState(false);
+    const [isRecording, setIsRecording] = useState(false);
+    const [showTranscribing, setShowTranscribing] = useState(false);
+    useEffect(() => {
+        if (!transcribing) setShowTranscribing(false); // clear when parent finishes STT
+    }, [transcribing]);
+
+    // Listen for finished recording event -> run STT here, show spinner while transcribing
+    useEffect(() => {
+        const onRecordingFinished = async (ev: Event) => {
+            try {
+                const detail = (ev as CustomEvent)?.detail;
+                const file = detail?.file as File | undefined;
+                if (!file) return;
+
+                setShowTranscribing(true);
+                const text = await postStt(file); // postStt handles 429/toast
+
+                if (typeof text === 'string' && text.trim().length) {
+                    // append or replace input with transcript
+                    setInput(prev => (prev && prev.trim().length ? prev + '\n' + text : text));
+                    // focus textarea so user sees the transcript
+                    setTimeout(() => props.textRef.current?.focus({ preventScroll: true }), 0);
+                }
+            } catch (err) {
+                console.error('STT failed', err);
+            } finally {
+                setShowTranscribing(false);
+            }
+        };
+
+        window.addEventListener('six:recording:finished', onRecordingFinished as EventListener);
+        return () => window.removeEventListener('six:recording:finished', onRecordingFinished as EventListener);
+    }, [postStt, setInput, props.textRef]);
+
 
     // Voice call state
     const [openCall, setOpenCall] = useState(false);
@@ -309,11 +343,7 @@ export default function FloatingComposer(props: Props) {
     }, [recState, stopVu]);
 
     useEffect(() => { if (transcribing) stopVu(); }, [transcribing, stopVu]);
-    // NEW: show spinner immediately after user taps Stop (before parent flips `transcribing`)
-    const [showTranscribing, setShowTranscribing] = useState(false);
-    useEffect(() => {
-        if (!transcribing) setShowTranscribing(false); // clear when parent finishes STT
-    }, [transcribing]);
+    // spinner state is already declared earlier; do not redeclare it here
 
 
     return (
