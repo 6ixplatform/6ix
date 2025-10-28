@@ -1,3 +1,4 @@
+// ...existing code...
 'use client';
 
 import * as React from 'react';
@@ -97,7 +98,9 @@ export default function VoiceCallModal({
             sum += v * v;
         }
         const rms = Math.sqrt(sum / view.length);
-        setUserLevel(Math.min(1, Math.max(0, (rms - 0.02) / 0.28)));
+        // smoother mapping + slight easing
+        const mapped = Math.min(1, Math.max(0, (rms - 0.02) / 0.28));
+        setUserLevel(prev => prev * 0.7 + mapped * 0.3);
 
         const now = Date.now();
         if (rms > MIC_THRESH) lastVoiceTsRef.current = now;
@@ -124,7 +127,8 @@ export default function VoiceCallModal({
             sum += v * v;
         }
         const rms = Math.sqrt(sum / view.length);
-        setAssistantLevel(Math.min(1, Math.max(0, (rms - 0.01) / 0.25)));
+        const mapped = Math.min(1, Math.max(0, (rms - 0.01) / 0.25));
+        setAssistantLevel(prev => prev * 0.6 + mapped * 0.4);
 
         outRafRef.current = requestAnimationFrame(tickAssistant);
     }, []);
@@ -201,15 +205,32 @@ export default function VoiceCallModal({
             fd.append('audio', new File([blob], 'speech.webm', { type: blob.type || 'audio/webm' }));
             if (voice?.tts_voice_key) fd.append('voice', voice.tts_voice_key);
 
+            // call server (expects JSON with base64 audio + transcript + reply)
             const res = await fetch('/api/voice/turn', { method: 'POST', body: fd, cache: 'no-store', credentials: 'include' });
             if (!res.ok) {
                 const txt = await res.text().catch(() => '');
                 throw new Error(txt || `Turn failed (${res.status})`);
             }
-            const buf = await res.arrayBuffer();
 
-            // play assistant reply (AUDIBLE)
-            const outBlob = new Blob([buf], { type: 'audio/mpeg' });
+            // parse JSON payload (audio is base64)
+            const json = await res.json().catch(() => null);
+            if (!json || !json.audio) {
+                throw new Error('Invalid response from voice turn');
+            }
+
+            const audioBase64 = json.audio as string;
+            const audioMime = (json.audioMime as string) || 'audio/mpeg';
+            const transcript = (json.transcript as string) || '';
+            const reply = (json.reply as string) || '';
+
+            // decode base64 -> ArrayBuffer
+            const binary = atob(audioBase64);
+            const len = binary.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i);
+            const outBlob = new Blob([bytes.buffer], { type: audioMime });
+
+            // set up audio element
             const url = URL.createObjectURL(outBlob);
             const el = audioElRef.current!;
             el.src = url;
@@ -220,19 +241,25 @@ export default function VoiceCallModal({
             el.setAttribute('playsinline', 'true');
             (el as any).webkitPlaysInline = true;
 
-            // connect to destination + analyser (ensures sound on iOS)
+            // optionally show transcript in console or other UI for debugging
+            if (transcript) console.debug('[voice] transcript:', transcript);
+            if (reply) console.debug('[voice] reply:', reply);
+
+            // connect to destination + analyser (ensures sound on iOS) and animate orb
             try {
                 const Ctx = (window.AudioContext || (window as any).webkitAudioContext) as typeof AudioContext;
                 const ctx = new Ctx();
                 await ctx.resume().catch(() => { });
                 const analyser = ctx.createAnalyser(); analyser.fftSize = 512;
-                const node = outNodeRef.current ?? ctx.createMediaElementSource(el);
+                const node = ctx.createMediaElementSource(el);
                 outNodeRef.current = node;
                 node.connect(analyser);
                 analyser.connect(ctx.destination); // <- make it audible
                 outCtxRef.current = ctx; outAnalyserRef.current = analyser;
                 tickAssistant();
-            } catch { /* still audible via native path */ }
+            } catch {
+                // fallback: native element playback still fine
+            }
 
             try { await el.play(); } catch { /* best effort */ }
             setStatus('playing');
@@ -278,9 +305,10 @@ export default function VoiceCallModal({
     };
 
     const assistantPulse = 1 + assistantLevel * 0.22;
+    const orbGlow = assistantLevel > 0.01 ? `0 0 ${30 + assistantLevel * 120}px rgba(120,200,255,${0.12 + assistantLevel * 0.35})` : 'none';
 
     return (
-        <div className="fixed inset-0 z-[90]" role="dialog" aria-modal="true" style={{ background: '#000' }}>
+        <div className="fixed inset-0 z-[90]" role="dialog" aria-modal="true" style={{ background: 'linear-gradient(180deg, rgba(0,0,0,0.85), rgba(0,0,0,0.95))' }}>
             {/* End (X) */}
             <button
                 className="absolute top-3 right-3 h-10 w-10 rounded-full grid place-items-center bg-white/10 hover:bg-white/20"
@@ -293,40 +321,67 @@ export default function VoiceCallModal({
 
             {/* Center: orb + meters */}
             <div className="h-full w-full flex flex-col items-center justify-center pt-20 gap-12">
-                {/* Assistant orb with live glow */}
-                <div className="relative w-[260px] h-[260px]">
-                    <div className="absolute inset-0 rounded-full"
-                        style={{ border: '1px solid rgba(255,255,255,0.20)', boxShadow: 'inset 0 0 25px rgba(255,255,255,0.08), inset 0 0 1px rgba(255,255,255,0.5), 0 0 1px rgba(255,255,255,0.25)' }} />
-                    <div className="absolute inset-0 rounded-full pointer-events-none"
+                {/* Assistant orb with live glow & animation */}
+                <div className="relative" style={{ width: 300, height: 300 }}>
+                    <div
+                        className="absolute inset-0 rounded-full"
                         style={{
+                            border: '1px solid rgba(255,255,255,0.12)',
+                            boxShadow: assistantLevel > 0.01 ? `inset 0 0 40px rgba(255,255,255,0.02), ${orbGlow}` : 'inset 0 0 12px rgba(255,255,255,0.02)',
                             transform: `scale(${assistantPulse})`,
-                            transition: 'transform 70ms linear',
-                            boxShadow: assistantLevel > 0.02 ? '0 0 60px 16px rgba(255,255,255,0.30)' : 'none',
-                            border: assistantLevel > 0.02 ? '2px solid rgba(255,255,255,0.35)' : '1px solid transparent'
-                        }} />
-                    <div className="absolute inset-0 grid place-items-center">
-                        <div className="text-white/90 text-xl font-semibold tracking-widest">6IXAI</div>
+                            transition: 'transform 120ms linear, box-shadow 180ms linear',
+                            background: status === 'playing' ? 'radial-gradient(circle at 40% 30%, rgba(120,200,255,0.10), rgba(0,0,0,0))' : 'transparent'
+                        }}
+                    />
+                    {/* inner animated rings */}
+                    <div style={{
+                        position: 'absolute', inset: 0, display: 'grid', placeItems: 'center',
+                        pointerEvents: 'none'
+                    }}>
+                        <svg width="200" height="200" viewBox="0 0 100 100" style={{ filter: status === 'playing' ? 'drop-shadow(0 8px 30px rgba(80,160,255,0.12))' : undefined }}>
+                            <defs>
+                                <radialGradient id="g1" cx="50%" cy="35%">
+                                    <stop offset="0%" stopColor="rgba(255,255,255,0.9)" stopOpacity={status === 'playing' ? 1 : 0.7} />
+                                    <stop offset="60%" stopColor="rgba(120,200,255,0.1)" stopOpacity={status === 'playing' ? 0.95 : 0.4} />
+                                    <stop offset="100%" stopColor="rgba(0,0,0,0)" stopOpacity={0} />
+                                </radialGradient>
+                            </defs>
+                            <circle cx="50" cy="40" r={28 + assistantLevel * 8} fill="url(#g1)" style={{ transition: 'r 140ms linear' }} />
+                        </svg>
+                        <div style={{ position: 'absolute', top: '42%', textAlign: 'center' }}>
+                            <div className="text-white/95 text-xl font-semibold tracking-widest">6IXAI</div>
+                            <div className="text-white/70 text-xs mt-1">{status === 'recording' ? `Listening${displayName ? ` — ${displayName}` : ''}` : status === 'sending' ? 'Transcribing…' : status === 'playing' ? 'Speaking…' : status === 'error' ? (err || 'Error') : ''}</div>
+                        </div>
                     </div>
                 </div>
 
-                {/* User mic bars */}
-                <div className="h-[18px] flex items-end gap-[3px] text-white/90 opacity-95">
+                {/* User mic bars (improved visuals) */}
+                <div className="h-[22px] flex items-end gap-[6px]" style={{ width: 220 }}>
                     {Array.from({ length: 16 }).map((_, i) => {
+                        const phase = 0.6 + 0.4 * Math.sin((i * 1.3) + userLevel * 8);
                         const base = 0.2 + 0.8 * userLevel;
-                        const h = 4 + Math.round(28 * base * (0.6 + 0.4 * Math.sin((i * 1.3) + userLevel * 8)));
-                        return <i key={i} style={{ width: 3, height: h, display: 'inline-block', background: 'currentColor', borderRadius: 2 }} />;
+                        const h = 6 + Math.round(46 * base * phase);
+                        const opacity = 0.25 + (h / 52) * 0.9;
+                        return <i key={i} style={{
+                            width: 6,
+                            height: h,
+                            display: 'inline-block',
+                            borderRadius: 4,
+                            background: `linear-gradient(180deg, rgba(120,200,255,${0.9 * opacity}), rgba(60,150,255,${0.5 * opacity}))`,
+                            transition: 'height 90ms linear, background 120ms linear'
+                        }} />;
                     })}
                 </div>
 
                 <div className="text-white/90 text-sm">
-                    {status === 'recording' && `Listening${displayName ? ` — talk to me, ${displayName}` : ''}…`}
-                    {status === 'sending' && 'Thinking…'}
+                    {status === 'recording' && `Listening — speak now`}
+                    {status === 'sending' && (<span className="inline-flex items-center gap-2"><svg className="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12a9 9 0 11-6.219-8.48" /></svg> Transcribing…</span>)}
                     {status === 'playing' && 'Speaking…'}
                     {status === 'error' && (err || 'Error')}
                 </div>
             </div>
 
-            {/* Assistant audio element (off-screen but real, not hidden) */}
+            {/* Assistant audio element (off-screen but real) */}
             <audio
                 ref={audioElRef}
                 style={{ position: 'absolute', left: '-9999px', width: 1, height: 1 }}
@@ -334,19 +389,13 @@ export default function VoiceCallModal({
                 playsInline
             />
 
-            {/* Bottom bar */}
+            {/* Bottom bar: remove manual "Send & Reply" option — assistant auto-responds after silence */}
             <div className="fixed left-0 right-0 bottom-0 px-4 pb-[env(safe-area-inset-bottom,12px)]">
                 <div className="mx-auto max-w-[520px] rounded-2xl h-12 grid place-items-center"
-                    style={{ background: 'rgba(255,255,255,0.06)', color: '#fff', backdropFilter: 'blur(10px)' }}>
-                    {status === 'recording' ? (
-                        <button onClick={() => void stopAndSend()} className="w-full h-full flex items-center justify-center rounded-2xl active:scale-[.99]">
-                            Send &amp; Reply
-                        </button>
-                    ) : (
-                        <button onClick={endOrClose} className="w-full h-full flex items-center justify-center rounded-2xl active:scale-[.99]">
-                            {status === 'playing' || status === 'sending' ? 'End' : 'Close'}
-                        </button>
-                    )}
+                    style={{ background: 'rgba(255,255,255,0.04)', color: '#fff', backdropFilter: 'blur(8px)' }}>
+                    <button onClick={endOrClose} className="w-full h-full flex items-center justify-center rounded-2xl active:scale-[.99]">
+                        {status === 'playing' || status === 'sending' ? 'End' : 'Close'}
+                    </button>
                 </div>
             </div>
         </div>

@@ -1,4 +1,4 @@
-// app/api/voice/turn/route.ts
+// ...existing code...
 import OpenAI from "openai";
 
 export const runtime = "nodejs";
@@ -19,47 +19,59 @@ export async function POST(req: Request) {
             return new Response(JSON.stringify({ error: "missing_audio" }), { status: 400 });
         }
 
-        // 1) Transcribe (try gpt-4o-transcribe; fall back to whisper-1 if not available)
-        const transcript =
-            (await openai.audio.transcriptions
-                .create({ file: audio, model: "gpt-4o-transcribe" })
-                .catch(() => null)) ||
-            (await openai.audio.transcriptions.create({ file: audio, model: "whisper-1" }));
+        // 1) Transcribe with fallback
+        let transcript: string | null = null;
+        try {
+            const t1 = await openai.audio.transcriptions.create({ file: audio, model: "gpt-4o-transcribe" }).catch(() => null);
+            const t2 = !t1 ? await openai.audio.transcriptions.create({ file: audio, model: "whisper-1" }) : t1;
+            transcript = (t2 as any)?.text?.trim() || "";
+        } catch (tErr) {
+            console.error("[voice/turn] transcribe error:", tErr);
+            transcript = "";
+        }
 
-        const userText = transcript?.text?.trim() || "";
+        const userText = transcript?.trim() || "";
 
-        // 2) Chat
+        // 2) Chat (if transcript is empty, still provide a default prompt)
+        const chatMessages = [
+            { role: "system", content: system },
+            { role: "user", content: userText || "Say hello briefly." },
+        ];
+
         const chat = await openai.chat.completions.create({
             model: "gpt-4o-mini",
             temperature: 0.7,
-            messages: [
-                { role: "system", content: system },
-                { role: "user", content: userText || "Say hello briefly." },
-            ],
+            messages: chatMessages as any,
         });
 
         const reply = chat.choices?.[0]?.message?.content?.trim() || "Okay.";
 
-        // 3) TTS (mp3 is default; omit 'format' to satisfy older SDK typings)
+        // 3) TTS -> produce audio and return as base64 + metadata + transcript+reply
         const speech = await openai.audio.speech.create({
             model: "gpt-4o-mini-tts",
             voice,
             input: reply,
-            // format: "mp3", // <- remove to avoid typing error; mp3 is default
         });
 
         const buf = Buffer.from(await speech.arrayBuffer());
-        return new Response(buf, {
+        const audioBase64 = buf.toString("base64");
+
+        const payload = {
+            transcript: userText,
+            reply,
+            audio: audioBase64,
+            audioMime: "audio/mpeg",
+        };
+
+        return new Response(JSON.stringify(payload), {
             status: 200,
-            headers: {
-                "Content-Type": "audio/mpeg",
-                "Cache-Control": "no-store",
-            },
+            headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
         });
     } catch (err: any) {
         console.error("[voice/turn] error", err);
         return new Response(JSON.stringify({ error: err?.message || "voice_turn_failed" }), {
             status: 500,
+            headers: { "Content-Type": "application/json" },
         });
     }
 }

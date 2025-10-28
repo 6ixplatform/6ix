@@ -170,32 +170,42 @@ export default function FloatingComposer(props: Props) {
 
     // Listen for finished recording event -> run STT here, show spinner while transcribing
     useEffect(() => {
-        const onRecordingFinished = async (ev: Event) => {
+        const onRecordingFinished = (ev: Event) => {
             try {
-                const detail = (ev as CustomEvent)?.detail;
-                const file = detail?.file as File | undefined;
-                if (!file) return;
-
+                // we don't run local STT here; the voice modal/server will transcribe + reply.
+                // show local spinner immediately so user sees "Transcribing…"
                 setShowTranscribing(true);
-                const text = await postStt(file); // postStt handles 429/toast
-
-                if (typeof text === 'string' && text.trim().length) {
-                    // append or replace input with transcript
-                    setInput(prev => (prev && prev.trim().length ? prev + '\n' + text : text));
-                    // focus textarea so user sees the transcript
-                    setTimeout(() => props.textRef.current?.focus({ preventScroll: true }), 0);
-                }
+                // give focus back to the composer textarea so user sees progress
+                setTimeout(() => props.textRef.current?.focus({ preventScroll: true }), 0);
             } catch (err) {
-                console.error('STT failed', err);
-            } finally {
-                setShowTranscribing(false);
+                console.error('recording finished handler error', err);
             }
         };
 
         window.addEventListener('six:recording:finished', onRecordingFinished as EventListener);
         return () => window.removeEventListener('six:recording:finished', onRecordingFinished as EventListener);
-    }, [postStt, setInput, props.textRef]);
+    }, [props.textRef]);
 
+    useEffect(() => {
+        const onVoiceTurn = (ev: Event) => {
+            try {
+                const detail = (ev as CustomEvent)?.detail;
+                const transcript = detail?.transcript as string | undefined;
+                if (transcript && transcript.trim()) {
+                    setInput(prev => (prev && prev.trim().length ? prev + '\n' + transcript : transcript));
+                    setTimeout(() => props.textRef.current?.focus({ preventScroll: true }), 0);
+                }
+            } catch (err) {
+                console.error('voice turn handler error', err);
+            } finally {
+                // ensure spinner cleared when turn completes
+                setShowTranscribing(false);
+            }
+        };
+
+        window.addEventListener('six:voice:turn', onVoiceTurn as EventListener);
+        return () => window.removeEventListener('six:voice:turn', onVoiceTurn as EventListener);
+    }, [setInput, props.textRef]);
 
     // Voice call state
     const [openCall, setOpenCall] = useState(false);
