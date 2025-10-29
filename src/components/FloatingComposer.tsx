@@ -543,7 +543,7 @@ min-h-[40px] overflow-hidden ring-0 border-0 shadow-none`}
                             {/* right controls */}
                             <div className="absolute right-1.5 bottom-1.5 flex items-center gap-1" style={{ right: 6 + sbGap }}>
                                 {/* CALL (picker first; then modal) */}
-                                <button
+                                {/* <button
                                     type="button"
                                     className="h-6 w-6 md:h-8 md:w-8 rounded-full grid place-items-center active:scale-95"
                                     title="Start voice call"
