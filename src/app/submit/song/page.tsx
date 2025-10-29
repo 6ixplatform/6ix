@@ -19,6 +19,23 @@ const GENRES = [
     'Soul', 'Jazz', 'Rock', 'Gospel', 'Reggae', 'Latin', 'Country', 'Alternative', 'Classical', 'Soundtrack'
 ];
 
+function safeId(): string {
+    // Use native if available
+    if (typeof globalThis !== 'undefined' && (globalThis as any).crypto?.randomUUID) {
+        return (globalThis as any).crypto.randomUUID();
+    }
+    // RFC4122 v4 fallback
+    const u = new Uint8Array(16);
+    if ((globalThis as any).crypto?.getRandomValues) {
+        (globalThis as any).crypto.getRandomValues(u);
+    } else {
+        for (let i = 0; i < 16; i++) u[i] = Math.floor(Math.random() * 256);
+    }
+    u[6] = (u[6] & 0x0f) | 0x40;
+    u[8] = (u[8] & 0x3f) | 0x80;
+    const h = Array.from(u, b => b.toString(16).padStart(2, '0')).join('');
+    return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
+}
 export default function SubmitSongPage() {
     const supabase = createClientComponentClient();
     const [userName, setUserName] = React.useState('there');
@@ -114,11 +131,17 @@ export default function SubmitSongPage() {
             setLoading(true);
 
             // Uploads
+            const { data: authInfo } = await supabase.auth.getUser();
+            const uid = authInfo?.user?.id || 'anon';
+
             const uploads: Record<string, string | undefined> = {};
             const up = async (bucket: string, file: File | null, key: string) => {
                 if (!file) return;
-                const path = `${crypto.randomUUID()}-${file.name}`;
-                const { error } = await supabase.storage.from(bucket).upload(path, file, { upsert: false });
+                const path = `${uid}/${safeId()}-${file.name}`;
+                const { error } = await supabase
+                    .storage
+                    .from(bucket)
+                    .upload(path, file, { upsert: false, contentType: file.type, cacheControl: '3600' });
                 if (error) throw error;
                 const { data } = supabase.storage.from(bucket).getPublicUrl(path);
                 uploads[key] = data.publicUrl;
@@ -130,8 +153,11 @@ export default function SubmitSongPage() {
 
             const rightsDocUrls: string[] = [];
             for (const f of rightsDocs) {
-                const p = `${crypto.randomUUID()}-${f.name}`;
-                const { error } = await supabase.storage.from('music_docs').upload(p, f, { upsert: false });
+                const p = `${uid}/${safeId()}-${f.name}`;
+                const { error } = await supabase
+                    .storage
+                    .from('music_docs')
+                    .upload(p, f, { upsert: false, contentType: f.type, cacheControl: '3600' });
                 if (error) throw error;
                 const { data } = supabase.storage.from('music_docs').getPublicUrl(p);
                 rightsDocUrls.push(data.publicUrl);
