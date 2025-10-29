@@ -360,7 +360,7 @@ export default function UserMenuPortal({
                         </button>
                     </li>
 
-                    {/* Submit ad */}
+                    {/* Submit ad *
                     <li>
                         <button
                             type="button"
@@ -372,7 +372,7 @@ export default function UserMenuPortal({
                         </button>
                     </li>
 
-                    {/* Submit song */}
+                    {/* Submit song 
                     <li>
                         <button
                             type="button"
