@@ -122,7 +122,7 @@ Many platforms burn your time with trends that feel immoral, noisy or degrading.
 <td style="padding:18px 24px 22px">
 <a href="${SITE}" class="btn"
 style="display:inline-block;padding:12px 18px;border-radius:9999px;background:#000;color:#fff;text-decoration:none;font-weight:700">
-Open 6ix
+6IXAPP - Your 6ix Journey Starts Here
 </a>
 </td>
 </tr>
