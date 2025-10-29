@@ -360,25 +360,25 @@ export default function UserMenuPortal({
                         </button>
                     </li>
 
-                    {/* Submit ad *
+                    {/* Submit ad */}
                     <li>
                         <button
                             type="button"
                             role="menuitem"
                             className="sheet-item"
-                            onClick={() => { router.push('/submit/ad'); onClose(); }}
+                            onClick={() => { router.push('/premium'); onClose(); }}
                         >
                             Submit ad
                         </button>
                     </li>
 
-                    {/* Submit song 
+                    {/* Submit song */}
                     <li>
                         <button
                             type="button"
                             role="menuitem"
                             className="sheet-item"
-                            onClick={() => { router.push('/submit/song'); onClose(); }}
+                            onClick={() => { router.push('/premium'); onClose(); }}
                         >
                             Submit song
                         </button>
