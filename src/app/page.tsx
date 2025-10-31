@@ -143,10 +143,10 @@ export default function Home() {
                     {/* Hero */}
                     <section className="container text-center mt-2 sm:mt-4">
                         <h1 className="text-balance text-4xl sm:text-6xl font-semibold leading-tight" style={{ color: 'var(--fg)' }}>
-                            Content Creator&apos;s Edition — almost-free AI tools, secure and fast.
+                            Instant search Edition — almost-free AI tools, secure and fast.
                         </h1>
                         <p className="mt-2 sm:mt-3 text-base sm:text-lg font-semibold" style={{ color: 'var(--muted)' }}>
-                            <span className="font-semibold">→</span>&nbsp; Comedy • Music • Fashion • Food • Education • 6IX AI • Gaming — heal,&nbsp;
+                            <span className="font-semibold">→</span>&nbsp; Search for anthing → Music • Fashion • Food • Education • 6IX AI • Gaming — heal,&nbsp;
                             <span style={{ color: 'var(--gold)' }}>earn</span> and grow.
                         </p>
                     </section>
