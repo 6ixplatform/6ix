@@ -25,20 +25,20 @@ const SITE_URL =
 export const metadata: Metadata = {
   metadataBase: safeURL(SITE_URL),
   title: { default: '6ix', template: '%s • 6ix' },
-  description: '6ix — instant chat, calls & live video. Almost-free AI tools that are secure and fast.',
+  description: '6ix — instant Search result. Almost-free AI tools that are secure and fast. making learning,education and working more efficient.',
   alternates: { canonical: '/' },
   openGraph: {
     type: 'website',
     url: '/',
-    title: '6ix – Instant chat, calls & live video',
-    description: 'Almost-free AI tools that are secure and fast.',
+    title: '6ix – Instant Search result',
+    description: 'Almost-free AI tools that are secure and fast. making learning,education and working more efficient.',
     images: ['/og.png'],
   },
   twitter: {
     card: 'summary_large_image',
     creator: '@6ixofficial',
-    title: '6ix – Instant chat, calls & live video',
-    description: 'Almost-free AI tools that are secure and fast.',
+    title: '6ix – Instant Search result',
+    description: 'Almost-free AI tools that are secure and fast. making learning,education and working more efficient.',
     images: ['/og.png'],
   },
   robots: {
