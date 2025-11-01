@@ -5,7 +5,7 @@ export default function ThemeBoot() {
     useEffect(() => {
         const html = document.documentElement;
 
-        const accent = localStorage.getItem('6ix:accent') || '#3b82f6';
+        const accent = localStorage.getItem('6ix:accent') || '#000000ff';
         const fg = (() => {
             const n = accent.replace('#', '');
             const r = parseInt(n.slice(0, 2), 16) / 255, g = parseInt(n.slice(2, 4), 16) / 255, b = parseInt(n.slice(4, 6), 16) / 255;

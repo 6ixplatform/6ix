@@ -34,7 +34,7 @@
 
     /* shared tokens components can use */
     :root {
-        --accent: #3b82f6;
+        --accent: #000000;
         --accent-fg: #fff;
         --crescent: #000;
         /* replaced at runtime */
@@ -87,7 +87,7 @@
     --btn-fg: var(--th-text);
 
     /* accent (overwritten by JS) */
-    --accent: #3b82f6;
+    --accent: #000000;
     --accent-fg: #ffffff;
 }
 
