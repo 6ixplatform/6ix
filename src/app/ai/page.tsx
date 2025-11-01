@@ -1052,7 +1052,7 @@ function AIPageInner() {
     const [savingAvatar, setSavingAvatar] = useState(false);
 
     // plan-based file rules
-    function maxFilesFor(p: Plan) { return p === 'max' ? 20 : p === 'pro' ? 9 : 6; }
+    function maxFilesFor(p: Plan) { return p === 'max' ? 20 : p === 'pro' ? 9 : 1; }
     function isAllowedForPlan(p: Plan, mime: string, kind: Attachment['kind']) {
         if (p === 'free') return /^image\//.test(mime) || kind === 'image';
         return true; // pro / max: any type
@@ -1200,7 +1200,7 @@ function AIPageInner() {
         setTimeout(() => { window.location.replace('/auth/signin?next=/ai'); }, 20);
     };
 
-    const FREE_MAX_TTS = 6;
+    const FREE_MAX_TTS = 1;
     const ttsKey = () => `6ix:tts:${new Date().toISOString().slice(0, 10)}`;
     const ttsUsed = () => { try { return Number(localStorage.getItem(ttsKey()) || '0'); } catch { return 0; } };
     const speakDisabled = plan === 'free' && ttsUsed() >= FREE_MAX_TTS;

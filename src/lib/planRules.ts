@@ -123,7 +123,7 @@ export function capabilitiesForPlan(plan: Plan) {
         maxContextWin: plan === 'max' ? 160_000 : plan === 'pro' ? 120_000 : 80_000,
 
         // (Optional) frontend quotas can also key off plan here if desired:
-        dailyTTS: plan === 'free' ? 6 : plan === 'pro' ? 9999 : 99999,
+        dailyTTS: plan === 'free' ? 1 : plan === 'pro' ? 9999 : 99999,
         dailyImages: plan === 'free' ? 2 : plan === 'pro' ? 50 : 200
     };
 }

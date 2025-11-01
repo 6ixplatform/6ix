@@ -4709,3 +4709,45 @@ html[data-live="1"].modal-open video#six-live-wallpaper {
         --danger-fg: #ff9090;
     }
 }
+
+/* HOTFIX: Force-hide stray dark/backdrop overlays shown when composer opens.
+   Note: this is a targeted blunt override — if you need modal/backdrop behavior
+   elsewhere, scope these rules later to a mounting state/class. */
+.six-theme__backdrop,
+.theme-backdrop,
+.modal-overlay,
+.modal-backdrop,
+.sheet-backdrop,
+.backdrop,
+.backdrop--open,
+.modal-open .modal-overlay,
+.modal-open .six-theme__backdrop,
+[role="dialog"] + .modal-overlay,
+.floating-composer-backdrop,
+.composer-backdrop,
+.theme-backdrop,
+.six-theme__backdrop {
+    display: none !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    background: transparent !important;
+}
+
+/* Extra safety: kill any pseudo-element veil coming from the composer */
+.floating-composer::before,
+.floating-composer::after,
+.composer-root::before,
+.composer-root::after {
+    content: none !important;
+    display: none !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+
+/* Ensure composer itself stays visible and unaffected */
+.floating-composer,
+.composer-root {
+    background: transparent !important;
+    pointer-events: auto !important;
+    z-index: 80 !important;
+}
