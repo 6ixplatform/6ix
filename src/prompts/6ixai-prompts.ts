@@ -45,6 +45,7 @@ import { buildNigeriaUniversitiesSystem } from './systems/universities-ng';
 import { buildPrimaryEducationSystem } from './systems/primary';
 import { buildCrecheSystem } from './systems/creche';
 import { buildNigeriaDJsSystem } from './systems/djs-ng';
+import { buildArtistsRegionSystem } from './systems/artists-region';
 
 // ----------------------- shared types & helpers -----------------------
 export type Mood = 'neutral' | 'stressed' | 'sad' | 'angry' | 'excited';
@@ -596,6 +597,101 @@ function pickDomainSystem(opts: {
             speed,
             region: ngRegion?.state || 'All Nigeria',
             city: ngRegion?.city || null,
+            genre,
+            topic
+        });
+    }
+
+    // Regional Music Artists / Record Labels / Influential / Famous / Rich
+    if (
+        // artist / label / influence / wealth / roster / "Cross River artists"
+        /\b(artist|musician|singer|rapper|vocalist|band|afrobeats|amapiano|afro[-\s]?pop|hip[-\s]?hop|gospel|highlife|alte|street[-\s]?pop|label|record\s*label|imprint|roster|signed|signing|exec|founder|ceo|owner|talent\s*scout|a&r|most\s*influential|famous|biggest|rich|wealthy|highest\s*paid|high\s*fee|headliner|headline\s*act)\b/i.test(t)
+        &&
+        // avoid pure DJ-only stuff (that's handled by buildNigeriaDJsSystem already)
+        !/\b(dj|turntable|turntablist|mixcloud|audiomack\s*mix|club\s*dj|serato|rekordbox|controller)\b/i.test(t)
+    ) {
+        // Try to infer Nigerian region/state/city using your helper
+        const ngRegion = (typeof matchNigeriaRegion === 'function') ? matchNigeriaRegion(t) : null;
+
+        // Very rough global inference for country/city if not Nigeria
+        // We'll try to pick up a country keyword like "Ghana", "UK", "United Kingdom", "US", "USA", "America", "South Africa", etc.
+        let country: string | null = null;
+        if (/\b(nigeria|naija)\b/i.test(t)) country = 'Nigeria';
+        else if (/\b(uk|united\s*kingdom|england|london)\b/i.test(t)) country = 'United Kingdom';
+        else if (/\b(usa|u\.s\.a\.|united\s*states|america|atlanta|new\s*york|la\b|los\s*angeles)\b/i.test(t)) country = 'United States';
+        else if (/\b(ghana|accra|kumasi)\b/i.test(t)) country = 'Ghana';
+        else if (/\b(south\s*africa|sa|johannesburg|jozi|cape\s*town|durban)\b/i.test(t)) country = 'South Africa';
+        else if (/\b(kenya|nairobi|mombasa)\b/i.test(t)) country = 'Kenya';
+        else if (/\b(cameroon|douala|yaound[eé])\b/i.test(t)) country = 'Cameroon';
+        else if (/\b(france|paris|marseille)\b/i.test(t)) country = 'France';
+        else if (/\b(germany|berlin|hamburg)\b/i.test(t)) country = 'Germany';
+        else if (/\b(canada|toronto|montreal|vancouver)\b/i.test(t)) country = 'Canada';
+        else if (/\b(brazil|rio\s*de\s*janeiro|sao\s*paulo)\b/i.test(t)) country = 'Brazil';
+        else if (/\b(india|mumbai|delhi|lagos? india)\b/i.test(t)) country = 'India'; // loose fallback
+
+        // State and city for Nigeria specifically:
+        // If matchNigeriaRegion found something, we trust it for state/city
+        const state = ngRegion?.state || (
+            /\bcross\s*river\b/i.test(t) ? 'Cross River' :
+                /\bcalabar\b/i.test(t) ? 'Cross River' :
+                    /\blagos\b/i.test(t) ? 'Lagos' :
+                        /\babuja|fct\b/i.test(t) ? 'FCT (Abuja)' :
+                            null
+        );
+
+        const city = ngRegion?.city || (
+            /\bcalabar\b/i.test(t) ? 'Calabar' :
+                /\blagos\b/i.test(t) ? 'Lagos' :
+                    /\babuja\b/i.test(t) ? 'Abuja' :
+                        /\bport\s*harcourt|ph\b/i.test(t) ? 'Port Harcourt' :
+                            null
+        );
+
+        // Topic inference
+        const topic =
+            /\b(upcoming|up\s*and\s*coming|underground|next\s*up|emerging|breakout|new\s*artist)\b/i.test(t)
+                ? 'Upcoming Artists' as const
+                : /\b(influential|influence|impact|culture|most\s*influential|trendsetter|tastemaker)\b/i.test(t)
+                    ? 'Influential Artists' as const
+                    : /\b(famous|popular|mainstream|biggest\s*artist|household\s*name|superstar)\b/i.test(t)
+                        ? 'Famous Artists' as const
+                        : /\b(rich|wealthy|richest|highest\s*paid|fee|rate|high\s*fee|billionaire)\b/i.test(t)
+                            ? 'Rich/High-Earning Artists' as const
+                            : /\b(label|record\s*label|label\s*owner|ceo|sign(?:ed|ing)|roster|imprint|exec|founder)\b/i.test(t)
+                                ? 'Record Labels' as const
+                                : /\b(owner|ceo|founder|executive|label\s*boss|label\s*head)\b/i.test(t)
+                                    ? 'Executives / Owners' as const
+                                    : /\b(show|lineup|bill|concert|festival|event|tour|performance|stage|live\s*in)\b/i.test(t)
+                                        ? 'Events & Shows' as const
+                                        : /\b(award|awards|chart|charts|nominated|won|best\s*artist|best\s*album|headies|afrimm?a|grammy)\b/i.test(t)
+                                            ? 'Charts & Awards' as const
+                                            : /\b(news|trending|headline|press|blog|gossip|rumor|trend)\b/i.test(t)
+                                                ? 'News/Trending' as const
+                                                : 'Artists' as const;
+
+        // Genre inference
+        const genre =
+            /\bamapiano\b/i.test(t) ? 'Amapiano' :
+                /\bafro[-\s]?beats?\b/i.test(t) ? 'Afrobeats' :
+                    /\bafro[-\s]?pop|afro[-\s]?fusion\b/i.test(t) ? 'Afropop' :
+                        /\b(gospel|worship|praise)\b/i.test(t) ? 'Gospel' :
+                            /\b(highlife|palm[-\s]?wine)\b/i.test(t) ? 'Highlife' :
+                                /\b(alte|alt[eé])\b/i.test(t) ? 'Alte' :
+                                    /\b(rap|hip[-\s]?hop|trap|drill)\b/i.test(t) ? 'Rap/Hip-Hop' :
+                                        /\b(dancehall|reggae)\b/i.test(t) ? 'Dancehall' :
+                                            /\b(band|live\s*band|band\s*set)\b/i.test(t) ? 'Band/Live' :
+                                                null;
+
+        return buildArtistsRegionSystem({
+            displayName,
+            plan,
+            model,
+            prefs,
+            langHint: hints?.language || 'en',
+            speed,
+            country: country || (ngRegion ? 'Nigeria' : 'Nigeria'),
+            state: state || (ngRegion?.state ?? null),
+            city: city || (ngRegion?.city ?? null),
             genre,
             topic
         });
