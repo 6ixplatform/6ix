@@ -41,6 +41,7 @@ import { buildPoliticsEducationSystem, PoliticsTopic } from './systems/politics-
 import { buildCrossRiverSystem } from './systems/crossriver';
 import { buildNigeriaStateSystem } from './systems/nigeria';
 import { buildCRUniversitiesSystem } from './systems/universities-crs';
+import { buildNigeriaUniversitiesSystem } from './systems/universities-ng';
 
 // ----------------------- shared types & helpers -----------------------
 export type Mood = 'neutral' | 'stressed' | 'sad' | 'angry' | 'excited';
@@ -137,6 +138,48 @@ function matchNigeriaRegion(t: string): { state: string; city: string | null } |
     const c = t.match(NG_CITY_PATTERN)?.[0] || null;
     if (c) return { state: NG_CITY_LOOKUP[c.toLowerCase()], city: c };
     return null;
+}
+
+const NG_INSTITUTION_TYPES = [
+    'university',
+    'polytechnic',
+    'college of education',
+    'school of nursing',
+    'college of health',
+    'college of health technology',
+    'monotechnic'
+];
+
+const INSTITUTION_TYPE_PATTERN = new RegExp(`\\b(${NG_INSTITUTION_TYPES.join('|').replace(/\s+/g, '\\s*')})\\b`, 'i');
+
+// Very light name capture: "University of X", "X University", "Polytechnic X"
+const NAME_PATTERNS = [
+    /\b(university of\s+([a-z][a-z\s'-]+))\b/i,
+    /\b(([a-z][a-z\s'-]+)\s+university)\b/i,
+    /\b(polytechnic\s+([a-z][a-z\s'-]+))\b/i,
+    /\b(college of (education|health( technology)?|nursing))\s+([a-z][a-z\s'-]+)?\b/i,
+];
+
+function guessInstitutionName(t: string): string | null {
+    for (const rx of NAME_PATTERNS) {
+        const m = t.match(rx);
+        if (m) return m[0].replace(/\s+/g, ' ').trim();
+    }
+    return null;
+}
+
+// Small domain hint map for common schools; extend over time.
+const NG_DOMAIN_HINTS: Record<string, string> = {
+    'university of calabar': 'unical.edu.ng',
+    'unical': 'unical.edu.ng',
+    'university of cross river state': 'unicross.edu.ng',
+    'unicross': 'unicross.edu.ng',
+    'crutech': 'crutech.edu.ng'
+};
+function domainHintFor(name?: string | null): string | null {
+    if (!name) return null;
+    const key = name.toLowerCase();
+    return NG_DOMAIN_HINTS[key] || null;
 }
 
 
@@ -729,6 +772,29 @@ function pickDomainSystem(opts: {
             langHint: hints?.language || 'en',
             speed,
             uni: 'UNICROSS'
+        });
+    }
+
+    // Nigeria-wide Institutions (University/Polytechnic/College) — search-first
+    if (INSTITUTION_TYPE_PATTERN.test(t) || /\b(university|polytechnic|college|faculty|department|admissions|cut[-\s]?off|calendar|fees|hostel|timetable|portal)\b/i.test(t)) {
+        // Scope region if present (uses helpers you added earlier)
+        const ngRegion = typeof matchNigeriaRegion === 'function' ? matchNigeriaRegion(t) : null;
+
+        const inferredName = guessInstitutionName(t);
+        const domainHint = domainHintFor(inferredName);
+
+        return buildNigeriaUniversitiesSystem({
+            displayName,
+            plan,
+            model,
+            prefs,
+            langHint: hints?.language || 'en',
+            speed,
+            type: (t.match(INSTITUTION_TYPE_PATTERN)?.[0]?.toLowerCase() as any) || null,
+            name: inferredName,
+            state: ngRegion?.state || (/\bnigeria\b/i.test(t) ? 'All Nigeria' : null),
+            city: ngRegion?.city ?? null,
+            domainHint
         });
     }
 

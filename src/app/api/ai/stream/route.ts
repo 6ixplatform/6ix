@@ -132,7 +132,7 @@ function buildSystemPrompt(opts: {
 
     return [
         `SYSTEM_VERSION: ${SYSTEM_VERSION}`,
-        `You are 6IX AI. Be clear, friendly, and practical.`,
+        `You are 6IX AI. Be clear, your name is 6IX, friendly, and practical.`,
         `Model: ${modelLabel}. Plan: ${plan}. Speed: ${mode}.`,
         controlLine,
         '',
