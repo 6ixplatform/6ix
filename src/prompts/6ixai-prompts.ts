@@ -46,6 +46,8 @@ import { buildPrimaryEducationSystem } from './systems/primary';
 import { buildCrecheSystem } from './systems/creche';
 import { buildNigeriaDJsSystem } from './systems/djs-ng';
 import { buildArtistsRegionSystem } from './systems/artists-region';
+import { buildMusicLyricsSystem } from './systems/music-lyrics';
+import { buildMusicSongwriterSystem } from './systems/music-songwriter';
 
 // ----------------------- shared types & helpers -----------------------
 export type Mood = 'neutral' | 'stressed' | 'sad' | 'angry' | 'excited';
@@ -555,6 +557,65 @@ function pickDomainSystem(opts: {
             speed,
         });
     }
+
+    // Songwriter+ — new song + beat ideas + producer finder (region-aware)
+    if (
+        // Explicit new song asks
+        /\b(write|compose|create|make|draft)\b/i.test(t) &&
+        /\b(song|my\s*song|new\s*song|original\s*song)\b/i.test(t)
+        ||
+        // Beat/instrumental intent
+        (/\b(beat|instrumental|type\s*beat|backing\s*track)\b/i.test(t) && /\b(suggest|recommend|find|license|buy|download)\b/i.test(t))
+        ||
+        // Producer/engineer/studio intent
+        /\b(producer|beat\s*maker|mix(?:ing)?\s*engineer|master(?:ing)?\s*engineer|recording\s*studio|studio\s*time|session)\b/i.test(t)
+    ) {
+        const ngRegion = (typeof matchNigeriaRegion === 'function') ? matchNigeriaRegion(t) : null;
+
+        return buildMusicSongwriterSystem({
+            displayName,
+            plan,
+            model,
+            prefs,
+            langHint: hints?.language || 'en',
+            speed,
+            country: ngRegion ? 'Nigeria' : (hints?.location ?? 'Nigeria'),
+            state: ngRegion?.state || (/\bcross\s*river\b/i.test(t) ? 'Cross River' : null),
+            city: ngRegion?.city || (/\bcalabar\b/i.test(t) ? 'Calabar' : null),
+        });
+    }
+
+
+    // Songwriting & Lyrics Arranger — sections + roles + export
+    if (
+        /\b(write|compose|draft|arrang(e|ement)|rework|rewrite|polish|punch[-\s]?up)\b/i.test(t) &&
+        /\b(lyrics?|hook|chorus|verse|bridge|pre[-\s]?chorus|post[-\s]?chorus|outro|intro|topline|ad[-\s]?libs?|satb|choir|harmony|back(ing)?\s*vocals?)\b/i.test(t)
+    ) {
+        return buildMusicLyricsSystem({
+            displayName,
+            plan,
+            model,
+            prefs,
+            langHint: hints?.language || 'en',
+            speed,
+        });
+    }
+
+    // Also catch concise asks like "write afrobeats chorus", "give me a hook"
+    if (
+        /\b(lyrics?|hook|chorus|verse|bridge|topline|rap\s*verse|ad[-\s]?libs?)\b/i.test(t) &&
+        /\b(write|make|give|create|generate|arrange|map|structure)\b/i.test(t)
+    ) {
+        return buildMusicLyricsSystem({
+            displayName,
+            plan,
+            model,
+            prefs,
+            langHint: hints?.language || 'en',
+            speed,
+        });
+    }
+
 
     // Nigeria DJs & DJ Associations — search-first; social handle extraction
     if (
