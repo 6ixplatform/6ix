@@ -38,6 +38,9 @@ import { buildPublicSafetySystem } from './systems/publicsafety';
 import { buildUniversalSystem } from './systems/universal';
 import { buildEmergencyFirstAidSystem } from './systems/firstaid-emergency';
 import { buildPoliticsEducationSystem, PoliticsTopic } from './systems/politics-education';
+import { buildCrossRiverSystem } from './systems/crossriver';
+import { buildNigeriaStateSystem } from './systems/nigeria';
+import { buildCRUniversitiesSystem } from './systems/universities-crs';
 
 // ----------------------- shared types & helpers -----------------------
 export type Mood = 'neutral' | 'stressed' | 'sad' | 'angry' | 'excited';
@@ -69,6 +72,73 @@ function profileHintLines(h?: ProfileHints): string {
     if (h.bio) bits.push(`Bio note: ${h.bio.slice(0, 160)}…`);
     return bits.join('\n');
 }
+
+// ---- Nigeria states + capitals (canonical) ----
+const NG_STATES: Record<string, string[]> = {
+    'Abia': ['Umuahia', 'Aba'],
+    'Adamawa': ['Yola', 'Mubi'],
+    'Akwa Ibom': ['Uyo', 'Eket', 'Ikot Ekpene'],
+    'Anambra': ['Awka', 'Onitsha', 'Nnewi'],
+    'Bauchi': ['Bauchi', 'Azare'],
+    'Bayelsa': ['Yenagoa'],
+    'Benue': ['Makurdi', 'Gboko', 'Otukpo'],
+    'Borno': ['Maiduguri', 'Biu'],
+    'Cross River': ['Calabar', 'Ikom', 'Obudu', 'Ugep', 'Akamkpa', 'Odukpani', 'Tinapa'],
+    'Delta': ['Asaba', 'Warri', 'Sapele', 'Ughelli'],
+    'Ebonyi': ['Abakaliki'],
+    'Edo': ['Benin City', 'Benin'],
+    'Ekiti': ['Ado-Ekiti'],
+    'Enugu': ['Enugu', 'Nsukka'],
+    'Gombe': ['Gombe'],
+    'Imo': ['Owerri', 'Okigwe', 'Orlu'],
+    'Jigawa': ['Dutse', 'Hadejia'],
+    'Kaduna': ['Kaduna', 'Zaria', 'Kafanchan'],
+    'Kano': ['Kano'],
+    'Katsina': ['Katsina', 'Daura', 'Funtua'],
+    'Kebbi': ['Birnin Kebbi'],
+    'Kogi': ['Lokoja', 'Okene', 'Idah'],
+    'Kwara': ['Ilorin', 'Offa'],
+    'Lagos': ['Ikeja', 'Lagos', 'Lekki', 'Victoria Island', 'Ikorodu', 'Epe', 'Yaba'],
+    'Nasarawa': ['Lafia', 'Keffi'],
+    'Niger': ['Minna', 'Bida', 'Suleja'],
+    'Ogun': ['Abeokuta', 'Ijebu Ode', 'Sagamu'],
+    'Ondo': ['Akure', 'Ondo'],
+    'Osun': ['Osogbo', 'Oshogbo', 'Ife', 'Ilesa'],
+    'Oyo': ['Ibadan', 'Ogbomoso'],
+    'Plateau': ['Jos'],
+    'Rivers': ['Port Harcourt', 'PH', 'Bonny'],
+    'Sokoto': ['Sokoto'],
+    'Taraba': ['Jalingo', 'Wukari'],
+    'Yobe': ['Damaturu', 'Potiskum'],
+    'Zamfara': ['Gusau'],
+    'FCT (Abuja)': ['Abuja', 'FCT']
+};
+
+// Flatten for regex matching
+const NG_STATE_KEYS = Object.keys(NG_STATES);
+const NG_CITY_LOOKUP: Record<string, string> = {};
+for (const [state, cities] of Object.entries(NG_STATES)) {
+    for (const city of cities) NG_CITY_LOOKUP[city.toLowerCase()] = state;
+}
+const NG_STATE_PATTERN = new RegExp(`\\b(${NG_STATE_KEYS.map(s => s.replace(/[()]/g, '\\$&')).join('|')})\\b`, 'i');
+const NG_CITY_PATTERN = new RegExp(`\\b(${Object.keys(NG_CITY_LOOKUP).map(c => c.replace(/[()]/g, '\\$&')).join('|')})\\b`, 'i');
+
+function matchNigeriaRegion(t: string): { state: string; city: string | null } | null {
+    if (/\bnigeria\b/i.test(t)) {
+        // “Nigeria” mentioned without a more specific state/city
+        const s = t.match(NG_STATE_PATTERN)?.[0] || null;
+        if (s) return { state: NG_STATE_KEYS.find(k => new RegExp(`^${k}$`, 'i').test(s))!, city: null };
+        const c = t.match(NG_CITY_PATTERN)?.[0] || null;
+        if (c) return { state: NG_CITY_LOOKUP[c.toLowerCase()], city: c };
+        return { state: 'All Nigeria', city: null };
+    }
+    const s = t.match(NG_STATE_PATTERN)?.[0] || null;
+    if (s) return { state: NG_STATE_KEYS.find(k => new RegExp(`^${k}$`, 'i').test(s))!, city: null };
+    const c = t.match(NG_CITY_PATTERN)?.[0] || null;
+    if (c) return { state: NG_CITY_LOOKUP[c.toLowerCase()], city: c };
+    return null;
+}
+
 
 const STYLE_PRIMER = `
 Style:
@@ -611,6 +681,57 @@ function pickDomainSystem(opts: {
             topic
         });
     }
+
+    // Cross River / Calabar local guide (search-first; transparent house pick)
+    if (/\b(cross\s*river|crs\b|calabar|obudu|tinapa|ikom|ugep|akamkpa|odukpani|calabar\s*carnival|obudu\s*(ranch|mountain|resort))\b/i.test(t)) {
+        return buildCrossRiverSystem({
+            displayName,
+            plan,
+            model,
+            prefs,
+            langHint: hints?.language || 'en',
+            speed,
+            region: 'Cross River / Calabar'
+        });
+    }
+
+    const ngRegion = matchNigeriaRegion(t);
+    if (ngRegion) {
+        return buildNigeriaStateSystem({
+            displayName,
+            plan,
+            model,
+            prefs,
+            langHint: hints?.language || 'en',
+            speed,
+            state: ngRegion.state,
+            city: ngRegion.city ?? null
+        });
+    }
+
+    if (/\b(unical|university of calabar|unical\.edu\.ng)\b/i.test(t)) {
+        return buildCRUniversitiesSystem({
+            displayName,
+            plan,
+            model,
+            prefs,
+            langHint: hints?.language || 'en',
+            speed,
+            uni: 'UNICAL'
+        });
+    }
+    if (/\b(unicross|crutech|university of cross river state|unicross\.edu\.ng|crutech\.edu\.ng)\b/i.test(t)) {
+        return buildCRUniversitiesSystem({
+            displayName,
+            plan,
+            model,
+            prefs,
+            langHint: hints?.language || 'en',
+            speed,
+            uni: 'UNICROSS'
+        });
+    }
+
 
     // Fallback (universal helper)
     return buildUniversalSystem({
