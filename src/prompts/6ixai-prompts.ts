@@ -42,6 +42,9 @@ import { buildCrossRiverSystem } from './systems/crossriver';
 import { buildNigeriaStateSystem } from './systems/nigeria';
 import { buildCRUniversitiesSystem } from './systems/universities-crs';
 import { buildNigeriaUniversitiesSystem } from './systems/universities-ng';
+import { buildPrimaryEducationSystem } from './systems/primary';
+import { buildCrecheSystem } from './systems/creche';
+import { buildNigeriaDJsSystem } from './systems/djs-ng';
 
 // ----------------------- shared types & helpers -----------------------
 export type Mood = 'neutral' | 'stressed' | 'sad' | 'angry' | 'excited';
@@ -284,6 +287,102 @@ function pickDomainSystem(opts: {
         });
     }
 
+    // Primary Education (Nigeria-wide & Global) — search-first; house pick
+    // Triggers on primary/elementary/grade-year terms + school/curriculum/lesson context
+    if (
+        /\b(primary|basic\s*[1-6]|elementary|grade\s*[1-6]|year\s*[1-6]|ks1|key\s*stage\s*1|ks2|key\s*stage\s*2|nursery|reception|kg)\b/i.test(t) &&
+        /\b(school|curriculum|scheme\s*of\s*work|syllabus|lesson|plan|timetable|calendar|fees?|admission|enrol|enroll|assessment|phonics|reading|numeracy|maths|science|social\s*studies|ict)\b/i.test(t)
+    ) {
+        // Scope to Nigeria states if present (reuses your matchNigeriaRegion helper if available)
+        const ngRegion = typeof matchNigeriaRegion === 'function' ? matchNigeriaRegion(t) : null;
+
+        const region: 'Nigeria' | 'Global' =
+            ngRegion || /\bnigeria\b/i.test(t) ? 'Nigeria' : 'Global';
+
+        // Rough curriculum inference from text
+        const curriculum =
+            /\bubec|subeb|basic\s*[1-6]\b/i.test(t) ? 'UBEC (Nigeria Basic 1–6)' as const :
+                /\bks1|ks2|key\s*stage|eyfs|phonics\s*screen/i.test(t) ? 'British (EYFS/KS1/KS2)' as const :
+                    /\bcommon\s*core|ngss|k[-\s]?5\b/i.test(t) ? 'US (K–5 Common Core + NGSS)' as const :
+                        /\bib\s*pyp\b/i.test(t) ? 'IB PYP' as const :
+                            /\bmontessori\b/i.test(t) ? 'Montessori' as const :
+                                null;
+
+        // Rough grade inference
+        const grade =
+            (t.match(/\b(grade|year)\s*([1-6])\b/i)?.[0] ||
+                (/\bbasic\s*[1-6]\b/i.test(t) ? t.match(/\bbasic\s*[1-6]\b/i)![0] : null) ||
+                (/\bks1|ks2|reception|nursery|kg\b/i.test(t) ? 'KS1/KS2 or Early Years' : null)) || null;
+
+        // Rough subject inference
+        const subject =
+            /\bphonics|reading|literacy|spelling\b/i.test(t) ? 'Literacy/Phonics' :
+                /\bmath(s|ematics)|numeracy|arithmetic\b/i.test(t) ? 'Mathematics' :
+                    /\bscience\b/i.test(t) ? 'Science' :
+                        /\bsocial\s*studies\b/i.test(t) ? 'Social Studies' :
+                            /\bict|comput(er|ing)\b/i.test(t) ? 'ICT' :
+                                /\bart|music\b/i.test(t) ? 'Art/Music' :
+                                    null;
+
+        return buildPrimaryEducationSystem({
+            displayName,
+            plan,
+            model,
+            prefs,
+            langHint: hints?.language || 'en',
+            speed,
+            region,
+            country: region === 'Nigeria' ? 'Nigeria' : (hints?.location ?? null),
+            state: ngRegion?.state || null,
+            city: ngRegion?.city || null,
+            curriculum,
+            grade,
+            subject
+        });
+    }
+
+    // Crèche / Nursery / Daycare — search-first; house pick
+    if (
+        /\b(cr[èe]che|creche|day\s*care|daycare|nurser(?:y|ies)|pre[-\s]?school|pre[-\s]?k|early\s*years|eyfs|eccde)\b/i.test(t) &&
+        /\b(enrol|enroll|admission|fees?|price|tuition|opening|hours|ratio|staff|qualification|policy|safeguard|safeguarding|menu|meal|allergen|sleep|nap|routine|schedule|calendar|inspection|license|licen[cs]e|registration|curriculum|lesson|activities|supply|supplies|pickup|drop[-\s]?off|transport)\b/i.test(t)
+    ) {
+        const ngRegion = typeof matchNigeriaRegion === 'function' ? matchNigeriaRegion(t) : null;
+        const region: 'Nigeria' | 'Global' = (ngRegion || /\bnigeria\b/i.test(t)) ? 'Nigeria' : 'Global';
+
+        // Age band inference
+        const ageBand =
+            /\b(0|zero)[-\s]?(to|–|—)?\s*12\s*(months|m)\b/i.test(t) ? '0–12 months (Infant)' as const :
+                /\b(1|one)[-\s]?(to|–|—)?\s*2\s*(years|y)\b/i.test(t) ? '1–2 years (Toddler)' as const :
+                    /\b(2|two)[-\s]?(to|–|—)?\s*3\s*(years|y)\b/i.test(t) ? '2–3 years (Toddler+)' as const :
+                        /\b(3|three)[-\s]?(to|–|—)?\s*5\s*(years|y)|pre[-\s]?k|pre[-\s]?school\b/i.test(t) ? '3–5 years (Pre-K)' as const :
+                            null;
+
+        // Curriculum inference
+        const curriculum =
+            /\beccde|subeb\b/i.test(t) ? 'ECCDE (Nigeria)' as const :
+                /\beyfs|ofsted\b/i.test(t) ? 'British EYFS' as const :
+                    /\bhead\s*start|pre[-\s]?k|state\s*licensing\b/i.test(t) ? 'US Pre-K / Head Start' as const :
+                        /\bmontessori\b/i.test(t) ? 'Montessori' as const :
+                            /\breggio\b/i.test(t) ? 'Reggio Emilia' as const :
+                                null;
+
+        return buildCrecheSystem({
+            displayName,
+            plan,
+            model,
+            prefs,
+            langHint: hints?.language || 'en',
+            speed,
+            region,
+            country: region === 'Nigeria' ? 'Nigeria' : (hints?.location ?? null),
+            state: ngRegion?.state || null,
+            city: ngRegion?.city || null,
+            ageBand: ageBand ?? undefined,
+            curriculum: curriculum ?? undefined
+        });
+    }
+
+
     // --- Education (general) ---
     if (/\b(lesson|study plan|homework|exam|test|assignment|curriculum|syllabus|practice|physics|chemistry|biology|maths?|government|history|economics|literature|cv|resume|thesis|proposal|lab report)\b/.test(t)) {
         return buildEducationSystemV2({
@@ -455,6 +554,53 @@ function pickDomainSystem(opts: {
             speed,
         });
     }
+
+    // Nigeria DJs & DJ Associations — search-first; social handle extraction
+    if (
+        /\b(dj|disc\s*jockey|turntabl(?:e|ist)|mixtape|mixcloud|audiomack|soundcloud|setlist|club\s*night|club\s*dj|booking|rider|controller|rekordbox|serato|traktor)\b/i.test(t) ||
+        /\b(djan|djs?\s*association\s*of\s*nigeria|nigeria\s*dj\s*association|dj\s*union|chapter|state\s*chapter)\b/i.test(t)
+    ) {
+        // Light region inference (reuse your Nigeria match helper if present)
+        const ngRegion = typeof matchNigeriaRegion === 'function' ? matchNigeriaRegion(t) : null;
+
+        // Topic inference
+        const topic =
+            /\b(association|chapter|union|djan)\b/i.test(t) ? 'Associations' as const :
+                /\b(rate|fee|booking|invoice|contract)\b/i.test(t) ? 'Bookings & Rates' as const :
+                    /\b(event|club|lineup|bill|set|residenc(y|ies))\b/i.test(t) ? 'Events & Club Nights' as const :
+                        /\b(gear|shop|controller|mixer|headphone|cartridge|needle)\b/i.test(t) ? 'Gear & Shops' as const :
+                            /\b(manager|agency|agent|bookings?\s*email)\b/i.test(t) ? 'Managers/Agencies' as const :
+                                /\b(chart|award|headies|afrimm?a|neaa?)\b/i.test(t) ? 'Charts & Awards' as const :
+                                    /\b(playlist|mixtape|mixcloud|soundcloud|audiomack|youtube)\b/i.test(t) ? 'Mixtapes/Playlists' as const :
+                                        /\b(radio|tv|show|programme|schedule)\b/i.test(t) ? 'Radio/TV Shows' as const :
+                                            /\b(news|trending|headline|press)\b/i.test(t) ? 'News/Trending' as const :
+                                                'DJs Directory' as const;
+
+        // Genre inference
+        const genre =
+            /\bamapiano\b/i.test(t) ? 'Amapiano' :
+                /\bafro(beats?)\b/i.test(t) ? 'Afrobeats' :
+                    /\bhip[-\s]?hop|trap\b/i.test(t) ? 'Hip-Hop/Trap' :
+                        /\b(edm|house|techno|electro)\b/i.test(t) ? 'House/EDM' :
+                            /\balte\b/i.test(t) ? 'Alte' :
+                                /\bdancehall|reggae\b/i.test(t) ? 'Dancehall' :
+                                    /\bhighlife\b/i.test(t) ? 'Highlife' :
+                                        null;
+
+        return buildNigeriaDJsSystem({
+            displayName,
+            plan,
+            model,
+            prefs,
+            langHint: hints?.language || 'en',
+            speed,
+            region: ngRegion?.state || 'All Nigeria',
+            city: ngRegion?.city || null,
+            genre,
+            topic
+        });
+    }
+
 
     // Entertainment trigger (events, tickets, showtimes, news, creative)
     if (/\b(ticket|tickets|concert|showtime|cinema|movie|series|premiere|festival|gig|event|lineup|setlist|backstage|celebrity|entertainment|red\s*carpet|streaming|ott|box\s*office|afrobeats|nollywood|hollywood|bollywood|k[-\s]?pop|calabar|cross\s*river|lagos|nigeria)\b/i.test(t)) {
