@@ -52,6 +52,7 @@ import { buildUsaidHealthSystem } from './systems/usaid-health';
 import { buildIdentitySystem } from './systems/identity';
 import { buildFindMeSystem } from './systems/findme';
 import { buildComedySkitSystem } from './systems/comedy-skit';
+import { buildArtistsDirectorySystem } from './systems/artists-directory';
 
 // ----------------------- shared types & helpers -----------------------
 export type Mood = 'neutral' | 'stressed' | 'sad' | 'angry' | 'excited';
@@ -919,6 +920,54 @@ function pickDomainSystem(opts: {
             speed,
         });
     }
+
+    // Musicians Directory — Top / Emerging / Upcoming (region-aware)
+    if (
+        // directory/listing intents
+        /\b(top|best|hot|emerging|upcoming|new)\s+(artists?|musicians|singers|rappers|bands)\b/i.test(t) ||
+        /\b(list|rank|ranking|who\s+are\s+the)\s+(artists?|musicians)\b/i.test(t) ||
+        // region-scoped artist queries
+        /\b(artists?|musicians|singers|rappers)\s+(in|from)\s+[a-z\s\-\(\)]+/i.test(t)
+    ) {
+        // Simple geo inference for Nigeria contexts
+        const isNigeria = /\bnigeria(n)?\b/i.test(t);
+        const state =
+            /\bcross\s*river\b/i.test(t) ? 'Cross River'
+                : /\blagos\b/i.test(t) ? 'Lagos'
+                    : /\babuja|fct\b/i.test(t) ? 'FCT (Abuja)'
+                        : null;
+        const city =
+            /\bcalabar\b/i.test(t) ? 'Calabar'
+                : /\blagos\b/i.test(t) ? 'Lagos'
+                    : /\babuja\b/i.test(t) ? 'Abuja'
+                        : null;
+
+        // Status preference from text
+        const status =
+            /\btop|best|hot\b/i.test(t) ? 'Top'
+                : /\bemerging|breakout\b/i.test(t) ? 'Emerging'
+                    : /\bupcoming|new\b/i.test(t) ? 'Upcoming'
+                        : 'Emerging';
+
+        // Genre hint if mentioned
+        const genreMatch = t.match(/\b(afrobeats|amapiano|highlife|gospel|hip[-\s]?hop|rap|r&b|soul|pop|rock|alte|edm|afro[-\s]?fusion|traditional)\b/i);
+        const genre = genreMatch ? genreMatch[0] : 'Any';
+
+        return buildArtistsDirectorySystem({
+            displayName,
+            plan,
+            model,
+            prefs,
+            langHint: hints?.language || 'en',
+            speed,
+            country: isNigeria ? 'Nigeria' : (hints?.location ?? 'Nigeria'),
+            state,
+            city,
+            status: status as any,
+            genre
+        });
+    }
+
 
     // Music trigger (songwriting, cover art, vocals, release)
     if (/\b(music|song|lyrics|hook|chorus|bridge|verse|beat|bpm|key\s*[A-G][#b]?|choir|satb|lead\s*sheet|chords?|nashville|roman\s*numerals|arrange|producer|mix|master|cover\s*art|album\s*art|single\s*cover|release|spotify|apple\s*music|distro|vocal|sing|autotune|sheet\s*music|piano|guitar|tabs?)\b/i.test(t)) {
