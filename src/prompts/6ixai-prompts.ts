@@ -48,6 +48,7 @@ import { buildNigeriaDJsSystem } from './systems/djs-ng';
 import { buildArtistsRegionSystem } from './systems/artists-region';
 import { buildMusicLyricsSystem } from './systems/music-lyrics';
 import { buildMusicSongwriterSystem } from './systems/music-songwriter';
+import { buildUsaidHealthSystem } from './systems/usaid-health';
 
 // ----------------------- shared types & helpers -----------------------
 export type Mood = 'neutral' | 'stressed' | 'sad' | 'angry' | 'excited';
@@ -451,6 +452,94 @@ function pickDomainSystem(opts: {
             speed,
         });
     }
+
+    // USAID / Global Health Programs — program info (HIV/AIDS, TB, Malaria, NCDs, RI, RMNCH, WASH, Nutrition)
+    if (
+        // Agency keywords
+        /\b(usaid|pepfar|who|unicef|unaids|global\s*fund|cdc|world\s*bank)\b/i.test(t) &&
+        // Programmatic terms (avoid pure symptom-only asks)
+        /\b(program|project|guideline|policy|strategy|framework|facility|site|service|art|prep|pmtct|viral\s*load|tb\s*dots|malaria|immuni[sz]ation|ri|campaign|partner|implementer|grant|rfp|solicitation|mechanism|pr|sr|ip|indicator|mer|cop|dashboard|dhis2|ndr|funding|budget|hotline|helpdesk)\b/i.test(t)
+    ) {
+        // Light Nigeria state inference if user mentions any
+        const ngState =
+            /\bcross\s*river\b/i.test(t) ? 'Cross River' :
+                /\babia\b/i.test(t) ? 'Abia' :
+                    /\badamawa\b/i.test(t) ? 'Adamawa' :
+                        /\bakwa\s*ibom\b/i.test(t) ? 'Akwa Ibom' :
+                            /\banambra\b/i.test(t) ? 'Anambra' :
+                                /\bbauchi\b/i.test(t) ? 'Bauchi' :
+                                    /\bbayelsa\b/i.test(t) ? 'Bayelsa' :
+                                        /\bbenue\b/i.test(t) ? 'Benue' :
+                                            /\bborno\b/i.test(t) ? 'Borno' :
+                                                /\bdelta\b/i.test(t) ? 'Delta' :
+                                                    /\bebonyi\b/i.test(t) ? 'Ebonyi' :
+                                                        /\bedo\b/i.test(t) ? 'Edo' :
+                                                            /\bekiti\b/i.test(t) ? 'Ekiti' :
+                                                                /\benugu\b/i.test(t) ? 'Enugu' :
+                                                                    /\bgombe\b/i.test(t) ? 'Gombe' :
+                                                                        /\bimo\b/i.test(t) ? 'Imo' :
+                                                                            /\bjigawa\b/i.test(t) ? 'Jigawa' :
+                                                                                /\bkaduna\b/i.test(t) ? 'Kaduna' :
+                                                                                    /\bkano\b/i.test(t) ? 'Kano' :
+                                                                                        /\bkatsina\b/i.test(t) ? 'Katsina' :
+                                                                                            /\bkebbi\b/i.test(t) ? 'Kebbi' :
+                                                                                                /\bkogi\b/i.test(t) ? 'Kogi' :
+                                                                                                    /\bkwara\b/i.test(t) ? 'Kwara' :
+                                                                                                        /\blagos\b/i.test(t) ? 'Lagos' :
+                                                                                                            /\bnasarawa\b/i.test(t) ? 'Nasarawa' :
+                                                                                                                /\bniger\b/i.test(t) ? 'Niger' :
+                                                                                                                    /\bogun\b/i.test(t) ? 'Ogun' :
+                                                                                                                        /\bondo\b/i.test(t) ? 'Ondo' :
+                                                                                                                            /\bosun\b/i.test(t) ? 'Osun' :
+                                                                                                                                /\boyo\b/i.test(t) ? 'Oyo' :
+                                                                                                                                    /\bplateau\b/i.test(t) ? 'Plateau' :
+                                                                                                                                        /\brivers\b/i.test(t) ? 'Rivers' :
+                                                                                                                                            /\bsokoto\b/i.test(t) ? 'Sokoto' :
+                                                                                                                                                /\btaraba\b/i.test(t) ? 'Taraba' :
+                                                                                                                                                    /\byobe\b/i.test(t) ? 'Yobe' :
+                                                                                                                                                        /\bzamfara\b/i.test(t) ? 'Zamfara' :
+                                                                                                                                                            /\babuja|fct\b/i.test(t) ? 'FCT (Abuja)' :
+                                                                                                                                                                null;
+
+        // Agency inference
+        const agency =
+            /\bpepfar\b/i.test(t) ? 'PEPFAR' :
+                /\bwho\b/i.test(t) ? 'WHO' :
+                    /\bunicef\b/i.test(t) ? 'UNICEF' :
+                        /\bunaids\b/i.test(t) ? 'UNAIDS' :
+                            /\bglobal\s*fund\b/i.test(t) ? 'Global Fund' :
+                                /\bcdc\b/i.test(t) ? 'CDC' :
+                                    /\bworld\s*bank\b/i.test(t) ? 'World Bank' :
+                                        'USAID';
+
+        // Domain inference
+        const domain =
+            /\bhiv|aids|prep|art|pmtct|viral\s*load|vl\b/i.test(t) ? 'HIV/AIDS' as const :
+                /\btb\b/i.test(t) ? 'TB' as const :
+                    /\bmalaria\b/i.test(t) ? 'Malaria' as const :
+                        /\bimmuni[sz]ation|ri|vaccine\b/i.test(t) ? 'Immunization' as const :
+                            /\brmnch|maternal|newborn|child|adolescent|family\s*planning|fp\b/i.test(t) ? 'RMNCH' as const :
+                                /\bwash|water|sanitation|hygiene\b/i.test(t) ? 'WASH' as const :
+                                    /\bnutrition|stunting|wasting|micronutrient\b/i.test(t) ? 'Nutrition' as const :
+                                        /\bcancer|oncology|ncd|hypertension|diabetes\b/i.test(t) ? 'Cancer/NCDs' as const :
+                                            /\bhealth\s*system|supply\s*chain|hrh|emr|his|m&e\b/i.test(t) ? 'Health Systems' as const :
+                                                'HIV/AIDS' as const;
+
+        return buildUsaidHealthSystem({
+            displayName,
+            plan,
+            model,
+            prefs,
+            langHint: hints?.language || 'en',
+            speed,
+            agency,
+            domain,
+            country: /\bnigeria\b/i.test(t) ? 'Nigeria' : (hints?.location ?? 'Nigeria'),
+            state: ngState,
+            city: null
+        });
+    }
+
 
     // Medical / health education trigger
     if (/\b(medical|health|symptom|diagnos(e|is)|fever|cough|rash|pain|injury|vaccine|screening|guideline|lab(s)?|blood test|imaging|x-?ray|ecg|ekg|mri|ct|pregnan|anxiety|depress|first aid|triage)\b/i.test(t)) {
