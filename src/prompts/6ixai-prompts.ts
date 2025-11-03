@@ -52,7 +52,8 @@ import { buildUsaidHealthSystem } from './systems/usaid-health';
 import { buildIdentitySystem } from './systems/identity';
 import { buildFindMeSystem } from './systems/findme';
 import { buildComedySkitSystem } from './systems/comedy-skit';
-import { buildArtistsDirectorySystem } from './systems/artists-directory';
+import { buildArtistsDirectoryWebSystem } from './systems/artists-directory';
+import { buildComediansDirectorySystem } from './systems/comedians-directory';
 
 // ----------------------- shared types & helpers -----------------------
 export type Mood = 'neutral' | 'stressed' | 'sad' | 'angry' | 'excited';
@@ -921,7 +922,7 @@ function pickDomainSystem(opts: {
         });
     }
 
-    // Musicians Directory — Top / Emerging / Upcoming (region-aware)
+    // Musicians Directory — Top / Emerging / Upcoming (region-aware, WEB-SOURCED ONLY)
     if (
         // directory/listing intents
         /\b(top|best|hot|emerging|upcoming|new)\s+(artists?|musicians|singers|rappers|bands)\b/i.test(t) ||
@@ -929,7 +930,6 @@ function pickDomainSystem(opts: {
         // region-scoped artist queries
         /\b(artists?|musicians|singers|rappers)\s+(in|from)\s+[a-z\s\-\(\)]+/i.test(t)
     ) {
-        // Simple geo inference for Nigeria contexts
         const isNigeria = /\bnigeria(n)?\b/i.test(t);
         const state =
             /\bcross\s*river\b/i.test(t) ? 'Cross River'
@@ -942,18 +942,16 @@ function pickDomainSystem(opts: {
                     : /\babuja\b/i.test(t) ? 'Abuja'
                         : null;
 
-        // Status preference from text
         const status =
             /\btop|best|hot\b/i.test(t) ? 'Top'
                 : /\bemerging|breakout\b/i.test(t) ? 'Emerging'
                     : /\bupcoming|new\b/i.test(t) ? 'Upcoming'
                         : 'Emerging';
 
-        // Genre hint if mentioned
         const genreMatch = t.match(/\b(afrobeats|amapiano|highlife|gospel|hip[-\s]?hop|rap|r&b|soul|pop|rock|alte|edm|afro[-\s]?fusion|traditional)\b/i);
         const genre = genreMatch ? genreMatch[0] : 'Any';
 
-        return buildArtistsDirectorySystem({
+        return buildArtistsDirectoryWebSystem({
             displayName,
             plan,
             model,
@@ -1148,6 +1146,58 @@ function pickDomainSystem(opts: {
             framework: 'IFRS', // or 'US GAAP' per region
         });
     }
+
+    // Comedians Directory — Top / Emerging / Upcoming (region-aware)
+    if (
+        // directory/listing intents
+        /\b(top|best|hot|emerging|upcoming|new)\s+(comedians?|skit\s*makers?|comic(s)?|stand[-\s]?ups?)\b/i.test(t) ||
+        /\b(list|rank|ranking|who\s+are\s+the)\s+(comedians?|skit\s*makers?)\b/i.test(t) ||
+        // region-scoped comedian queries
+        /\b(comedians?|skit\s*makers?)\s+(in|from)\s+[a-z\s\-\(\)]+/i.test(t)
+    ) {
+        const isNigeria = /\bnigeria(n)?\b/i.test(t);
+        const state =
+            /\bcross\s*river\b/i.test(t) ? 'Cross River'
+                : /\blagos\b/i.test(t) ? 'Lagos'
+                    : /\babuja|fct\b/i.test(t) ? 'FCT (Abuja)'
+                        : null;
+        const city =
+            /\bcalabar\b/i.test(t) ? 'Calabar'
+                : /\blagos\b/i.test(t) ? 'Lagos'
+                    : /\babuja\b/i.test(t) ? 'Abuja'
+                        : null;
+
+        const status =
+            /\btop|best|hot\b/i.test(t) ? 'Top'
+                : /\bemerging|breakout\b/i.test(t) ? 'Emerging'
+                    : /\bupcoming|new\b/i.test(t) ? 'Upcoming'
+                        : 'Emerging';
+
+        const styleMatch = t.match(/\b(stand[-\s]?up|skit\s*maker|mc|host|improv|sketch)\b/i);
+        const style =
+            styleMatch?.[0]?.toLowerCase().includes('stand') ? 'Stand-up'
+                : styleMatch?.[0]?.toLowerCase().includes('skit') ? 'Skit Maker'
+                    : styleMatch?.[0]?.toLowerCase().includes('mc') ||
+                        styleMatch?.[0]?.toLowerCase().includes('host') ? 'MC/Host'
+                        : styleMatch?.[0]?.toLowerCase().includes('improv') ? 'Improv'
+                            : styleMatch?.[0]?.toLowerCase().includes('sketch') ? 'Sketch'
+                                : 'Any';
+
+        return buildComediansDirectorySystem({
+            displayName,
+            plan,
+            model,
+            prefs,
+            langHint: hints?.language || 'en',
+            speed,
+            country: isNigeria ? 'Nigeria' : (hints?.location ?? 'Nigeria'),
+            state,
+            city,
+            status: status as any,
+            style
+        });
+    }
+
 
     // Comedy Skit Writer — Pidgin / English / Bilingual
     if (
