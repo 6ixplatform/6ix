@@ -50,6 +50,8 @@ import { buildMusicLyricsSystem } from './systems/music-lyrics';
 import { buildMusicSongwriterSystem } from './systems/music-songwriter';
 import { buildUsaidHealthSystem } from './systems/usaid-health';
 import { buildIdentitySystem } from './systems/identity';
+import { buildFindMeSystem } from './systems/findme';
+import { buildComedySkitSystem } from './systems/comedy-skit';
 
 // ----------------------- shared types & helpers -----------------------
 export type Mood = 'neutral' | 'stressed' | 'sad' | 'angry' | 'excited';
@@ -258,6 +260,8 @@ function pickDomainSystem(opts: {
 }) {
     const { userText, displayName, plan, model, speed, prefs, hints } = opts;
     const t = (userText || '').toLowerCase();
+
+
     // Identity / Name questions
     if (
         /\b(what(?:'s|\s+is)\s*your\s*name|your\s*name\??|who\s*are\s*you\??|how\s*can\s*i\s*call\s*you\??|what\s*should\s*i\s*call\s*you\??|do\s*you\s*have\s*a\s*name\??)\b/i.test(t)
@@ -271,6 +275,49 @@ function pickDomainSystem(opts: {
             speed
         });
     }
+
+    // Find-Me / Nearby & Safety Navigator
+    if (
+        // direct "where am I" / "near me"
+        /\b(where\s+am\s+i|near\s+me|around\s+me|nearest|closest|find\s+me)\b/i.test(t) ||
+        // safety & directions intents
+        /\b(is\s+(this|that|area|place|neighbourhood|neighborhood)\s+safe|safety\s+check|dangerous|notorious|how\s+do\s+i\s+leave|get\s+out|directions\s+out)\b/i.test(t) ||
+        // local wants (hotel/food/bank/transport/clinic)
+        /\b(hotel|restaurant|food|bank|atm|bus|terminal|transport|fuel|pharmacy|hospital|clinic|police|market|mall|park|landmark)\b/i.test(t) ||
+        // city/state info
+        /\b(city\s+info|state\s+info|what\s+to\s+do|where\s+to\s+go|good\s+food|best\s+restaurant|banks?\s+location|tourism|things\s+to\s+do)\b/i.test(t)
+    ) {
+        // Light Nigeria state/city inference
+        const state =
+            /\bcross\s*river\b/i.test(t) ? 'Cross River' :
+                /\bcalabar\b/i.test(t) ? 'Cross River' :
+                    /\blagos\b/i.test(t) ? 'Lagos' :
+                        /\babuja|fct\b/i.test(t) ? 'FCT (Abuja)' :
+                            null;
+        const city =
+            /\bcalabar\b/i.test(t) ? 'Calabar' :
+                /\blagos\b/i.test(t) ? 'Lagos' :
+                    /\babuja\b/i.test(t) ? 'Abuja' :
+                        null;
+
+        // If your host app captures GPS, pass it via hints -> here you'd thread it in.
+        const gps = null as any; // replace by your runtime if available
+
+        return buildFindMeSystem({
+            displayName,
+            plan,
+            model,
+            prefs,
+            langHint: hints?.language || 'en',
+            speed,
+            country: /\bnigeria\b/i.test(t) ? 'Nigeria' : (hints?.location ?? 'Nigeria'),
+            state,
+            city,
+            gps
+        });
+    }
+
+
     // --- Kids priority if signaled / young age / kidMode ---
     if (
         (hints?.kidMode && hints.kidMode !== 'unknown') ||
@@ -1052,6 +1099,55 @@ function pickDomainSystem(opts: {
             framework: 'IFRS', // or 'US GAAP' per region
         });
     }
+
+    // Comedy Skit Writer — Pidgin / English / Bilingual
+    if (
+        // direct intent
+        /\b(comedy|skit|sketch|stand[-\s]?up|sitcom|spoof|parody|funny|hilarious)\b/i.test(t) ||
+        // pidgin-specific asks or signals
+        /\b(pidgin|naija\s*pidgin|broken\s*english)\b/i.test(t) ||
+        // common pidgin lexemes that often indicate pidgin scripting
+        /\b(wahala|abeg|no\s*wahala|wetin|oga|dey|sha|chop|waka|how\s*far)\b/i.test(t)
+    ) {
+        const wantBilingual =
+            /\b(bilingual|both|pidgin\s*and\s*english|english\s*and\s*pidgin)\b/i.test(t);
+        const wantPidgin =
+            /\b(pidgin|naija\s*pidgin|broken\s*english)\b/i.test(t);
+
+        const mode = wantBilingual ? 'Bilingual'
+            : wantPidgin ? 'Pidgin'
+                : 'English';
+
+        const style =
+            /\bstand[-\s]?up\b/i.test(t) ? 'Stand-up' as const :
+                /\bsitcom\b/i.test(t) ? 'Sitcom Scene' as const :
+                    /\b(spoof|parody)\b/i.test(t) ? 'Spoof/Parody' as const :
+                        /\bprank\b/i.test(t) ? 'Prank (safe)' as const :
+                            'Skit' as const;
+
+        const humor: ('Situational' | 'Slapstick' | 'Sarcastic' | 'Satire' | 'Wordplay' | 'Misunderstanding' | 'Deadpan' | 'Surprise/Callback')[] = [];
+        if (/\bslapstick\b/i.test(t)) humor.push('Slapstick');
+        if (/\bsarcastic|sarcasm\b/i.test(t)) humor.push('Sarcastic');
+        if (/\bsatire|satirical\b/i.test(t)) humor.push('Satire');
+        if (/\bwordplay|pun\b/i.test(t)) humor.push('Wordplay');
+        if (/\bmisunderstanding|mistaken\s*identity\b/i.test(t)) humor.push('Misunderstanding');
+        if (/\bdeadpan\b/i.test(t)) humor.push('Deadpan');
+        if (/\bcallback|surprise\b/i.test(t)) humor.push('Surprise/Callback');
+        if (humor.length === 0) humor.push('Situational', 'Wordplay');
+
+        return buildComedySkitSystem({
+            displayName,
+            plan,
+            model,
+            prefs,
+            langHint: wantPidgin || wantBilingual ? 'pcm' : (hints?.language || 'en'),
+            speed,
+            mode,
+            style,
+            humor
+        });
+    }
+
 
     // Acting / Theatre / Screenwriting / Production
     if (/\b(act(ing|or)|theatre|theater|stage|playwright|play\s*script|screenplay|script|scene|dialogue|dialog|monologue|audition|table\s*read|blocking|shot\s*list|storyboard|call\s*sheet|cast(?:ing)?)\b/i.test(t)) {
