@@ -54,6 +54,8 @@ import { buildFindMeSystem } from './systems/findme';
 import { buildComedySkitSystem } from './systems/comedy-skit';
 import { buildArtistsDirectoryWebSystem } from './systems/artists-directory';
 import { buildComediansDirectorySystem } from './systems/comedians-directory';
+import { buildBrand6ClementSystem } from './systems/brand-6clement';
+import { buildTourismCultureSystem } from './systems/tourism-culture';
 
 // ----------------------- shared types & helpers -----------------------
 export type Mood = 'neutral' | 'stressed' | 'sad' | 'angry' | 'excited';
@@ -278,6 +280,35 @@ function pickDomainSystem(opts: {
         });
     }
 
+    // Brand profile — 6clement Joshua (parent company)
+    if (
+        /\b(6clement\s*joshua(\s*group)?|6\s*clement\s*joshua)\b/i.test(t) ||
+        /\b(parent\s*company)\b/i.test(t) && /\b(6ix|6ixai|6ixapp|6ixmusic|6sing)\b/i.test(t) ||
+        /\b(who\s*(built|owns)\s*(you|6ix|6ixai|6ixapp|6ixmusic|6sing))\b/i.test(t)
+    ) {
+        // Optional view inference
+        const view =
+            /\b(product|brand|offer|service|suite|lineup)\b/i.test(t) ? 'Products' :
+                /\b(vision|mission|purpose|values)\b/i.test(t) ? 'Vision & Mission' :
+                    /\b(leadership|team|executive|ceo|founder)\b/i.test(t) ? 'Leadership' :
+                        /\b(csr|philanthropy|humanitarian|donation|charity)\b/i.test(t) ? 'CSR/Philanthropy' :
+                            /\b(press|news|interview|coverage)\b/i.test(t) ? 'Press' :
+                                /\b(timeline|history|milestone)\b/i.test(t) ? 'Timeline' :
+                                    /\b(contact|email|website)\b/i.test(t) ? 'Contact' :
+                                        'Overview';
+
+        return buildBrand6ClementSystem({
+            displayName,
+            plan,
+            model,
+            prefs,
+            langHint: hints?.language || 'en',
+            speed,
+            view: view as any
+        });
+    }
+
+
     // Find-Me / Nearby & Safety Navigator
     if (
         // direct "where am I" / "near me"
@@ -316,6 +347,62 @@ function pickDomainSystem(opts: {
             state,
             city,
             gps
+        });
+    }
+
+    // Tourism, Culture & Development — Nigeria 36 states + Global (web-sourced)
+    if (
+        // tourism & things-to-do
+        /\b(tourism|tourist|things?\s*to\s*do|what\s*to\s*do|places?\s*to\s*visit|attractions?|sights?)\b/i.test(t) ||
+        // events/carnival/culture/food
+        /\b(event(s)?|festival(s)?|carnival|culture|cultural|heritage|museum|gallery|craft|cuisine|food|restaurant(s)?)\b/i.test(t) ||
+        // itinerary & stays
+        /\b(itinerary|day\s*trip|weekend|hotel(s)?|lodge|resort|stay|accommodation)\b/i.test(t) ||
+        // transport & safety
+        /\b(getting\s*(there|around)|transport|bus|terminal|airport|e[-\s]?hailing|uber|bolt|indrive|safety|advisory|is\s+it\s+safe)\b/i.test(t) ||
+        // development/investment
+        /\b(tourism\s*development|destination\s*marketing|project|budget|ppp|investment)\b/i.test(t)
+    ) {
+        const isNigeria = /\bnigeria(n)?\b/i.test(t);
+        const state =
+            /\bcross\s*river\b/i.test(t) ? 'Cross River'
+                : /\blagos\b/i.test(t) ? 'Lagos'
+                    : /\babuja|fct\b/i.test(t) ? 'FCT (Abuja)'
+                        : null;
+        const city =
+            /\bcalabar\b/i.test(t) ? 'Calabar'
+                : /\blagos\b/i.test(t) ? 'Lagos'
+                    : /\babuja\b/i.test(t) ? 'Abuja'
+                        : null;
+
+        // Optional topic inference
+        const topic =
+            /\bcarnival|festival|event(s)?\b/i.test(t) ? 'Events/Festivals'
+                : /\b(attraction|sight|place\s*to\s*visit)\b/i.test(t) ? 'Attractions'
+                    : /\b(culture|heritage|museum|gallery|craft)\b/i.test(t) ? 'Culture/Heritage'
+                        : /\b(food|cuisine|restaurant)\b/i.test(t) ? 'Food'
+                            : /\b(hotel|stay|resort|lodge|accommodation)\b/i.test(t) ? 'Stays'
+                                : /\b(itinerary|day\s*trip|weekend|plan)\b/i.test(t) ? 'Itinerary'
+                                    : /\b(safety|advisory|danger|notorious)\b/i.test(t) ? 'Safety'
+                                        : /\b(getting\s*(there|around)|transport|bus|airport|uber|bolt|indrive)\b/i.test(t) ? 'Getting There/Around'
+                                            : /\b(development|project|budget|ppp)\b/i.test(t) ? 'Tourism Development'
+                                                : /\b(investment|investor|opportunity)\b/i.test(t) ? 'Investment'
+                                                    : 'Auto';
+
+        return buildTourismCultureSystem({
+            displayName,
+            plan,
+            model,
+            prefs,
+            langHint: hints?.language || 'en',
+            speed,
+            country: isNigeria ? 'Nigeria' : (hints?.location ?? 'Nigeria'),
+            state,
+            city,
+            gps: null, // pass runtime GPS if available
+            topic: topic as any,
+            start_date: null,
+            end_date: null
         });
     }
 
