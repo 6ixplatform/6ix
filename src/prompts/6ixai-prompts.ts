@@ -49,6 +49,7 @@ import { buildArtistsRegionSystem } from './systems/artists-region';
 import { buildMusicLyricsSystem } from './systems/music-lyrics';
 import { buildMusicSongwriterSystem } from './systems/music-songwriter';
 import { buildUsaidHealthSystem } from './systems/usaid-health';
+import { buildIdentitySystem } from './systems/identity';
 
 // ----------------------- shared types & helpers -----------------------
 export type Mood = 'neutral' | 'stressed' | 'sad' | 'angry' | 'excited';
@@ -257,7 +258,19 @@ function pickDomainSystem(opts: {
 }) {
     const { userText, displayName, plan, model, speed, prefs, hints } = opts;
     const t = (userText || '').toLowerCase();
-
+    // Identity / Name questions
+    if (
+        /\b(what(?:'s|\s+is)\s*your\s*name|your\s*name\??|who\s*are\s*you\??|how\s*can\s*i\s*call\s*you\??|what\s*should\s*i\s*call\s*you\??|do\s*you\s*have\s*a\s*name\??)\b/i.test(t)
+    ) {
+        return buildIdentitySystem({
+            displayName,
+            plan,
+            model,
+            prefs,
+            langHint: hints?.language || 'en',
+            speed
+        });
+    }
     // --- Kids priority if signaled / young age / kidMode ---
     if (
         (hints?.kidMode && hints.kidMode !== 'unknown') ||
