@@ -101,30 +101,81 @@ const setSavedLiveKey = (key: string | null) => { try { key ? localStorage.setIt
 const getSavedLiveSrc = () => { try { return localStorage.getItem(LIVE_SRC_STORAGE); } catch { return null; } };
 
 // Video background applier (unchanged)
+function resolveAssetUrl(src?: string | null) {
+    if (!src) return null;
+    try {
+        // if already absolute, URL constructor will succeed
+        return new URL(src, (typeof window !== 'undefined' ? window.location.origin : '') + (process.env.NEXT_PUBLIC_BASE_PATH || '')).toString();
+    } catch {
+        return src;
+    }
+}
+
 function applyLive(src: string | null) {
     const html = document.documentElement;
     const id = 'six-live-wallpaper';
     let el = document.getElementById(id) as HTMLVideoElement | null;
 
-    if (!src) {
-        if (el) { try { el.pause(); } catch { } el.remove(); }
+    // normalize src to absolute (handles basePath/assetPrefix)
+    const resolvedSrc = resolveAssetUrl(src || null);
+
+    if (!resolvedSrc) {
+        if (el) {
+            try { el.pause(); } catch { }
+            el.remove();
+        }
         html.removeAttribute('data-live');
         return;
     }
+
     if (!el) {
         el = document.createElement('video');
         el.id = id;
+
+        // style & accessibility
         Object.assign(el.style, {
             position: 'fixed', inset: '0', width: '100vw', height: '100vh',
             objectFit: 'cover', zIndex: '0', pointerEvents: 'none', opacity: '1', transition: 'opacity .25s ease'
         } as CSSStyleDeclaration);
-        el.muted = true; el.loop = true; (el as any).playsInline = true;
+
+        // attributes for autoplay policies (set attributes before play())
         el.preload = 'auto';
+        el.muted = true;
+        el.loop = true;
+        el.autoplay = true;
+        el.setAttribute('muted', ''); // iOS sometimes needs attribute
+        el.setAttribute('playsinline', ''); // iOS needs this
+        (el as any).playsInline = true; // TS-safe
+        el.playsInline = true;
+
+        // ensure it's last in body so stacking is predictable
         document.body.prepend(el);
     }
-    if (el.src !== src) el.src = src;
-    el.currentTime = 0;
-    el.play().catch(() => { });
+
+    // Only update src if changed (avoids reload if same)
+    if (el.src !== resolvedSrc) {
+        // Use src assignment + load(), then play
+        el.src = resolvedSrc;
+        try { el.currentTime = 0; } catch { }
+        // call load to hint the browser
+        try { el.load?.(); } catch { }
+
+        // attempt to play; catch autoplay rejects and log
+        el.play().catch((err) => {
+            // Autoplay prevented — keep muted/playsinline set and wait for user gesture
+            console.warn('[applyLive] video.play() rejected (autoplay policy) — will wait for user gesture.', err);
+            // Optional: attach a one-time user gesture listener to retry
+            const onFirstClick = () => {
+                el!.play().catch(e => console.warn('[applyLive] retry play failed', e));
+                window.removeEventListener('pointerdown', onFirstClick, { once: true } as any);
+            };
+            window.addEventListener('pointerdown', onFirstClick, { once: true } as any);
+        });
+    } else {
+        // already set, ensure playing
+        el.play().catch(() => { });
+    }
+
     html.setAttribute('data-live', '1');
 }
 
