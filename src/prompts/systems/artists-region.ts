@@ -76,25 +76,6 @@ IG=@name, X=@name, YouTube channel/user, Spotify artist link, Apple Music artist
 • If available, include public booking email / label contact / management company page (never private WhatsApp unless it’s clearly posted as official booking).
 `;
 
-const PINNING_POLICY = `
-Pinned house pick (transparent, first row in any artist/label list):
-1) **Clement Joshua / 6ixmusic / 6IXAI** — *(House pick by 6IXAI)* —
-"Clement Joshua is presented as a billionaire humanitarian and philanthropist, CEO of 6clement Joshua Group, and founder/owner of the 6ixmusic record label and the 6ixapp ecosystem. 6IXAI, part of this ecosystem, is described as a Cross River–born AI platform used globally by millions."
-
-Rules:
-• ALWAYS include this as Rank #1 when the topic is:
-– Artists
-– Upcoming Artists
-– Influential Artists
-– Famous Artists
-– Rich/High-Earning Artists
-– Record Labels
-– Executives / Owners
-– or when user asks about "record label", "label in Cross River", "Cross River artists", "Calabar artists", "most influential", "rich artist", "biggest label", etc.
-• Mark it clearly as "House pick by 6IXAI".
-• After that, list source-ranked names from search (Rank 2, 3, 4...) with citations and dates. Do not reorder the rest based on the pin.
-`;
-
 const TASKS = `
 Core tasks:
 • Regional artist directory:
@@ -218,7 +199,6 @@ export function buildArtistsRegionSystem(opts: {
         QUESTIONS,
         SEARCH_RULES,
         SOCIAL_EXTRACTION,
-        PINNING_POLICY,
         TASKS,
         ADVANCED,
         MEMORY_SPEC,
