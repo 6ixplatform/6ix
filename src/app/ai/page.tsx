@@ -664,17 +664,21 @@ type ThemeMode = 'system' | 'light' | 'dark';
 
 function useMiniTheme(prefersDark: boolean) {
     const read = (): ThemeMode => {
-        try { return (localStorage.getItem('6ix:theme') as ThemeMode) || 'system'; } catch { return 'system'; }
+        try { return (localStorage.getItem('6ix:theme') as ThemeMode) || 'system'; }
+        catch { return 'system'; }
     };
-    const [theme, setTheme] = React.useState<ThemeMode>(read);
 
+    const [theme, setTheme] = React.useState<ThemeMode>(read);
     const resolvedDark = theme === 'dark' || (theme === 'system' && prefersDark);
 
     React.useEffect(() => {
         try { localStorage.setItem('6ix:theme', theme); } catch { }
-        const root = document.documentElement;
-
-
+        const html = document.documentElement; // or: document.querySelector('.th-scope')!
+        // Tailwind: add/remove 'dark' class
+        html.classList.toggle('dark', resolvedDark);
+        // CSS vars: use a data-attr or color-scheme
+        html.setAttribute('data-theme', resolvedDark ? 'dark' : 'light');
+        html.style.colorScheme = resolvedDark ? 'dark' : 'light';
     }, [theme, prefersDark, resolvedDark]);
 
     return { theme, setTheme, resolvedDark };
@@ -719,6 +723,14 @@ function ensureLiveVideo(src: string | null) {
 /* ---------- PAGE ---------- */
 function AIPageInner() {
     const router = useRouter();
+    const prefersDark = usePrefersDark();
+    // theme helpers: add near the other hooks in AIPageInner
+    const { theme, setTheme, resolvedDark } = useMiniTheme(prefersDark); // useMiniTheme already defined in the file
+
+    // control for the mini menu
+    const themeAnchorRef = React.useRef<HTMLElement | null>(null); // anchor for menu (can reuse avatarBtnRef if you prefer)
+    const [themeMenuOpen, setThemeMenuOpen] = React.useState(false);
+
     const [mounted, setMounted] = React.useState(false);
     const [assistantTurns, setAssistantTurns] = React.useState(0);
     const [authChecked, setAuthChecked] = useState(false);
@@ -3489,6 +3501,15 @@ function AIPageInner() {
                 scrollToBottom={scrollToBottom}
                 avatarFallback={AVATAR_FALLBACK}
             />
+
+{ /* Theme picker menu (anchor is themeAnchorRef) */ }
+<ThemeMiniMenu
+anchorRef={themeAnchorRef as MutableRefObject<HTMLElement | null>}
+open={themeMenuOpen}
+value={theme}
+onChange={(v) => setTheme(v)}
+onClose={() => setThemeMenuOpen(false)}
+/>
 
             {/* EMPTY STATE — tagline above orb */}
             {booted && messages.length === 0 && !streaming && (
