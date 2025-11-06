@@ -3,12 +3,10 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import VoiceCallModal from './voice/VoiceCallModal';
-import { prewarmAudioAndMic } from '@/lib/audio/prewarm';
 import STTLimitToast from './STTLimitToast';
 import { useLivePlan } from '@/lib/useLivePlan';
 import { VoiceRow } from './voice/VoiceCatalogPicker';
-import VoiceQuickPicker from './voice/VoiceQuickPicker';
+
 
 
 /* ----- Types ----- */
@@ -878,23 +876,6 @@ background: transparent !important;
 }
 
 `}</style>
-
-
-            {/* Voice quick picker (male/female or catalog by plan) */}
-            <VoiceQuickPicker
-                open={openPicker}
-                onClose={() => setOpenPicker(false)}
-                plan={plan}
-                onPick={(v) => { setPickedVoice(v); setOpenPicker(false); setOpenCall((prev) => prev || true); }}
-            />
-
-            {/* Fullscreen voice modal */}
-            <VoiceCallModal
-                open={openCall}
-                onClose={() => setOpenCall(false)}
-                plan={plan}
-                displayName={effectiveDisplayName}
-            />
 
             {/* STT free-plan limit toast */}
             <STTLimitToast
