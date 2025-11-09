@@ -284,6 +284,20 @@ export default function AppHeader({
                         <MusicPill className="w-full" />
                     </div>
 
+                    {/* Upgrade pill for free users (mobile) */}
+                    {effPlan === 'free' && (
+                        <button
+                            type="button"
+                            onClick={goUpgrade}
+                            title="Upgrade"
+                            aria-label="Upgrade to Pro"
+                            className="ml-2 h-6 px-2 rounded-full shadow-sm flex items-center justify-center"
+                            style={{ background: '#000000ff', color: '#ffffffff', fontWeight: 500 }}
+                        >
+                            Get Premium
+                        </button>
+                    )}
+                    
                     <button
                         ref={avatarBtnRef}
                         onClick={onAvatarClick}
@@ -308,6 +322,20 @@ export default function AppHeader({
 
                     <MusicPill className="w-auto" />
 
+                    {/* Upgrade pill for free users (desktop) */}
+                    {effPlan === 'free' && (
+                        <button
+                            type="button"
+                            onClick={goUpgrade}
+                            title="Upgrade"
+                            aria-label="Upgrade to Pro"
+                            className="ml-2 h-9 px-4 rounded-full shadow-sm flex items-center justify-center"
+                            style={{ background: '#FFD700', color: '#000', fontWeight: 700 }}
+                        >
+                            Get Premium
+                        </button>
+                    )}
+                    
                     <div className="flex items-center gap-2">
                         <Pill title="Your current plan">{effPlan}</Pill>
                         <Pill title="Model is tied to your plan">{displayModel}</Pill>
