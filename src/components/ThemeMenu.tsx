@@ -192,22 +192,24 @@ const useIsMobile = () => {
 
 /* ---------- NEW: scope helpers (apply only where `.th-scope` exists) ---------- */
 function findScope(): HTMLElement | null {
-    return document.querySelector<HTMLElement>('.th-scope');
+    // prefer .th-scope but fall back to documentElement so prod still gets theme
+    return document.querySelector<HTMLElement>('.th-scope') || document.documentElement;
 }
 function applyAccentToScope(hex: string) {
-    const scope = document.querySelector<HTMLElement>('.th-scope');
-    if (!scope) return;
+    const scope = findScope()!;
     scope.style.setProperty('--accent', hex);
     scope.style.setProperty('--accent-fg', contrastFG(hex));
     scope.style.setProperty('--accent-link', hex);
-    scope.style.setProperty('--page-bg', hex); // NEW: drives the page background
+    scope.style.setProperty('--page-bg', hex); // drives page background
+    // lightweight debug to confirm application in prod
+    if (process.env.NODE_ENV === 'production') console.debug('[ThemeMenu] applied accent to', scope === document.documentElement ? 'documentElement' : '.th-scope', hex);
 }
 function applyResolvedThemeToScope(resolved: 'light' | 'dark') {
-    const scope = findScope();
-    if (!scope) return;
+    const scope = findScope()!;
     scope.setAttribute('data-th', resolved);
     scope.classList.toggle('th-dark', resolved === 'dark');
     scope.classList.toggle('th-light', resolved === 'light');
+    if (process.env.NODE_ENV === 'production') console.debug('[ThemeMenu] applied theme to', scope === document.documentElement ? 'documentElement' : '.th-scope', resolved);
 }
 
 /* ---------- Component ---------- */

@@ -84,7 +84,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           imageSizes="(max-width: 600px) 600px, 1200px"
         />
       </head>
-      <body className="min-h-dvh antialiased">
+      <body className="min-h-dvh antialiased th-scope">
         <ThemeProvider>
           <ThemeBridge />
           <ThemeBoot />
