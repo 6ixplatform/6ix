@@ -294,7 +294,7 @@ export default function AppHeader({
                             className="ml-2 h-6 px-2 rounded-full shadow-sm flex items-center justify-center"
                             style={{ background: '#000000ff', color: '#ffffffff', fontWeight: 500 }}
                         >
-                            Get Premium
+                            Get unlimited
                         </button>
                     )}
                     
@@ -332,7 +332,7 @@ export default function AppHeader({
                             className="ml-2 h-9 px-4 rounded-full shadow-sm flex items-center justify-center"
                             style={{ background: '#FFD700', color: '#000', fontWeight: 700 }}
                         >
-                            Get Premium
+                            Get unlimited
                         </button>
                     )}
                     
