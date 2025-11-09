@@ -88,7 +88,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeProvider>
           <ThemeBridge />
           <ThemeBoot />
-          {children}
+          {/* theme scope for runtime theme/apply of CSS vars */}
+          <div className="th-scope">{children}</div>
         </ThemeProvider>
       </body>
     </html>
